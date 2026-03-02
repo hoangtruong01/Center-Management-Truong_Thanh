@@ -42,8 +42,8 @@ function IncidentDetailModal({
       setTimeout(() => {
         setSuccess(null);
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || "Có lỗi xảy ra");
+    } catch (err: unknown) {
+      setError((err as Error).message || "Có lỗi xảy ra");
     }
   };
 
@@ -51,7 +51,7 @@ function IncidentDetailModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4">
+        <div className="bg-linear-to-r from-orange-500 to-red-500 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
@@ -113,10 +113,10 @@ function IncidentDetailModal({
                   {incident.reporterRole === "student"
                     ? "Học sinh"
                     : incident.reporterRole === "teacher"
-                    ? "Giáo viên"
-                    : incident.reporterRole === "parent"
-                    ? "Phụ huynh"
-                    : incident.reporterRole}
+                      ? "Giáo viên"
+                      : incident.reporterRole === "parent"
+                        ? "Phụ huynh"
+                        : incident.reporterRole}
                 </span>
               </div>
             </div>
@@ -221,7 +221,7 @@ function IncidentDetailModal({
           <Button
             onClick={handleUpdate}
             disabled={isLoading}
-            className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl"
+            className="flex-1 bg-linear-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl"
           >
             {isLoading ? "Đang cập nhật..." : "💾 Lưu thay đổi"}
           </Button>
@@ -249,7 +249,7 @@ export default function IncidentsManager() {
   } = useIncidentsStore();
 
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
-    null
+    null,
   );
   const [filterStatus, setFilterStatus] = useState<IncidentStatus | "">("");
   const [filterType, setFilterType] = useState<string>("");
@@ -298,31 +298,31 @@ export default function IncidentsManager() {
       {/* Statistics */}
       {statistics && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card className="p-4 bg-gradient-to-br from-gray-50 to-gray-100">
+          <Card className="p-4 bg-linear-to-br from-gray-50 to-gray-100">
             <p className="text-sm text-gray-500">Tổng cộng</p>
             <p className="text-2xl font-bold text-gray-900">
               {statistics.total}
             </p>
           </Card>
-          <Card className="p-4 bg-gradient-to-br from-yellow-50 to-yellow-100">
+          <Card className="p-4 bg-linear-to-br from-yellow-50 to-yellow-100">
             <p className="text-sm text-yellow-600">Chờ xử lý</p>
             <p className="text-2xl font-bold text-yellow-700">
               {statistics.pending}
             </p>
           </Card>
-          <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100">
+          <Card className="p-4 bg-linear-to-br from-blue-50 to-blue-100">
             <p className="text-sm text-blue-600">Đang xử lý</p>
             <p className="text-2xl font-bold text-blue-700">
               {statistics.inProgress}
             </p>
           </Card>
-          <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100">
+          <Card className="p-4 bg-linear-to-br from-green-50 to-green-100">
             <p className="text-sm text-green-600">Đã giải quyết</p>
             <p className="text-2xl font-bold text-green-700">
               {statistics.resolved}
             </p>
           </Card>
-          <Card className="p-4 bg-gradient-to-br from-red-50 to-red-100">
+          <Card className="p-4 bg-linear-to-br from-red-50 to-red-100">
             <p className="text-sm text-red-600">Từ chối</p>
             <p className="text-2xl font-bold text-red-700">
               {statistics.rejected}
@@ -423,7 +423,7 @@ export default function IncidentsManager() {
                       <span>
                         🕐{" "}
                         {new Date(incident.createdAt).toLocaleDateString(
-                          "vi-VN"
+                          "vi-VN",
                         )}
                       </span>
                     </div>

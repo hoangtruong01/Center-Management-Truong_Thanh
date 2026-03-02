@@ -555,13 +555,13 @@ export default function AdminPaymentRequestsPage() {
           <>
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+              <Card className="p-4 bg-linear-to-br from-blue-500 to-indigo-600 text-white">
                 <p className="text-sm opacity-90">Tổng yêu cầu</p>
                 <p className="text-2xl font-bold">
                   {filteredClassRequests.length}
                 </p>
               </Card>
-              <Card className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+              <Card className="p-4 bg-linear-to-br from-green-500 to-emerald-600 text-white">
                 <p className="text-sm opacity-90">Đã thu</p>
                 <p className="text-2xl font-bold">
                   {filteredClassRequests
@@ -570,7 +570,7 @@ export default function AdminPaymentRequestsPage() {
                   đ
                 </p>
               </Card>
-              <Card className="p-4 bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
+              <Card className="p-4 bg-linear-to-br from-yellow-500 to-orange-500 text-white">
                 <p className="text-sm opacity-90">Chờ thanh toán</p>
                 <p className="text-2xl font-bold">
                   {filteredClassRequests.reduce(
@@ -579,7 +579,7 @@ export default function AdminPaymentRequestsPage() {
                   )}
                 </p>
               </Card>
-              <Card className="p-4 bg-gradient-to-br from-purple-500 to-pink-600 text-white">
+              <Card className="p-4 bg-linear-to-br from-purple-500 to-pink-600 text-white">
                 <p className="text-sm opacity-90">Lớp học</p>
                 <p className="text-2xl font-bold">{classes.length}</p>
               </Card>

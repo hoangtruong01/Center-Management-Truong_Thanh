@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SUBJECT_LIST, getSubjectColor } from "@/lib/constants/subjects";
 import { useUsersStore } from "@/lib/stores/users-store";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useBranchesStore, Branch } from "@/lib/stores/branches-store";
 
 interface AddUserModalProps {
@@ -89,7 +91,7 @@ export default function AddUserModal({
   onAdd,
 }: AddUserModalProps) {
   const [formData, setFormData] = useState<FormDataState>(() =>
-    getDefaultForm(userType)
+    getDefaultForm(userType),
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +114,7 @@ export default function AddUserModal({
 
   // Handlers - định nghĩa trước return
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -196,15 +198,19 @@ export default function AddUserModal({
       };
       onAdd(newUserPayload);
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("=== API ERROR ==="); // Debug
-      console.error("Error creating user:", err);
-      console.error("Error response:", err?.response); // Debug
-      console.error("Error response data:", err?.response?.data); // Debug
+      const error = err as {
+        response?: { data?: { message?: string | string[] } };
+        message?: string;
+      };
+      console.error("Error creating user:", error);
+      console.error("Error response:", error?.response); // Debug
+      console.error("Error response data:", error?.response?.data); // Debug
       // Lấy message từ nhiều nguồn có thể
       const message =
-        err?.response?.data?.message ||
-        err?.message ||
+        error?.response?.data?.message ||
+        error?.message ||
         "Đã có lỗi xảy ra khi tạo người dùng";
       setError(Array.isArray(message) ? message.join(", ") : message);
     } finally {
@@ -216,8 +222,8 @@ export default function AddUserModal({
     userType === "student"
       ? "Thêm học sinh"
       : userType === "parent"
-      ? "Thêm phụ huynh"
-      : "Thêm giáo viên";
+        ? "Thêm phụ huynh"
+        : "Thêm giáo viên";
 
   // Early return PHẢI sau tất cả hooks
   if (!isOpen) return null;
@@ -398,7 +404,7 @@ export default function AddUserModal({
                           }}
                           className="flex-1"
                         />
-                        <span className="text-sm font-semibold text-blue-600 min-w-[3rem] text-right">
+                        <span className="text-sm font-semibold text-blue-600 min-w-12 text-right">
                           {"scholarshipPercent" in formData
                             ? formData.scholarshipPercent
                             : 0}
@@ -419,7 +425,7 @@ export default function AddUserModal({
                           if ("scholarshipPercent" in formData) {
                             const value = Math.min(
                               100,
-                              Math.max(0, parseInt(e.target.value) || 0)
+                              Math.max(0, parseInt(e.target.value) || 0),
                             );
                             setFormData({
                               ...formData,
@@ -569,7 +575,7 @@ export default function AddUserModal({
               type="submit"
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-60"
               disabled={isLoading}
-              onClick={(e) => {
+              onClick={() => {
                 console.log("=== BUTTON CLICKED ===");
                 console.log("Form data at click:", formData);
               }}

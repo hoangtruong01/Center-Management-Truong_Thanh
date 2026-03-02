@@ -84,7 +84,7 @@ export default function IncidentReportModal({
     return (
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4">
+        <div className="bg-linear-to-r from-orange-500 to-red-500 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
               🐛
@@ -237,7 +237,7 @@ export default function IncidentReportModal({
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl"
+                className="w-full bg-linear-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl"
               >
                 {isLoading ? "Đang gửi..." : "🚀 Gửi báo cáo sự cố"}
               </Button>
@@ -299,7 +299,7 @@ export default function IncidentReportModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4">
+        <div className="bg-linear-to-r from-orange-500 to-red-500 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
@@ -472,7 +472,7 @@ export default function IncidentReportModal({
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl"
+                className="w-full bg-linear-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl"
               >
                 {isLoading ? "Đang gửi..." : "🚀 Gửi báo cáo sự cố"}
               </Button>

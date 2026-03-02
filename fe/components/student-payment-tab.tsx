@@ -107,17 +107,17 @@ export default function StudentPaymentTab({
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-5 bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+        <Card className="p-5 bg-linear-to-br from-blue-500 to-indigo-600 text-white">
           <p className="text-sm opacity-90">Lớp đang học</p>
           <p className="text-3xl font-bold">{classes.length}</p>
         </Card>
 
-        <Card className="p-5 bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
+        <Card className="p-5 bg-linear-to-br from-yellow-500 to-orange-500 text-white">
           <p className="text-sm opacity-90">Chờ thanh toán</p>
           <p className="text-3xl font-bold">{pendingOrders.length}</p>
         </Card>
 
-        <Card className="p-5 bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+        <Card className="p-5 bg-linear-to-br from-green-500 to-emerald-600 text-white">
           <p className="text-sm opacity-90">Đã thanh toán</p>
           <p className="text-3xl font-bold">
             {totalPaid.toLocaleString("vi-VN")} đ
@@ -127,7 +127,7 @@ export default function StudentPaymentTab({
 
       {/* Scholarship Info */}
       {student.hasScholarship && student.scholarshipPercent > 0 && (
-        <Card className="p-5 bg-gradient-to-r from-purple-100 to-pink-100 border-purple-200">
+        <Card className="p-5 bg-linear-to-r from-purple-100 to-pink-100 border-purple-200">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white text-2xl">
               🎓

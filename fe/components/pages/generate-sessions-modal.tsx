@@ -149,7 +149,7 @@ export default function GenerateSessionsModal({
       <Card className="w-full max-w-lg p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-lg">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-lg">
             ⚡
           </div>
           <div>
@@ -331,7 +331,7 @@ export default function GenerateSessionsModal({
               <Button
                 type="submit"
                 disabled={isLoading || classesWithSchedule.length === 0}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl shadow-lg shadow-purple-200"
+                className="flex-1 bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl shadow-lg shadow-purple-200"
               >
                 {isLoading ? (
                   <>

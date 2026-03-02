@@ -511,7 +511,7 @@ function GradingModal({
                                                 type="text"
                                                 value={grades[student._id]?.feedback || ''}
                                                 onChange={(e) => updateGrade(student._id, 'feedback', e.target.value)}
-                                                className="flex-1 min-w-[200px] px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                className="flex-1 min-w-50 px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                 placeholder="Nhận xét (tùy chọn)"
                                             />
                                         </div>

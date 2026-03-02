@@ -40,7 +40,7 @@ export default function Home() {
   // Show loading while hydrating
   if (!isHydrated || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#89CFF0]/30 to-white">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-[#89CFF0]/30 to-white">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Đang tải...</p>

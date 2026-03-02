@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,14 +34,23 @@ export default function ClassStudentsModal({
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
 
   // Get current students in class
-  const currentStudents = classData.students || [];
-  const currentStudentIds = classData.studentIds || [];
+  const currentStudents = useMemo(
+    () => classData.students || [],
+    [classData.students],
+  );
+  const currentStudentIds = useMemo(
+    () => classData.studentIds || [],
+    [classData.studentIds],
+  );
 
   // Normalize branchId - có thể là string hoặc object
   const normalizedBranchId = useMemo(() => {
     if (!branchId) return undefined;
-    if (typeof branchId === "object" && (branchId as any)._id) {
-      return (branchId as any)._id;
+    if (
+      typeof branchId === "object" &&
+      (branchId as unknown as Record<string, string>)._id
+    ) {
+      return (branchId as unknown as Record<string, string>)._id;
     }
     return branchId;
   }, [branchId]);
@@ -53,8 +63,9 @@ export default function ClassStudentsModal({
       // Only same branch if branchId is provided
       if (normalizedBranchId) {
         const userBranchId =
-          typeof u.branchId === "object" && (u.branchId as any)?._id
-            ? (u.branchId as any)._id
+          typeof u.branchId === "object" &&
+          (u.branchId as unknown as Record<string, string>)?._id
+            ? (u.branchId as unknown as Record<string, string>)._id
             : u.branchId;
         if (userBranchId && userBranchId !== normalizedBranchId) return false;
       }
@@ -73,8 +84,12 @@ export default function ClassStudentsModal({
       (s) =>
         s.name?.toLowerCase().includes(query) ||
         s.email?.toLowerCase().includes(query) ||
-        (s as any).phone?.toLowerCase().includes(query) ||
-        (s as any).studentCode?.toLowerCase().includes(query)
+        (s as unknown as Record<string, string>).phone
+          ?.toLowerCase()
+          .includes(query) ||
+        (s as unknown as Record<string, string>).studentCode
+          ?.toLowerCase()
+          .includes(query),
     );
   }, [currentStudents, searchQuery]);
 
@@ -87,8 +102,12 @@ export default function ClassStudentsModal({
       .filter((s) => {
         const name = (s.name || "").toLowerCase();
         const email = (s.email || "").toLowerCase();
-        const phone = ((s as any).phone || "").toLowerCase();
-        const studentCode = ((s as any).studentCode || "").toLowerCase();
+        const phone = (
+          (s as unknown as Record<string, string>).phone || ""
+        ).toLowerCase();
+        const studentCode = (
+          (s as unknown as Record<string, string>).studentCode || ""
+        ).toLowerCase();
 
         // Priority search: exact match first, then partial match
         return (
@@ -103,15 +122,20 @@ export default function ClassStudentsModal({
 
   // Fetch users on mount - fetch students from the same branch
   useEffect(() => {
-    setIsLoadingStudents(true);
     // Fetch students - không filter theo branch để lấy tất cả students
     // Việc filter theo branch sẽ được thực hiện ở frontend
+    let cancelled = false;
     fetchUsers({ role: "student" })
-      .then(() => setIsLoadingStudents(false))
+      .then(() => {
+        if (!cancelled) setIsLoadingStudents(false);
+      })
       .catch((err) => {
         console.error(err);
-        setIsLoadingStudents(false);
+        if (!cancelled) setIsLoadingStudents(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [fetchUsers]);
 
   // Handle add student
@@ -129,20 +153,20 @@ export default function ClassStudentsModal({
       setShowAddStudent(false);
       onUpdate();
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Show the error message from backend (including schedule conflict)
-      setError(err.message || "Có lỗi khi thêm học sinh");
+      setError((err as Error).message || "Có lỗi khi thêm học sinh");
     }
   };
 
   // Handle remove student
   const handleRemoveStudent = async (
     studentId: string,
-    studentName: string
+    studentName: string,
   ) => {
     if (
       !confirm(
-        `Bạn có chắc muốn xóa "${studentName}" khỏi lớp này?\n\nHọc sinh sẽ không còn xem được lịch học của lớp này.`
+        `Bạn có chắc muốn xóa "${studentName}" khỏi lớp này?\n\nHọc sinh sẽ không còn xem được lịch học của lớp này.`,
       )
     ) {
       return;
@@ -154,8 +178,8 @@ export default function ClassStudentsModal({
       setSuccessMessage("Đã xóa học sinh khỏi lớp!");
       onUpdate();
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err: any) {
-      setError(err.message || "Có lỗi khi xóa học sinh");
+    } catch (err: unknown) {
+      setError((err as Error).message || "Có lỗi khi xóa học sinh");
     }
   };
 
@@ -163,7 +187,7 @@ export default function ClassStudentsModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+        <div className="bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
@@ -230,7 +254,7 @@ export default function ClassStudentsModal({
             </div>
             <Button
               onClick={() => setShowAddStudent(!showAddStudent)}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl"
+              className="bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl"
             >
               ➕ Thêm học sinh
             </Button>
@@ -287,12 +311,14 @@ export default function ClassStudentsModal({
                         </option>
                         {filteredAvailableStudents.map((student) => (
                           <option key={student._id} value={student._id}>
-                            {(student as any).studentCode
-                              ? `[${(student as any).studentCode}] `
+                            {(student as unknown as Record<string, string>)
+                              .studentCode
+                              ? `[${(student as unknown as Record<string, string>).studentCode}] `
                               : ""}
                             {student.name} • {student.email}
-                            {(student as any).phone
-                              ? ` • ${(student as any).phone}`
+                            {(student as unknown as Record<string, string>)
+                              .phone
+                              ? ` • ${(student as unknown as Record<string, string>).phone}`
                               : ""}
                           </option>
                         ))}
@@ -346,22 +372,41 @@ export default function ClassStudentsModal({
                                 }
                                 className="flex items-center gap-3 flex-1 min-w-0 text-left"
                               >
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-sm shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-sm shrink-0">
                                   👨‍🎓
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm text-gray-900 truncate">
-                                    {(student as any).studentCode && (
+                                    {(
+                                      student as unknown as Record<
+                                        string,
+                                        string
+                                      >
+                                    ).studentCode && (
                                       <span className="text-blue-600">
-                                        [{(student as any).studentCode}]{" "}
+                                        [
+                                        {
+                                          (
+                                            student as unknown as Record<
+                                              string,
+                                              string
+                                            >
+                                          ).studentCode
+                                        }
+                                        ]{" "}
                                       </span>
                                     )}
                                     {student.name}
                                   </p>
                                   <p className="text-xs text-gray-500 truncate">
                                     {student.email}
-                                    {(student as any).phone &&
-                                      ` • ${(student as any).phone}`}
+                                    {(
+                                      student as unknown as Record<
+                                        string,
+                                        string
+                                      >
+                                    ).phone &&
+                                      ` • ${(student as unknown as Record<string, string>).phone}`}
                                   </p>
                                 </div>
                               </button>
@@ -374,20 +419,21 @@ export default function ClassStudentsModal({
                                   try {
                                     await addStudentToClass(
                                       classData._id,
-                                      student._id
+                                      student._id,
                                     );
                                     setSuccessMessage(
-                                      `Đã thêm ${student.name} vào lớp!`
+                                      `Đã thêm ${student.name} vào lớp!`,
                                     );
                                     setAddSearchQuery("");
                                     onUpdate();
                                     setTimeout(
                                       () => setSuccessMessage(null),
-                                      3000
+                                      3000,
                                     );
-                                  } catch (err: any) {
+                                  } catch (err: unknown) {
                                     setError(
-                                      err.message || "Có lỗi khi thêm học sinh"
+                                      (err as Error).message ||
+                                        "Có lỗi khi thêm học sinh",
                                     );
                                   }
                                 }}
@@ -413,8 +459,9 @@ export default function ClassStudentsModal({
                     filteredAvailableStudents.length === 0 &&
                     availableStudents.length > 0 && (
                       <p className="text-sm text-amber-600 mt-2">
-                        ⚠️ Không tìm thấy học sinh phù hợp với "{addSearchQuery}
-                        ". Thử tìm kiếm với từ khóa khác.
+                        ⚠️ Không tìm thấy học sinh phù hợp với &ldquo;
+                        {addSearchQuery}
+                        &rdquo;. Thử tìm kiếm với từ khóa khác.
                       </p>
                     )}
                 </>
@@ -445,7 +492,7 @@ export default function ClassStudentsModal({
                   className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-200 hover:shadow-sm transition-all bg-white"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-lg">
+                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-lg">
                       👨‍🎓
                     </div>
                     <div>

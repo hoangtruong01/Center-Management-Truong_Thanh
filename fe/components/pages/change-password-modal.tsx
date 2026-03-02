@@ -58,7 +58,7 @@ export default function ChangePasswordModal({
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-6 bg-white shadow-2xl border-0 rounded-2xl">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-3xl shadow-lg">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-amber-400 to-orange-500 flex items-center justify-center text-3xl shadow-lg">
             🔐
           </div>
           <h2 className="text-xl font-bold text-gray-900">
@@ -118,7 +118,7 @@ export default function ChangePasswordModal({
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200 py-3"
+            className="w-full bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200 py-3"
           >
             {isSubmitting ? (
               <>

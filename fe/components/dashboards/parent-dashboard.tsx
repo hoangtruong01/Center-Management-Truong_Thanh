@@ -16,7 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
-import { useParentDashboardStore } from "@/lib/stores/parent-dashboard-store";
+import {
+  useParentDashboardStore,
+  type ChildInfo,
+} from "@/lib/stores/parent-dashboard-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
 import { AlertTriangle, ChevronRight, ChevronDown, Camera } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -28,6 +31,7 @@ import {
   StudentRankInfo,
 } from "@/lib/services/student-grading.service";
 import { Bounce, ToastContainer, toast } from "react-toastify";
+// @ts-expect-error - CSS import for react-toastify
 import "react-toastify/dist/ReactToastify.css";
 
 // Day names for schedule
@@ -193,6 +197,7 @@ const weeklySchedule = [
   },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const teacherNotes = [
   {
     teacher: "Cô Trần Thị B",
@@ -278,7 +283,7 @@ function SettingsModal({
       if (selectedFile) {
         try {
           avatarUrl = await uploadToCloudinary(selectedFile);
-        } catch (error) {
+        } catch {
           toast.error("Không thể tải ảnh lên. Vui lòng thử lại.");
           setIsLoading(false);
           return;
@@ -304,8 +309,9 @@ function SettingsModal({
       });
       setIsEditing(false);
       window.location.reload();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Cập nhật thất bại", {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Cập nhật thất bại", {
         position: "top-right",
         autoClose: 3000,
         hideProgressBar: false,
@@ -354,7 +360,7 @@ function SettingsModal({
         <div className="flex flex-col items-center justify-center py-6">
           <div className="relative">
             <div
-              className={`w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
+              className={`w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
               onClick={() => {
                 if (!isEditing && avatarPreview) {
                   setShowImagePreview(true);
@@ -362,13 +368,14 @@ function SettingsModal({
               }}
             >
               {avatarPreview ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={avatarPreview}
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
+                <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
               )}
@@ -397,13 +404,14 @@ function SettingsModal({
         {/* Image Preview Modal */}
         {showImagePreview && avatarPreview && (
           <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+            className="fixed inset-0 z-60 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowImagePreview(false)}
           >
             <div
               className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={avatarPreview}
                 alt="Profile Large"
@@ -438,10 +446,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -450,10 +459,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -555,7 +565,7 @@ function DetailModal({
   grades,
 }: {
   onClose: () => void;
-  childInfo: any;
+  childInfo: ChildInfo & Record<string, unknown>;
   grades: StudentGradeRecord[];
 }) {
   // Process grades into courses
@@ -624,7 +634,7 @@ function DetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
-        <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-5 flex items-start justify-between">
+        <div className="bg-linear-to-r from-blue-500 to-purple-500 text-white px-6 py-5 flex items-start justify-between">
           <div>
             <p className="text-xl font-bold">{childInfo.name}</p>
             <p className="text-sm opacity-90">
@@ -643,9 +653,9 @@ function DetailModal({
               <p className="text-xl font-bold text-blue-700">
                 {courses.length > 0
                   ? (
-                    courses.reduce((acc, c) => acc + parseFloat(c.score), 0) /
-                    courses.length
-                  ).toFixed(1)
+                      courses.reduce((acc, c) => acc + parseFloat(c.score), 0) /
+                      courses.length
+                    ).toFixed(1)
                   : "N/A"}
               </p>
             </Card>
@@ -998,44 +1008,37 @@ export default function ParentDashboard({
   const { user: authUser } = useAuthStore();
 
   // State to hold full user details including sensitive/personal info not in initial props
-  const [fullUserDetails, setFullUserDetails] = useState<any>(null);
+  const [fullUserDetails, setFullUserDetails] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   // Fetch data on mount
   useEffect(() => {
     const parentId = authUser?._id || user.id;
-    const childEmail = (authUser as any)?.childEmail;
+    const childEmail = (authUser as unknown as Record<string, unknown>)
+      ?.childEmail as string | undefined;
     if (parentId) {
       fetchDashboardData(parentId, childEmail).catch(console.error);
 
       // Fetch full user details for profile
       api
         .get(`/users/${parentId}`)
-        .then((res: any) => setFullUserDetails(res.data))
-        .catch((err: any) =>
+        .then((res: { data: Record<string, unknown> }) =>
+          setFullUserDetails(res.data),
+        )
+        .catch((err: unknown) =>
           console.error("Failed to fetch full user details:", err),
         );
     }
   }, [authUser, user.id, fetchDashboardData]);
 
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user.avatarUrl || null,
-  );
-
-  // Sync avatarPreview when user prop changes
-  useEffect(() => {
-    if (user.avatarUrl) {
-      setAvatarPreview(user.avatarUrl);
-    }
-  }, [user.avatarUrl]);
-
-  // Sync avatarPreview when fullUserDetails is loaded
-  useEffect(() => {
-    if (fullUserDetails?.avatarURL) {
-      setAvatarPreview(fullUserDetails.avatarURL);
-    } else if (fullUserDetails?.avatarUrl) {
-      setAvatarPreview(fullUserDetails.avatarUrl);
-    }
-  }, [fullUserDetails]);
+  const avatarPreview = useMemo(() => {
+    if (fullUserDetails?.avatarURL) return fullUserDetails.avatarURL as string;
+    if (fullUserDetails?.avatarUrl) return fullUserDetails.avatarUrl as string;
+    if (user.avatarUrl) return user.avatarUrl;
+    return null;
+  }, [user.avatarUrl, fullUserDetails]);
 
   // Debug: log attendance records for parent
   useEffect(() => {
@@ -1051,12 +1054,12 @@ export default function ParentDashboard({
   const childData = dashboardData?.child || child;
   const classesData = dashboardData?.classes?.length
     ? dashboardData.classes.map((c) => ({
-      subject: c.name,
-      total: 12,
-      attended: 10,
-      score: 8.0,
-      teacher: c.teacherName,
-    }))
+        subject: c.name,
+        total: 12,
+        attended: 10,
+        score: 8.0,
+        teacher: c.teacherName,
+      }))
     : courses;
 
   const attendanceStats = dashboardData?.attendanceStats || {
@@ -1070,48 +1073,49 @@ export default function ParentDashboard({
   // Dynamic overview stats
   const dynamicOverviewStats = dashboardData
     ? [
-      {
-        label: "Khóa học",
-        value: dashboardData.classes.length,
-        note: "Đang theo học",
-        icon: "📚",
-        color: "from-blue-500 to-blue-600",
-      },
-      {
-        label: "Điểm TB",
-        value:
-          dashboardData.recentGrades.length > 0
-            ? (
-              dashboardData.recentGrades.reduce(
-                (acc, g) => acc + (g.percentage ?? 0),
-                0,
-              ) /
-              dashboardData.recentGrades.length /
-              10
-            ).toFixed(1)
-            : "N/A",
-        note: "Kết quả học tập",
-        icon: "⭐",
-        color: "from-emerald-500 to-emerald-600",
-      },
-      {
-        label: "Buổi học",
-        value: attendanceStats.total,
-        note: `${attendanceStats.present} buổi tham dự`,
-        icon: "📅",
-        color: "from-amber-500 to-orange-500",
-      },
-      {
-        label: "Chuyên cần",
-        value: `${attendanceStats.rate}%`,
-        note: "Tỉ lệ tham gia",
-        icon: "🏆",
-        color: "from-purple-500 to-purple-600",
-      },
-    ]
+        {
+          label: "Khóa học",
+          value: dashboardData.classes.length,
+          note: "Đang theo học",
+          icon: "📚",
+          color: "from-blue-500 to-blue-600",
+        },
+        {
+          label: "Điểm TB",
+          value:
+            dashboardData.recentGrades.length > 0
+              ? (
+                  dashboardData.recentGrades.reduce(
+                    (acc, g) => acc + (g.percentage ?? 0),
+                    0,
+                  ) /
+                  dashboardData.recentGrades.length /
+                  10
+                ).toFixed(1)
+              : "N/A",
+          note: "Kết quả học tập",
+          icon: "⭐",
+          color: "from-emerald-500 to-emerald-600",
+        },
+        {
+          label: "Buổi học",
+          value: attendanceStats.total,
+          note: `${attendanceStats.present} buổi tham dự`,
+          icon: "📅",
+          color: "from-amber-500 to-orange-500",
+        },
+        {
+          label: "Chuyên cần",
+          value: `${attendanceStats.rate}%`,
+          note: "Tỉ lệ tham gia",
+          icon: "🏆",
+          color: "from-purple-500 to-purple-600",
+        },
+      ]
     : overviewStats;
 
   // Build timetable from classes (child's enrolled classes)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const timetableByDay = useMemo(() => {
     if (!dashboardData?.classes?.length) return [];
 
@@ -1130,24 +1134,17 @@ export default function ParentDashboard({
     >();
 
     dashboardData.classes.forEach((classItem) => {
-      const scheduleArray = (classItem as any).schedule || [];
-      scheduleArray.forEach(
-        (sched: {
-          dayOfWeek: number;
-          startTime: string;
-          endTime: string;
-          room?: string;
-        }) => {
-          const day = sched.dayOfWeek;
-          if (!scheduleMap.has(day)) {
-            scheduleMap.set(day, []);
-          }
-          scheduleMap.get(day)!.push({
-            classInfo: classItem,
-            schedule: sched,
-          });
-        },
-      );
+      const scheduleArray = classItem.schedule || [];
+      scheduleArray.forEach((sched) => {
+        const day = sched.dayOfWeek;
+        if (!scheduleMap.has(day)) {
+          scheduleMap.set(day, []);
+        }
+        scheduleMap.get(day)!.push({
+          classInfo: classItem,
+          schedule: sched,
+        });
+      });
     });
 
     // Convert to array sorted by dayOfWeek (0-6)
@@ -1173,9 +1170,7 @@ export default function ParentDashboard({
         items: items.map((item) => ({
           classId: item.classInfo._id,
           className: item.classInfo.name,
-          classCode:
-            (item.classInfo as any).code ||
-            item.classInfo.name.substring(0, 7).toUpperCase(),
+          classCode: item.classInfo.name.substring(0, 7).toUpperCase(),
           teacherName: item.classInfo.teacherName,
           startTime: item.schedule.startTime,
           endTime: item.schedule.endTime,
@@ -1185,13 +1180,13 @@ export default function ParentDashboard({
     }
 
     return result;
-  }, [dashboardData?.classes]);
+  }, [dashboardData]);
 
   // Build current week schedule with attendance status
   const currentWeekSchedule = useMemo(() => {
     if (!dashboardData?.classes?.length) return [];
 
-    const dayNames = [
+    const localDayNames = [
       "Chủ nhật",
       "Thứ hai",
       "Thứ ba",
@@ -1234,7 +1229,7 @@ export default function ParentDashboard({
 
       // Find classes scheduled for this day
       dashboardData.classes.forEach((classItem) => {
-        const scheduleArray = (classItem as any).schedule || [];
+        const scheduleArray = classItem.schedule || [];
         scheduleArray.forEach(
           (sched: {
             dayOfWeek: number;
@@ -1258,7 +1253,11 @@ export default function ParentDashboard({
 
               let attendanceRecord = dashboardData.attendanceRecords?.find(
                 (r) => {
-                  const session = r.sessionId as any;
+                  const session = r.sessionId as {
+                    _id: string;
+                    startTime: string;
+                    classId: { _id: string; name: string } | string;
+                  };
                   if (session?.startTime) {
                     const sessionDate = new Date(session.startTime);
                     const sessionYear = sessionDate.getFullYear();
@@ -1271,13 +1270,10 @@ export default function ParentDashboard({
                       sessionDay === targetDay
                     ) {
                       // Check classId match - handle nested object
-                      let sessionClassId = session.classId;
-                      if (
-                        typeof sessionClassId === "object" &&
-                        sessionClassId
-                      ) {
-                        sessionClassId = sessionClassId._id;
-                      }
+                      const sessionClassId =
+                        typeof session.classId === "object" && session.classId
+                          ? (session.classId as { _id: string })._id
+                          : session.classId;
                       // Also handle if classItem._id is in session.classId as nested
                       return sessionClassId === classItem._id;
                     }
@@ -1290,7 +1286,11 @@ export default function ParentDashboard({
               if (!attendanceRecord) {
                 attendanceRecord = dashboardData.attendanceRecords?.find(
                   (r) => {
-                    const session = r.sessionId as any;
+                    const session = r.sessionId as {
+                      _id: string;
+                      startTime: string;
+                      classId: { _id: string; name: string } | string;
+                    };
                     if (session?.startTime) {
                       const sessionDate = new Date(session.startTime);
                       return (
@@ -1328,7 +1328,8 @@ export default function ParentDashboard({
                 classId: classItem._id,
                 className: classItem.name,
                 classCode:
-                  (classItem as any).code ||
+                  ((classItem as unknown as Record<string, unknown>)
+                    .code as string) ||
                   classItem.name.substring(0, 7).toUpperCase(),
                 teacherName: classItem.teacherName,
                 startTime: sched.startTime,
@@ -1343,18 +1344,14 @@ export default function ParentDashboard({
 
       result.push({
         date: currentDate,
-        dayName: dayNames[dayOfWeek],
+        dayName: localDayNames[dayOfWeek],
         dateStr: `${currentDate.getDate()}/${currentDate.getMonth() + 1}`,
         items: items.sort((a, b) => a.startTime.localeCompare(b.startTime)),
       });
     }
 
     return result;
-  }, [
-    dashboardData?.classes,
-    dashboardData?.attendanceRecords,
-    dashboardData?.upcomingSessions,
-  ]);
+  }, [dashboardData]);
 
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
@@ -1372,32 +1369,34 @@ export default function ParentDashboard({
     }, 500);
   };
   // Weekly schedule with attendance
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const scheduleWithAttendance = dashboardData?.upcomingSessions?.length
-    ? dashboardData.upcomingSessions.slice(0, 7).map((s, idx) => {
-      const sessionDate = new Date(s.date);
-      const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-      return {
-        day: days[sessionDate.getDay()],
-        date: sessionDate.toLocaleDateString("vi-VN", {
-          day: "2-digit",
-          month: "2-digit",
-        }),
-        code: s.className.substring(0, 7).toUpperCase(),
-        time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`,
-        room: "Phòng học",
-        teacher: "Giáo viên",
-        status: s.status === "completed" ? "confirmed" : "pending",
-        attendanceStatus: s.attendanceStatus,
-      };
-    })
+    ? dashboardData.upcomingSessions.slice(0, 7).map((s) => {
+        const sessionDate = new Date(s.date);
+        const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+        return {
+          day: days[sessionDate.getDay()],
+          date: sessionDate.toLocaleDateString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+          }),
+          code: s.className.substring(0, 7).toUpperCase(),
+          time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`,
+          room: "Phòng học",
+          teacher: "Giáo viên",
+          status: s.status === "completed" ? "confirmed" : "pending",
+          attendanceStatus: s.attendanceStatus,
+        };
+      })
     : weeklySchedule;
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const paidBadge = child.paid ? (
     <Badge variant="success">Đã thanh toán</Badge>
   ) : (
@@ -1409,11 +1408,11 @@ export default function ParentDashboard({
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
+            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
               T
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
+              <h1 className="text-lg font-bold bg-linear-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
                 Trường Thành Education
               </h1>
               <p className="text-xs text-gray-500">Dashboard Phụ huynh</p>
@@ -1431,6 +1430,7 @@ export default function ParentDashboard({
                 {/* Avatar chính */}
                 <div className="w-9 h-9 rounded-full bg-white text-gray-700 font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-gray-200 overflow-hidden">
                   {avatarPreview ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={avatarPreview}
                       alt={user.name}
@@ -1555,7 +1555,7 @@ export default function ParentDashboard({
           </div>
         )}
         {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
+        <div className="bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm">Xin chào 👋</p>
@@ -1572,37 +1572,37 @@ export default function ParentDashboard({
           <TabsList className="w-full overflow-x-auto flex gap-1 rounded-2xl bg-white p-1.5 shadow-sm border border-gray-100 justify-start md:justify-center">
             <TabsTrigger
               value="overview"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📊 Tổng quan
             </TabsTrigger>
             <TabsTrigger
               value="schedule"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📅 Lịch học
             </TabsTrigger>
             <TabsTrigger
               value="progress"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📈 Tiến độ
             </TabsTrigger>
             <TabsTrigger
               value="payment"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💳 Thanh toán
             </TabsTrigger>
             <TabsTrigger
               value="contact"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💬 Liên hệ
             </TabsTrigger>
             <TabsTrigger
               value="incidents"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🐛 Sự cố
             </TabsTrigger>
@@ -1623,7 +1623,7 @@ export default function ParentDashboard({
                       className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                     >
                       <div
-                        className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-90`}
+                        className={`absolute inset-0 bg-linear-to-br ${item.color} opacity-90`}
                       />
                       <div className="relative p-5 text-white">
                         <div className="flex items-start justify-between">
@@ -1655,7 +1655,8 @@ export default function ParentDashboard({
                       </p>
                       <p className="text-sm text-gray-500">
                         {childData.name} -{" "}
-                        {(childData as any).grade || "Lớp 10"}
+                        {((childData as Record<string, unknown>)
+                          .grade as string) || "Lớp 10"}
                       </p>
                     </div>
                     <Button
@@ -1740,16 +1741,18 @@ export default function ParentDashboard({
                     return (
                       <div
                         key={dayData.dateStr}
-                        className={`rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-[220px] ${isToday
-                          ? "border-emerald-400 ring-2 ring-emerald-200"
-                          : "border-gray-200"
-                          }`}
+                        className={`rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-55 ${
+                          isToday
+                            ? "border-emerald-400 ring-2 ring-emerald-200"
+                            : "border-gray-200"
+                        }`}
                       >
                         <div
-                          className={`text-white px-3 py-2 text-center ${isToday
-                            ? "bg-gradient-to-r from-emerald-600 to-green-600"
-                            : "bg-gradient-to-r from-blue-600 to-indigo-600"
-                            }`}
+                          className={`text-white px-3 py-2 text-center ${
+                            isToday
+                              ? "bg-linear-to-r from-emerald-600 to-green-600"
+                              : "bg-linear-to-r from-blue-600 to-indigo-600"
+                          }`}
                         >
                           <p className="text-xs font-semibold leading-tight">
                             {dayData.dayName}
@@ -1768,7 +1771,7 @@ export default function ParentDashboard({
                             {dayData.items.map((item, idx) => (
                               <div
                                 key={`${item.classId}-${idx}`}
-                                className="rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-2 space-y-1 hover:shadow-md transition-shadow"
+                                className="rounded-lg bg-linear-to-br from-blue-50 to-indigo-50 border border-blue-100 p-2 space-y-1 hover:shadow-md transition-shadow"
                               >
                                 <div className="text-xs font-bold text-blue-700 truncate">
                                   {item.classCode}
@@ -1790,14 +1793,15 @@ export default function ParentDashboard({
                                 {/* Attendance Status */}
                                 {item.attendanceStatus ? (
                                   <div
-                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${item.attendanceStatus === "present"
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : item.attendanceStatus === "absent"
-                                        ? "bg-red-100 text-red-700"
-                                        : item.attendanceStatus === "late"
-                                          ? "bg-amber-100 text-amber-700"
-                                          : "bg-blue-100 text-blue-700"
-                                      }`}
+                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${
+                                      item.attendanceStatus === "present"
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : item.attendanceStatus === "absent"
+                                          ? "bg-red-100 text-red-700"
+                                          : item.attendanceStatus === "late"
+                                            ? "bg-amber-100 text-amber-700"
+                                            : "bg-blue-100 text-blue-700"
+                                    }`}
                                   >
                                     {item.attendanceStatus === "present" &&
                                       "✅ Có mặt"}
@@ -1924,7 +1928,7 @@ export default function ParentDashboard({
                   📊 Thống kê nhanh
                 </p>
                 <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
+                  <div className="p-4 rounded-xl bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-100">
                     <p className="text-xs text-blue-600 font-medium">
                       Điểm trung bình
                     </p>
@@ -1941,7 +1945,7 @@ export default function ParentDashboard({
                       </p>
                     )}
                   </div>
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
+                  <div className="p-4 rounded-xl bg-linear-to-r from-emerald-50 to-green-50 border border-emerald-100">
                     <p className="text-xs text-emerald-600 font-medium">
                       Số bài đã chấm
                     </p>
@@ -1952,7 +1956,7 @@ export default function ParentDashboard({
                       {progressBySubject.length} môn học
                     </p>
                   </div>
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100">
+                  <div className="p-4 rounded-xl bg-linear-to-r from-amber-50 to-orange-50 border border-amber-100">
                     <p className="text-xs text-amber-600 font-medium">
                       Xếp hạng trong lớp
                     </p>
@@ -2003,14 +2007,15 @@ export default function ParentDashboard({
                         {subject.data.map((item, i) => (
                           <div
                             key={i}
-                            className={`px-3 py-2 rounded-lg text-sm ${item.score >= 8
-                              ? "bg-green-100 text-green-700"
-                              : item.score >= 6.5
-                                ? "bg-blue-100 text-blue-700"
-                                : item.score >= 5
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-red-100 text-red-700"
-                              }`}
+                            className={`px-3 py-2 rounded-lg text-sm ${
+                              item.score >= 8
+                                ? "bg-green-100 text-green-700"
+                                : item.score >= 6.5
+                                  ? "bg-blue-100 text-blue-700"
+                                  : item.score >= 5
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-red-100 text-red-700"
+                            }`}
                             title={`${item.label} - ${item.date}`}
                           >
                             <span className="font-bold">{item.score}</span>
@@ -2033,7 +2038,7 @@ export default function ParentDashboard({
             <Card className="p-6 border-0 shadow-lg rounded-2xl">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-200">
+                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-200">
                     💳
                   </div>
                   <div>
@@ -2047,7 +2052,7 @@ export default function ParentDashboard({
                 </div>
                 <Button
                   onClick={() => (window.location.href = "/payment")}
-                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-200"
+                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-200"
                 >
                   Vào trang thanh toán →
                 </Button>
@@ -2057,7 +2062,7 @@ export default function ParentDashboard({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div
                   onClick={() => (window.location.href = "/payment")}
-                  className="p-5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
+                  className="p-5 rounded-xl bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-white shadow flex items-center justify-center text-xl">
@@ -2076,7 +2081,7 @@ export default function ParentDashboard({
 
                 <div
                   onClick={() => (window.location.href = "/payment")}
-                  className="p-5 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 border border-orange-100 cursor-pointer hover:shadow-lg transition-all"
+                  className="p-5 rounded-xl bg-linear-to-r from-orange-50 to-red-50 border border-orange-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-white shadow flex items-center justify-center text-xl">
@@ -2126,7 +2131,7 @@ export default function ParentDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => { }}
+              onClose={() => {}}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2147,13 +2152,19 @@ export default function ParentDashboard({
       {showDetail && (
         <DetailModal
           onClose={() => setShowDetail(false)}
-          childInfo={childData}
+          childInfo={childData as ChildInfo & Record<string, unknown>}
           grades={childGrades}
         />
       )}
       {showSettings && (
         <SettingsModal
-          user={fullUserDetails || user}
+          user={
+            (fullUserDetails as typeof user & {
+              _id?: string;
+              parentCode?: string;
+              childEmail?: string;
+            }) || user
+          }
           onClose={() => setShowSettings(false)}
         />
       )}

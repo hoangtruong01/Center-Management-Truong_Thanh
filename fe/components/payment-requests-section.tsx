@@ -69,7 +69,7 @@ export default function PaymentRequestsSection({
   }
 
   return (
-    <Card className="p-5 border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-orange-50">
+    <Card className="p-5 border-2 border-yellow-200 bg-linear-to-br from-yellow-50 to-orange-50">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">

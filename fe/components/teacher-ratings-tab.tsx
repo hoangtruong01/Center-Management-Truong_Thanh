@@ -101,7 +101,7 @@ export default function TeacherRatingsTab() {
   return (
     <div className="space-y-6">
       {/* Overview Card */}
-      <Card className="bg-gradient-to-br from-blue-50 to-indigo-50">
+      <Card className="bg-linear-to-br from-blue-50 to-indigo-50">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
             {/* Average Rating */}

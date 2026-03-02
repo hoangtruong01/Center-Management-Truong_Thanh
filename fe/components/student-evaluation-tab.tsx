@@ -37,7 +37,9 @@ interface ActivePeriod {
   branchName: string;
 }
 
-export default function StudentEvaluationTab() {
+export default function StudentEvaluationTab({ userId }: { userId?: string }) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _userId = userId;
   const [pendingEvaluations, setPendingEvaluations] = useState<
     PendingEvaluation[]
   >([]);
@@ -179,7 +181,7 @@ export default function StudentEvaluationTab() {
     <div className="space-y-6">
       {/* Active Period Banner */}
       {activePeriods.length > 0 && (
-        <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+        <Card className="bg-linear-to-r from-blue-500 to-blue-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Clock className="w-6 h-6" />
@@ -254,7 +256,7 @@ export default function StudentEvaluationTab() {
 
       {/* Evaluation Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-125 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Đánh giá giáo viên</DialogTitle>
             <DialogDescription>
@@ -270,7 +272,7 @@ export default function StudentEvaluationTab() {
           <div className="space-y-6 py-4">
             {/* Privacy Notice */}
             <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg text-sm">
-              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
               <p className="text-blue-700">
                 Đánh giá của bạn hoàn toàn <strong>ẩn danh</strong>. Giáo viên
                 sẽ không biết bạn là ai.
@@ -298,7 +300,7 @@ export default function StudentEvaluationTab() {
 
             {/* Average Rating Display */}
             {isFormValid() && (
-              <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg">
+              <div className="p-4 bg-linear-to-r from-yellow-50 to-orange-50 rounded-lg">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">
                     Điểm trung bình:

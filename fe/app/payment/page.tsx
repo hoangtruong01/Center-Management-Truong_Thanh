@@ -291,15 +291,15 @@ export default function PaymentPage() {
               <>
                 {/* Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <Card className="p-4 bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
+                  <Card className="p-4 bg-linear-to-br from-yellow-500 to-orange-500 text-white">
                     <p className="text-sm opacity-90">Chờ thanh toán</p>
                     <p className="text-2xl font-bold">{pendingRequests.length}</p>
                   </Card>
-                  <Card className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                  <Card className="p-4 bg-linear-to-br from-blue-500 to-indigo-600 text-white">
                     <p className="text-sm opacity-90">Đã chọn</p>
                     <p className="text-2xl font-bold">{selectedIds.length}</p>
                   </Card>
-                  <Card className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white col-span-2 sm:col-span-1">
+                  <Card className="p-4 bg-linear-to-br from-green-500 to-emerald-600 text-white col-span-2 sm:col-span-1">
                     <p className="text-sm opacity-90">Tổng thanh toán</p>
                     <p className="text-2xl font-bold">
                       {totalFinal.toLocaleString("vi-VN")} đ

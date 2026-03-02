@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Bounce, ToastContainer, toast } from "react-toastify";
+// @ts-expect-error - CSS import for react-toastify
 import "react-toastify/dist/ReactToastify.css";
 import api from "@/lib/api";
 import {
@@ -32,8 +33,9 @@ import AttendanceManager from "@/components/pages/attendance-manager";
 import IncidentsManager from "@/components/pages/incidents-manager";
 import AdminEvaluationManager from "@/components/admin-evaluation-manager";
 import { useBranchesStore } from "@/lib/stores/branches-store";
-import { useClassesStore } from "@/lib/stores/classes-store";
+import { useClassesStore, type Class } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { usePaymentsStore } from "@/lib/stores/payments-store";
 import { useFinanceStore } from "@/lib/stores/finance-store";
 import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
@@ -62,6 +64,7 @@ type RankingCategory = "score" | "attendance";
 // Mock data này sẽ được thay thế bằng data thật từ API trong Tab Tài chính
 // financeSummary và financeChart đã bị xóa và thay bằng dữ liệu động
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const accounts = {
   students: [
     {
@@ -210,16 +213,25 @@ function UserDetailModal({
 }) {
   const { fetchParentChildren } = useUsersStore();
   const [children, setChildren] = useState<UserDetail[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loadingChildren, setLoadingChildren] = useState(false);
 
   // Fetch children if user is parent
   useEffect(() => {
     if (user.role === "parent" && user._id) {
-      setLoadingChildren(true);
-      fetchParentChildren(user._id)
-        .then((data) => setChildren(data))
-        .catch((err) => console.error("Error fetching children:", err))
-        .finally(() => setLoadingChildren(false));
+      let cancelled = false;
+      const loadChildren = async () => {
+        try {
+          const data = await fetchParentChildren(user._id);
+          if (!cancelled) setChildren(data);
+        } catch (err) {
+          console.error("Error fetching children:", err);
+        }
+      };
+      loadChildren();
+      return () => {
+        cancelled = true;
+      };
     }
   }, [user._id, user.role, fetchParentChildren]);
 
@@ -276,7 +288,7 @@ function UserDetailModal({
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl shadow-lg">
               {roleInfo.icon}
             </div>
             <div>
@@ -487,7 +499,7 @@ function UserDetailModal({
                       className="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-100"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
+                        <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
                           {child.name?.charAt(0) || "?"}
                         </div>
                         <div>
@@ -545,12 +557,12 @@ function UserDetailModal({
                 <p className="font-medium text-gray-900">
                   {user.createdAt
                     ? new Date(user.createdAt).toLocaleDateString("vi-VN", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
                     : "Không xác định"}
                 </p>
               </div>
@@ -572,12 +584,12 @@ function UserDetailModal({
                 <p className="font-medium text-gray-900">
                   {user.updatedAt
                     ? new Date(user.updatedAt).toLocaleDateString("vi-VN", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
                     : "Không xác định"}
                 </p>
               </div>
@@ -589,7 +601,7 @@ function UserDetailModal({
         <div className="flex gap-3 mt-6">
           {onEdit && (
             <Button
-              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg"
+              className="flex-1 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg"
               onClick={onEdit}
             >
               ✏️ Chỉnh sửa
@@ -629,7 +641,7 @@ function EditUserModal({
   user: UserDetail;
   branches: BranchOption[];
   onClose: () => void;
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: Record<string, unknown>) => Promise<void>;
   isLoading?: boolean;
   error?: string | null;
 }) {
@@ -686,7 +698,7 @@ function EditUserModal({
   };
 
   const handleSubmit = async () => {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       name: formData.name.trim(),
       phone: formData.phone.trim() || undefined,
       branchId: formData.branchId || undefined,
@@ -751,7 +763,7 @@ function EditUserModal({
       <Card className="w-full max-w-lg p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
             ✏️
           </div>
           <div>
@@ -846,7 +858,7 @@ function EditUserModal({
                 <select
                   value={formData.gender}
                   onChange={(e) =>
-                    setFormData({ ...formData, gender: e.target.value as any })
+                    setFormData({ ...formData, gender: e.target.value })
                   }
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -936,7 +948,7 @@ function EditUserModal({
                       }
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
                   </label>
                 </div>
                 {formData.hasScholarship && (
@@ -950,7 +962,10 @@ function EditUserModal({
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            scholarshipType: e.target.value as any,
+                            scholarshipType: e.target.value as
+                              | "teacher_child"
+                              | "poor_family"
+                              | "orphan",
                           })
                         }
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -1018,7 +1033,7 @@ function EditUserModal({
                 </h4>
                 <div
                   onClick={() => setShowSubjectPicker(!showSubjectPicker)}
-                  className="w-full min-h-[42px] rounded-xl border border-gray-200 px-3 py-2 text-sm cursor-pointer bg-white hover:border-purple-400"
+                  className="w-full min-h-10.5 rounded-xl border border-gray-200 px-3 py-2 text-sm cursor-pointer bg-white hover:border-purple-400"
                 >
                   {formData.subjects.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
@@ -1048,19 +1063,20 @@ function EditUserModal({
                   )}
                 </div>
                 {showSubjectPicker && (
-                  <div className="border border-gray-200 rounded-xl p-3 bg-white max-h-[200px] overflow-y-auto">
+                  <div className="border border-gray-200 rounded-xl p-3 bg-white max-h-50 overflow-y-auto">
                     {SUBJECT_OPTIONS.map((cat) => (
                       <div key={cat.category} className="mb-2 last:mb-0">
                         <div className="flex items-center gap-2 mb-1">
                           <button
                             type="button"
                             onClick={() => toggleCategory(cat.subjects)}
-                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) =>
-                              formData.subjects.includes(s),
-                            )
-                              ? "bg-purple-600 text-white"
-                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                              }`}
+                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
+                              cat.subjects.every((s) =>
+                                formData.subjects.includes(s),
+                              )
+                                ? "bg-purple-600 text-white"
+                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
                           >
                             {cat.category}
                           </button>
@@ -1071,10 +1087,11 @@ function EditUserModal({
                               key={subject}
                               type="button"
                               onClick={() => toggleSubject(subject)}
-                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${formData.subjects.includes(subject)
-                                ? "bg-purple-500 text-white"
-                                : "bg-white text-gray-600 border border-gray-200 hover:border-purple-400"
-                                }`}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${
+                                formData.subjects.includes(subject)
+                                  ? "bg-purple-500 text-white"
+                                  : "bg-white text-gray-600 border border-gray-200 hover:border-purple-400"
+                              }`}
                             >
                               #{subject}
                             </button>
@@ -1160,7 +1177,7 @@ function EditUserModal({
         {/* Actions */}
         <div className="flex gap-3 mt-6">
           <Button
-            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg"
+            className="flex-1 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg"
             onClick={handleSubmit}
             disabled={isLoading}
           >
@@ -1257,7 +1274,10 @@ function AddModal({
       scholarshipType,
       scholarshipPercent,
     });
-    const submitData: Record<string, string> = { ...formData, branchId: selectedBranch };
+    const submitData: Record<string, string> = {
+      ...formData,
+      branchId: selectedBranch,
+    };
     if (isTeacherForm && selectedSubjects.length > 0) {
       submitData["Môn dạy"] = selectedSubjects.join(", ");
     }
@@ -1292,7 +1312,7 @@ function AddModal({
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-md p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
             ➕
           </div>
           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
@@ -1378,7 +1398,7 @@ function AddModal({
                     }}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
               </div>
 
@@ -1454,7 +1474,7 @@ function AddModal({
               {/* Selected subjects display */}
               <div
                 onClick={() => setShowSubjectPicker(!showSubjectPicker)}
-                className="w-full min-h-[42px] rounded-xl border border-gray-200 px-3 py-2 text-sm cursor-pointer hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full min-h-10.5 rounded-xl border border-gray-200 px-3 py-2 text-sm cursor-pointer hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {selectedSubjects.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
@@ -1484,19 +1504,20 @@ function AddModal({
 
               {/* Subject Picker Dropdown */}
               {showSubjectPicker && (
-                <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 max-h-[250px] overflow-y-auto">
+                <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 max-h-62.5 overflow-y-auto">
                   {SUBJECT_OPTIONS.map((cat) => (
                     <div key={cat.category} className="mb-3 last:mb-0">
                       <div className="flex items-center gap-2 mb-1.5">
                         <button
                           type="button"
                           onClick={() => toggleCategory(cat.subjects)}
-                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) =>
-                            selectedSubjects.includes(s),
-                          )
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
+                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
+                            cat.subjects.every((s) =>
+                              selectedSubjects.includes(s),
+                            )
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
                         >
                           {cat.category}
                         </button>
@@ -1515,10 +1536,11 @@ function AddModal({
                             key={subject}
                             type="button"
                             onClick={() => toggleSubject(subject)}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${selectedSubjects.includes(subject)
-                              ? "bg-blue-500 text-white shadow-sm"
-                              : "bg-white text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600"
-                              }`}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                              selectedSubjects.includes(subject)
+                                ? "bg-blue-500 text-white shadow-sm"
+                                : "bg-white text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600"
+                            }`}
                           >
                             #{subject}
                           </button>
@@ -1545,7 +1567,7 @@ function AddModal({
         )}
         <div className="flex gap-3">
           <Button
-            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+            className="flex-1 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
             onClick={handleSubmit}
             disabled={isLoading}
           >
@@ -1628,7 +1650,7 @@ function SettingsModal({
       if (selectedFile) {
         try {
           avatarUrl = await uploadToCloudinary(selectedFile);
-        } catch (error) {
+        } catch {
           toast.error("Không thể tải ảnh lên. Vui lòng thử lại.");
           setIsLoading(false);
           return;
@@ -1654,8 +1676,9 @@ function SettingsModal({
       });
       setIsEditing(false);
       window.location.reload();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Cập nhật thất bại", {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Cập nhật thất bại", {
         position: "top-right",
         autoClose: 3000,
         hideProgressBar: false,
@@ -1704,7 +1727,7 @@ function SettingsModal({
         <div className="flex flex-col items-center justify-center py-6">
           <div className="relative">
             <div
-              className={`w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
+              className={`w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
               onClick={() => {
                 if (!isEditing && avatarPreview) {
                   setShowImagePreview(true);
@@ -1712,6 +1735,7 @@ function SettingsModal({
               }}
             >
               {avatarPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={avatarPreview}
                   alt="Profile"
@@ -1747,13 +1771,14 @@ function SettingsModal({
         {/* Image Preview Modal */}
         {showImagePreview && avatarPreview && (
           <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+            className="fixed inset-0 z-60 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowImagePreview(false)}
           >
             <div
               className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={avatarPreview}
                 alt="Profile Large"
@@ -1787,10 +1812,11 @@ function SettingsModal({
           <div className="space-y-2">
             <label className="text-gray-700 font-medium">Họ và tên</label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+              }`}
               value={isEditing ? formData.name : user.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               readOnly={!isEditing}
@@ -1809,10 +1835,11 @@ function SettingsModal({
           <div className="space-y-2">
             <label className="text-gray-700 font-medium">Số điện thoại</label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+              }`}
               value={isEditing ? formData.phone : user.phone || "Chưa cập nhật"}
               onChange={(e) => handleInputChange("phone", e.target.value)}
               readOnly={!isEditing}
@@ -1889,21 +1916,23 @@ function BranchModal({
   onClose: () => void;
   onSave: (data: { name: string; address: string; phone?: string }) => void;
 }) {
-  const [name, setName] = useState(branch?.name || "");
-  const [address, setAddress] = useState(branch?.address || "");
-  const [phone, setPhone] = useState(branch?.phone || "");
+  const branchName = branch?.name || "";
+  const branchAddress = branch?.address || "";
+  const branchPhone = branch?.phone || "";
+  const [name, setName] = useState(branchName);
+  const [address, setAddress] = useState(branchAddress);
+  const [phone, setPhone] = useState(branchPhone);
 
-  useEffect(() => {
-    if (branch) {
-      setName(branch.name || "");
-      setAddress(branch.address || "");
-      setPhone(branch.phone || "");
-    } else {
-      setName("");
-      setAddress("");
-      setPhone("");
-    }
-  }, [branch, isOpen]);
+  // Adjust state when branch/isOpen changes (React-recommended pattern)
+  const [prevBranch, setPrevBranch] = useState(branch);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (branch !== prevBranch || isOpen !== prevIsOpen) {
+    setPrevBranch(branch);
+    setPrevIsOpen(isOpen);
+    setName(branchName);
+    setAddress(branchAddress);
+    setPhone(branchPhone);
+  }
 
   if (!isOpen) return null;
 
@@ -1924,7 +1953,7 @@ function BranchModal({
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-md p-6 bg-white shadow-2xl border-0">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
             🏢
           </div>
           <h3 className="text-lg font-bold text-gray-900">
@@ -1970,7 +1999,7 @@ function BranchModal({
           <div className="flex gap-3 pt-2">
             <Button
               type="submit"
-              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+              className="flex-1 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
             >
               {branch ? "💾 Lưu thay đổi" : "➕ Thêm cơ sở"}
             </Button>
@@ -2003,7 +2032,7 @@ export default function AdminDashboard({
   const [showImportModal, setShowImportModal] = useState(false);
   const [showImportStudentsModal, setShowImportStudentsModal] = useState(false);
   const [showClassModal, setShowClassModal] = useState(false);
-  const [editingClass, setEditingClass] = useState<any>(null);
+  const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [editingBranch, setEditingBranch] = useState<BranchOption | null>(null);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
@@ -2013,7 +2042,9 @@ export default function AdminDashboard({
   const [editingUser, setEditingUser] = useState<UserDetail | null>(null);
   const [editUserLoading, setEditUserLoading] = useState(false);
   const [editUserError, setEditUserError] = useState<string | null>(null);
-  const [classStudentsModal, setClassStudentsModal] = useState<any>(null);
+  const [classStudentsModal, setClassStudentsModal] = useState<Class | null>(
+    null,
+  );
   const [classSearchQuery, setClassSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -2021,18 +2052,25 @@ export default function AdminDashboard({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // State to hold full user details including sensitive/personal info not in initial props
-  const [fullUserDetails, setFullUserDetails] = useState<any>(null);
+  const [fullUserDetails, setFullUserDetails] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   // Fetch full user data
   useEffect(() => {
     if (user?.id) {
       api
         .get(`/users/${user.id}`)
-        .then((res: any) => {
-          const userData = res.data.user || res.data;
-          setFullUserDetails(userData);
-        })
-        .catch((err: any) => {
+        .then(
+          (res: {
+            data: { user?: Record<string, unknown> } & Record<string, unknown>;
+          }) => {
+            const userData = res.data.user || res.data;
+            setFullUserDetails(userData);
+          },
+        )
+        .catch((err: unknown) => {
           console.error("Failed to fetch full user details:", err);
         });
     }
@@ -2052,9 +2090,9 @@ export default function AdminDashboard({
   // Sync avatarPreview when fullUserDetails is loaded
   useEffect(() => {
     if (fullUserDetails?.avatarUrl) {
-      setAvatarPreview(fullUserDetails.avatarUrl);
+      setAvatarPreview(fullUserDetails.avatarUrl as string);
     } else if (fullUserDetails?.avatarURL) {
-      setAvatarPreview(fullUserDetails.avatarURL);
+      setAvatarPreview(fullUserDetails.avatarURL as string);
     }
   }, [fullUserDetails]);
 
@@ -2157,7 +2195,7 @@ export default function AdminDashboard({
   // Effective branch filter - non-admin users chỉ xem được chi nhánh của mình
   const effectiveBranchFilter = isAdmin
     ? selectedBranchFilter
-    : (user as any).branchId || "";
+    : (user as unknown as Record<string, string>).branchId || "";
 
   // Filter users by role and branch from API
   const filteredUsers = effectiveBranchFilter
@@ -2167,13 +2205,13 @@ export default function AdminDashboard({
   // Apply search filter
   const searchFilteredUsers = searchQuery.trim()
     ? filteredUsers.filter((u) => {
-      const query = searchQuery.toLowerCase().trim();
-      return (
-        u.name?.toLowerCase().includes(query) ||
-        u.email?.toLowerCase().includes(query) ||
-        u.phone?.toLowerCase().includes(query)
-      );
-    })
+        const query = searchQuery.toLowerCase().trim();
+        return (
+          u.name?.toLowerCase().includes(query) ||
+          u.email?.toLowerCase().includes(query) ||
+          u.phone?.toLowerCase().includes(query)
+        );
+      })
     : filteredUsers;
 
   const apiStudents = searchFilteredUsers.filter((u) => u.role === "student");
@@ -2401,7 +2439,7 @@ export default function AdminDashboard({
       }
 
       // Prepare API data
-      const apiData: any = {
+      const apiData: Record<string, unknown> = {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone?.trim() || undefined,
@@ -2451,7 +2489,7 @@ export default function AdminDashboard({
       }
 
       console.log("Creating user with:", apiData);
-      await createUser(apiData);
+      await createUser(apiData as unknown as Parameters<typeof createUser>[0]);
       console.log("User created successfully!");
 
       // Refresh users list
@@ -2459,11 +2497,11 @@ export default function AdminDashboard({
 
       // Close modal
       setShowModal(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error creating user:", err);
 
       // Lấy message từ error đã được dịch trong users-store
-      const message = err?.message || "Lỗi khi tạo người dùng";
+      const message = (err as Error)?.message || "Lỗi khi tạo người dùng";
       setAddUserError(message);
     } finally {
       setAddUserLoading(false);
@@ -2471,16 +2509,16 @@ export default function AdminDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#89CFF0]/20 to-white">
+    <div className="min-h-screen bg-linear-to-br from-[#89CFF0]/20 to-white">
       {/* Header với thiết kế hiện đại */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
+            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
               T
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
+              <h1 className="text-lg font-bold bg-linear-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
                 Trường Thành Education
               </h1>
               <p className="text-xs text-gray-500">Dashboard Quản trị</p>
@@ -2498,6 +2536,7 @@ export default function AdminDashboard({
                 {/* Avatar chính */}
                 <div className="w-9 h-9 rounded-full bg-white text-gray-700 font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-gray-200 overflow-hidden">
                   {avatarPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={avatarPreview}
                       alt={user.name}
@@ -2590,7 +2629,7 @@ export default function AdminDashboard({
 
       <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
         {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
+        <div className="bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm">Xin chào 👋</p>
@@ -2622,73 +2661,73 @@ export default function AdminDashboard({
           <TabsList className="w-full overflow-x-auto flex gap-1 rounded-2xl bg-white p-1.5 shadow-sm border border-gray-100 justify-start md:justify-center">
             <TabsTrigger
               value="overview"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📊 Tổng quan
             </TabsTrigger>
             <TabsTrigger
               value="courses"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📚 Khóa học
             </TabsTrigger>
             <TabsTrigger
               value="accounts"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               👥 Tài khoản
             </TabsTrigger>
             <TabsTrigger
               value="leaderboard"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🥇 Bảng xếp hạng
             </TabsTrigger>
             <TabsTrigger
               value="finance"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💰 Tài chính
             </TabsTrigger>
             <TabsTrigger
               value="branches"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🏢 Cơ sở
             </TabsTrigger>
             <TabsTrigger
               value="schedule"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📅 Lịch dạy học
             </TabsTrigger>
             <TabsTrigger
               value="attendance"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📋 Điểm danh
             </TabsTrigger>
             <TabsTrigger
               value="payments"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💳 Thanh toán
             </TabsTrigger>
             <TabsTrigger
               value="incidents"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🐛 Sự cố
             </TabsTrigger>
             <TabsTrigger
               value="evaluations"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-yellow-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               ⭐ Đánh giá GV
             </TabsTrigger>
             <TabsTrigger
               value="settings"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               ⚙️ Cài đặt
             </TabsTrigger>
@@ -2707,7 +2746,7 @@ export default function AdminDashboard({
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {/* Học sinh */}
                   <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-90" />
+                    <div className="absolute inset-0 bg-linear-to-br from-blue-500 to-blue-600 opacity-90" />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
@@ -2729,7 +2768,7 @@ export default function AdminDashboard({
 
                   {/* Giáo viên */}
                   <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-90" />
+                    <div className="absolute inset-0 bg-linear-to-br from-emerald-500 to-emerald-600 opacity-90" />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
@@ -2751,7 +2790,7 @@ export default function AdminDashboard({
 
                   {/* Doanh thu tháng */}
                   <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-500 opacity-90" />
+                    <div className="absolute inset-0 bg-linear-to-br from-amber-500 to-orange-500 opacity-90" />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
@@ -2775,7 +2814,7 @@ export default function AdminDashboard({
 
                   {/* Khóa học */}
                   <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-90" />
+                    <div className="absolute inset-0 bg-linear-to-br from-purple-500 to-purple-600 opacity-90" />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
@@ -2911,7 +2950,7 @@ export default function AdminDashboard({
 
                 {/* Quick Stats */}
                 <div className="grid gap-4 md:grid-cols-3 mt-6">
-                  <Card className="p-5 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200">
+                  <Card className="p-5 bg-linear-to-br from-emerald-50 to-green-50 border-2 border-emerald-200">
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">✅</span>
                       <div>
@@ -2922,7 +2961,7 @@ export default function AdminDashboard({
                       </div>
                     </div>
                   </Card>
-                  <Card className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+                  <Card className="p-5 bg-linear-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">📊</span>
                       <div>
@@ -2935,7 +2974,7 @@ export default function AdminDashboard({
                       </div>
                     </div>
                   </Card>
-                  <Card className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200">
+                  <Card className="p-5 bg-linear-to-br from-amber-50 to-orange-50 border-2 border-amber-200">
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">🎓</span>
                       <div>
@@ -2971,7 +3010,7 @@ export default function AdminDashboard({
                 <div className="flex gap-2">
                   <Button
                     onClick={() => setShowImportStudentsModal(true)}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl shadow-lg shadow-green-200"
+                    className="bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl shadow-lg shadow-green-200"
                   >
                     📥 Import học sinh
                   </Button>
@@ -2980,7 +3019,7 @@ export default function AdminDashboard({
                       setEditingClass(null);
                       setShowClassModal(true);
                     }}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+                    className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
                   >
                     ➕ Thêm khóa học
                   </Button>
@@ -3014,7 +3053,9 @@ export default function AdminDashboard({
                   <div className="text-center py-8 text-gray-500">
                     <p className="text-lg mb-2">📚</p>
                     <p>Chưa có khóa học nào</p>
-                    <p className="text-sm">Nhấn "Thêm khóa học" để tạo mới</p>
+                    <p className="text-sm">
+                      Nhấn &ldquo;Thêm khóa học&rdquo; để tạo mới
+                    </p>
                   </div>
                 ) : (
                   classes
@@ -3025,16 +3066,16 @@ export default function AdminDashboard({
                         course.name?.toLowerCase().includes(query) ||
                         course.teacher?.name?.toLowerCase().includes(query) ||
                         course.branch?.name?.toLowerCase().includes(query) ||
-                        (course as any).subject?.toLowerCase().includes(query)
+                        course.subject?.toLowerCase().includes(query)
                       );
                     })
                     .map((course) => (
                       <div
                         key={course._id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-gradient-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-linear-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
+                          <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
                             📖
                           </div>
                           <div>
@@ -3067,12 +3108,13 @@ export default function AdminDashboard({
                             </p>
                           </div>
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${course.status === "active"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : course.status === "completed"
-                                ? "bg-gray-100 text-gray-700"
-                                : "bg-amber-100 text-amber-700"
-                              }`}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              course.status === "active"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : course.status === "completed"
+                                  ? "bg-gray-100 text-gray-700"
+                                  : "bg-amber-100 text-amber-700"
+                            }`}
                           >
                             {course.status === "active"
                               ? "Đang mở"
@@ -3108,7 +3150,7 @@ export default function AdminDashboard({
                       course.name?.toLowerCase().includes(query) ||
                       course.teacher?.name?.toLowerCase().includes(query) ||
                       course.branch?.name?.toLowerCase().includes(query) ||
-                      (course as any).subject?.toLowerCase().includes(query)
+                      course.subject?.toLowerCase().includes(query)
                     );
                   }).length === 0 && (
                     <div className="text-center py-8 text-gray-500">
@@ -3154,7 +3196,7 @@ export default function AdminDashboard({
                         onChange={(e) =>
                           setSelectedBranchFilter(e.target.value)
                         }
-                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]"
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-45"
                       >
                         <option value="">Tất cả cơ sở</option>
                         {branches.map((branch) => (
@@ -3192,7 +3234,7 @@ export default function AdminDashboard({
                       placeholder="Tìm kiếm theo tên, email, SĐT..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 pr-8 w-full sm:w-[280px] rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500"
+                      className="pl-9 pr-8 w-full sm:w-70 rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500"
                     />
                     {searchQuery && (
                       <button
@@ -3223,39 +3265,39 @@ export default function AdminDashboard({
                     📤 Import Excel
                   </Button>
                   <Button
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+                    className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
                     onClick={() =>
                       setShowModal(
                         activeAccountTab === "students"
                           ? {
-                            title: "Thêm học sinh",
-                            fields: [
-                              "Họ và tên",
-                              "Email",
-                              "Số điện thoại",
-                              "Tên phụ huynh",
-                              "SĐT phụ huynh",
-                            ],
-                          }
-                          : activeAccountTab === "parents"
-                            ? {
-                              title: "Thêm phụ huynh",
+                              title: "Thêm học sinh",
                               fields: [
                                 "Họ và tên",
                                 "Email",
                                 "Số điện thoại",
-                                "Email con (học sinh)",
+                                "Tên phụ huynh",
+                                "SĐT phụ huynh",
                               ],
                             }
+                          : activeAccountTab === "parents"
+                            ? {
+                                title: "Thêm phụ huynh",
+                                fields: [
+                                  "Họ và tên",
+                                  "Email",
+                                  "Số điện thoại",
+                                  "Email con (học sinh)",
+                                ],
+                              }
                             : {
-                              title: "Thêm giáo viên",
-                              fields: [
-                                "Họ và tên",
-                                "Email",
-                                "Số điện thoại",
-                                "Môn dạy",
-                              ],
-                            },
+                                title: "Thêm giáo viên",
+                                fields: [
+                                  "Họ và tên",
+                                  "Email",
+                                  "Số điện thoại",
+                                  "Môn dạy",
+                                ],
+                              },
                       )
                     }
                   >
@@ -3268,30 +3310,33 @@ export default function AdminDashboard({
               <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
                 <button
                   onClick={() => setActiveAccountTab("students")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "students"
-                    ? "bg-white text-blue-700 shadow-sm"
-                    : "text-gray-600 hover:bg-white/50"
-                    }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    activeAccountTab === "students"
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-600 hover:bg-white/50"
+                  }`}
                 >
                   <span>👨‍🎓</span>
                   <span>Học sinh ({apiStudents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("parents")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "parents"
-                    ? "bg-white text-blue-700 shadow-sm"
-                    : "text-gray-600 hover:bg-white/50"
-                    }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    activeAccountTab === "parents"
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-600 hover:bg-white/50"
+                  }`}
                 >
                   <span>👨‍👩‍👧</span>
                   <span>Phụ huynh ({apiParents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("teachers")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "teachers"
-                    ? "bg-white text-blue-700 shadow-sm"
-                    : "text-gray-600 hover:bg-white/50"
-                    }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    activeAccountTab === "teachers"
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-600 hover:bg-white/50"
+                  }`}
                 >
                   <span>👨‍🏫</span>
                   <span>Giáo viên ({apiTeachers.length})</span>
@@ -3312,18 +3357,18 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có học sinh tại cơ sở "${getBranchName(
-                              effectiveBranchFilter,
-                            )}"`
+                                effectiveBranchFilter,
+                              )}"`
                             : "Chưa có học sinh"}
                         </div>
                       ) : (
                         apiStudents.map((s) => (
                           <div
                             key={s._id}
-                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
+                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-linear-to-r from-white to-gray-50"
                           >
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-2xl">
+                              <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-2xl">
                                 👨‍🎓
                               </div>
                               <div>
@@ -3348,8 +3393,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {s.createdAt
                                   ? new Date(s.createdAt).toLocaleDateString(
-                                    "vi-VN",
-                                  )
+                                      "vi-VN",
+                                    )
                                   : ""}
                               </p>
                               <Button
@@ -3374,18 +3419,18 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có phụ huynh tại cơ sở "${getBranchName(
-                              effectiveBranchFilter,
-                            )}"`
+                                effectiveBranchFilter,
+                              )}"`
                             : "Chưa có phụ huynh"}
                         </div>
                       ) : (
                         apiParents.map((p) => (
                           <div
                             key={p._id}
-                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
+                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-linear-to-r from-white to-gray-50"
                           >
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-100 to-green-100 flex items-center justify-center text-2xl">
+                              <div className="w-12 h-12 rounded-full bg-linear-to-br from-emerald-100 to-green-100 flex items-center justify-center text-2xl">
                                 👨‍👩‍👧
                               </div>
                               <div>
@@ -3409,8 +3454,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {p.createdAt
                                   ? new Date(p.createdAt).toLocaleDateString(
-                                    "vi-VN",
-                                  )
+                                      "vi-VN",
+                                    )
                                   : ""}
                               </p>
                               <Button
@@ -3435,18 +3480,18 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có giáo viên tại cơ sở "${getBranchName(
-                              effectiveBranchFilter,
-                            )}"`
+                                effectiveBranchFilter,
+                              )}"`
                             : "Chưa có giáo viên"}
                         </div>
                       ) : (
                         apiTeachers.map((t) => (
                           <div
                             key={t._id}
-                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
+                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-linear-to-r from-white to-gray-50"
                           >
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-violet-100 flex items-center justify-center text-2xl">
+                              <div className="w-12 h-12 rounded-full bg-linear-to-br from-purple-100 to-violet-100 flex items-center justify-center text-2xl">
                                 👨‍🏫
                               </div>
                               <div>
@@ -3475,8 +3520,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {t.createdAt
                                   ? new Date(t.createdAt).toLocaleDateString(
-                                    "vi-VN",
-                                  )
+                                      "vi-VN",
+                                    )
                                   : ""}
                               </p>
                               <Button
@@ -3537,10 +3582,11 @@ export default function AdminDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${rankingView === key
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-white/50"
-                      }`}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                      rankingView === key
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-gray-600 hover:bg-white/50"
+                    }`}
                   >
                     <span className="text-base leading-none">
                       {tabIcons[key as RankingCategory]}
@@ -3567,25 +3613,27 @@ export default function AdminDashboard({
                     leaderboard?.score?.map((row) => (
                       <div
                         key={`score-${row.rank}-${row.studentId}`}
-                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
-                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                          : row.rank === 2
-                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
-                            : row.rank === 3
-                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                              : "border-gray-100 bg-white hover:border-blue-200"
-                          }`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                          row.rank === 1
+                            ? "border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 shadow-md"
+                            : row.rank === 2
+                              ? "border-gray-200 bg-linear-to-r from-gray-50 to-slate-50"
+                              : row.rank === 3
+                                ? "border-orange-200 bg-linear-to-r from-orange-50 to-amber-50"
+                                : "border-gray-100 bg-white hover:border-blue-200"
+                        }`}
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
-                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                              : row.rank === 2
-                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                                : row.rank === 3
-                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                  : "bg-gray-100 text-gray-600"
-                              }`}
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                              row.rank === 1
+                                ? "bg-linear-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                                : row.rank === 2
+                                  ? "bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                  : row.rank === 3
+                                    ? "bg-linear-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                    : "bg-gray-100 text-gray-600"
+                            }`}
                           >
                             {row.rank === 1 && "🏆"}
                             {row.rank === 2 && "🥈"}
@@ -3619,25 +3667,27 @@ export default function AdminDashboard({
                     leaderboard?.attendance?.map((row) => (
                       <div
                         key={`attendance-${row.rank}-${row.studentId}`}
-                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
-                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                          : row.rank === 2
-                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
-                            : row.rank === 3
-                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                              : "border-gray-100 bg-white hover:border-blue-200"
-                          }`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                          row.rank === 1
+                            ? "border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 shadow-md"
+                            : row.rank === 2
+                              ? "border-gray-200 bg-linear-to-r from-gray-50 to-slate-50"
+                              : row.rank === 3
+                                ? "border-orange-200 bg-linear-to-r from-orange-50 to-amber-50"
+                                : "border-gray-100 bg-white hover:border-blue-200"
+                        }`}
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
-                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                              : row.rank === 2
-                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                                : row.rank === 3
-                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                  : "bg-gray-100 text-gray-600"
-                              }`}
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                              row.rank === 1
+                                ? "bg-linear-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                                : row.rank === 2
+                                  ? "bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                  : row.rank === 3
+                                    ? "bg-linear-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                    : "bg-gray-100 text-gray-600"
+                            }`}
                           >
                             {row.rank === 1 && "🏆"}
                             {row.rank === 2 && "🥈"}
@@ -3686,19 +3736,19 @@ export default function AdminDashboard({
 
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
-                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50">
+                <div className="text-center p-4 rounded-xl bg-linear-to-br from-blue-50 to-indigo-50">
                   <p className="text-2xl font-bold text-blue-600">
                     {leaderboard?.summary?.totalStudents || 0}
                   </p>
                   <p className="text-xs text-gray-500">Tổng học sinh</p>
                 </div>
-                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50">
+                <div className="text-center p-4 rounded-xl bg-linear-to-br from-emerald-50 to-green-50">
                   <p className="text-2xl font-bold text-emerald-600">
                     {leaderboard?.summary?.averageScore?.toFixed(1) || "0.0"}
                   </p>
                   <p className="text-xs text-gray-500">Điểm TB</p>
                 </div>
-                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50">
+                <div className="text-center p-4 rounded-xl bg-linear-to-br from-amber-50 to-orange-50">
                   <p className="text-2xl font-bold text-amber-600">
                     {leaderboard?.summary?.averageAttendanceRate || 0}%
                   </p>
@@ -3782,7 +3832,7 @@ export default function AdminDashboard({
                 <div className="grid gap-4 md:grid-cols-3 mb-6">
                   {/* Total Revenue */}
                   <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 opacity-90" />
+                    <div className="absolute inset-0 bg-linear-to-br from-green-500 to-emerald-600 opacity-90" />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
@@ -3807,7 +3857,7 @@ export default function AdminDashboard({
 
                   {/* Total Expense */}
                   <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-pink-600 opacity-90" />
+                    <div className="absolute inset-0 bg-linear-to-br from-red-500 to-pink-600 opacity-90" />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -3848,10 +3898,11 @@ export default function AdminDashboard({
                     className={`relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
                   >
                     <div
-                      className={`absolute inset-0 bg-gradient-to-br ${financeDashboard.summary.profit >= 0
-                        ? "from-blue-500 to-indigo-600"
-                        : "from-orange-500 to-red-600"
-                        } opacity-90`}
+                      className={`absolute inset-0 bg-linear-to-br ${
+                        financeDashboard.summary.profit >= 0
+                          ? "from-blue-500 to-indigo-600"
+                          : "from-orange-500 to-red-600"
+                      } opacity-90`}
                     />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
@@ -4074,10 +4125,11 @@ export default function AdminDashboard({
                             </td>
                             <td className="py-3 px-4 text-right">
                               <span
-                                className={`px-2 py-1 rounded-full text-xs font-semibold ${row.profit >= 0
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : "bg-red-100 text-red-700"
-                                  }`}
+                                className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  row.profit >= 0
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
                               >
                                 {formatCurrency(row.profit)}
                               </span>
@@ -4183,7 +4235,7 @@ export default function AdminDashboard({
                   </div>
                 </div>
                 <Button
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+                  className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
                   onClick={handleAddBranch}
                 >
                   ➕ Thêm cơ sở mới
@@ -4201,16 +4253,18 @@ export default function AdminDashboard({
                   <div className="text-center py-12 text-gray-500">
                     <span className="text-5xl mb-4 block">🏢</span>
                     <p className="font-medium">Chưa có cơ sở nào</p>
-                    <p className="text-sm">Nhấn "Thêm cơ sở mới" để bắt đầu</p>
+                    <p className="text-sm">
+                      Nhấn &ldquo;Thêm cơ sở mới&rdquo; để bắt đầu
+                    </p>
                   </div>
                 ) : (
                   branches.map((branch) => (
                     <div
                       key={branch._id}
-                      className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
+                      className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-linear-to-r from-white to-gray-50"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-2xl">
+                        <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-2xl">
                           🏢
                         </div>
                         <div>
@@ -4229,10 +4283,11 @@ export default function AdminDashboard({
                       </div>
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${branch.status === "active"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-gray-100 text-gray-600"
-                            }`}
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            branch.status === "active"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
                         >
                           {branch.status === "active"
                             ? "✅ Hoạt động"
@@ -4275,7 +4330,7 @@ export default function AdminDashboard({
             <Card className="p-6 border-0 shadow-lg rounded-2xl">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-200">
+                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-200">
                     💳
                   </div>
                   <div>
@@ -4289,7 +4344,7 @@ export default function AdminDashboard({
                 </div>
                 <Button
                   onClick={() => (window.location.href = "/admin/payments")}
-                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                 >
                   Mở trang quản lý →
                 </Button>
@@ -4299,7 +4354,7 @@ export default function AdminDashboard({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div
                   onClick={() => (window.location.href = "/admin/payments")}
-                  className="p-5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
+                  className="p-5 rounded-xl bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-white shadow flex items-center justify-center text-3xl">
@@ -4318,7 +4373,7 @@ export default function AdminDashboard({
 
                 <div
                   onClick={() => (window.location.href = "/admin/payments")}
-                  className="p-5 rounded-xl bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-100 cursor-pointer hover:shadow-lg transition-all"
+                  className="p-5 rounded-xl bg-linear-to-r from-yellow-50 to-orange-50 border border-yellow-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-white shadow flex items-center justify-center text-3xl">
@@ -4348,7 +4403,7 @@ export default function AdminDashboard({
                 </p>
                 <Button
                   onClick={() => (window.location.href = "/admin/payments")}
-                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                   size="lg"
                 >
                   Vào trang quản lý thanh toán
@@ -4426,7 +4481,7 @@ export default function AdminDashboard({
               </div>
 
               <div className="pt-4 border-t border-gray-100">
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200">
+                <Button className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200">
                   💾 Lưu thay đổi
                 </Button>
               </div>
@@ -4517,8 +4572,10 @@ export default function AdminDashboard({
               await updateUser(editingUser._id, data);
               setEditingUser(null);
               await fetchUsers();
-            } catch (err: any) {
-              setEditUserError(err.message || "Lỗi khi cập nhật tài khoản");
+            } catch (err: unknown) {
+              setEditUserError(
+                (err as Error).message || "Lỗi khi cập nhật tài khoản",
+              );
             } finally {
               setEditUserLoading(false);
             }
@@ -4563,11 +4620,11 @@ export default function AdminDashboard({
           classData={classStudentsModal}
           branchId={
             typeof classStudentsModal.branchId === "object" &&
-              classStudentsModal.branchId
+            classStudentsModal.branchId
               ? classStudentsModal.branchId._id
               : classStudentsModal.branchId ||
-              classStudentsModal.branch?._id ||
-              ""
+                classStudentsModal.branch?._id ||
+                ""
           }
           onClose={() => setClassStudentsModal(null)}
           onUpdate={() => {
@@ -4579,7 +4636,11 @@ export default function AdminDashboard({
 
       {showSettings && (
         <SettingsModal
-          user={fullUserDetails || user}
+          user={
+            (fullUserDetails || user) as Parameters<
+              typeof SettingsModal
+            >[0]["user"]
+          }
           onClose={() => setShowSettings(false)}
         />
       )}

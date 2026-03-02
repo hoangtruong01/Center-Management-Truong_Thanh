@@ -50,7 +50,7 @@ export default function ImportStudentsModal({
         // branchId can be string or object {_id, name}
         const classBranchId =
           typeof c.branchId === "object" && c.branchId
-            ? (c.branchId as any)._id
+            ? (c.branchId as unknown as { _id: string })._id
             : c.branchId;
         return classBranchId === selectedBranchId;
       })
@@ -117,9 +117,13 @@ export default function ImportStudentsModal({
       if (response.data.successful > 0) {
         onSuccess?.();
       }
-    } catch (err: any) {
-      console.error("Error importing:", err);
-      setError(err.response?.data?.message || "Lỗi khi import học sinh");
+    } catch (err: unknown) {
+      const error = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      console.error("Error importing:", error);
+      setError(error.response?.data?.message || "Lỗi khi import học sinh");
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +136,7 @@ export default function ImportStudentsModal({
       <Card className="w-full max-w-2xl p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-lg">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-lg">
             📥
           </div>
           <div>
@@ -313,10 +317,10 @@ export default function ImportStudentsModal({
                 📌 Hướng dẫn:
               </h4>
               <ol className="text-xs text-blue-700 list-decimal list-inside space-y-1">
-                <li>Tải template Excel bằng nút "Template"</li>
+                <li>Tải template Excel bằng nút &ldquo;Template&rdquo;</li>
                 <li>Điền thông tin học sinh vào template</li>
                 <li>Chọn cơ sở và lớp học</li>
-                <li>Upload file và nhấn "Import"</li>
+                <li>Upload file và nhấn &ldquo;Import&rdquo;</li>
                 <li>Mật khẩu mặc định: 123456789</li>
               </ol>
             </div>
@@ -330,7 +334,7 @@ export default function ImportStudentsModal({
               <Button
                 onClick={handleImport}
                 disabled={isLoading || !file || !selectedClassId}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl"
+                className="flex-1 bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl"
               >
                 {isLoading ? (
                   <>

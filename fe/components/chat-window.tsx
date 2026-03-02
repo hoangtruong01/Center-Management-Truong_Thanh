@@ -29,7 +29,7 @@ export default function ChatWindow({
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingTimeoutRef = useRef<NodeJS.Timeout>(undefined);
 
   const { user: currentUser } = useAuthStore();
   const {
@@ -121,7 +121,7 @@ export default function ChatWindow({
         <div className="flex items-center justify-between mb-4 pb-3 border-b">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shrink-0">
                 <User className="w-6 h-6" />
               </div>
               {isRecipientOnline && (
@@ -140,7 +140,7 @@ export default function ChatWindow({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
             title="Đóng"
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -178,10 +178,10 @@ export default function ChatWindow({
                 >
                   {/* Avatar */}
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
                       isMe
-                        ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white"
-                        : "bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
+                        ? "bg-linear-to-br from-green-500 to-emerald-600 text-white"
+                        : "bg-linear-to-br from-blue-500 to-indigo-600 text-white"
                     }`}
                   >
                     {(isMe ? currentUser?.name : displayName)
@@ -202,7 +202,7 @@ export default function ChatWindow({
                           : "bg-gray-100 text-gray-900 rounded-bl-none"
                       }`}
                     >
-                      <p className="text-sm break-words whitespace-pre-wrap">
+                      <p className="text-sm wrap-break-word whitespace-pre-wrap">
                         {msg.content}
                       </p>
                     </div>
@@ -218,7 +218,7 @@ export default function ChatWindow({
           {/* Typing indicator */}
           {isRecipientTyping && (
             <div className="flex items-end gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-semibold text-white">
+              <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-semibold text-white">
                 {displayName.charAt(0).toUpperCase()}
               </div>
               <div className="bg-gray-100 rounded-2xl rounded-bl-none px-4 py-2">
@@ -247,13 +247,13 @@ export default function ChatWindow({
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             placeholder="Nhập tin nhắn... (Enter để gửi, Shift+Enter để xuống dòng)"
-            className="flex-1 resize-none min-h-[40px] max-h-[120px]"
+            className="flex-1 resize-none min-h-10 max-h-30"
             rows={1}
           />
           <Button
             onClick={handleSend}
             disabled={!text.trim() || isSending}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shrink-0"
             title="Gửi tin nhắn"
           >
             <Send className="w-4 h-4" />

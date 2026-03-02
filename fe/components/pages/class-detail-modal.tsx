@@ -77,7 +77,7 @@ export default function ClassDetailModal({
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl p-0 bg-white shadow-2xl border-0 max-h-[90vh] overflow-hidden">
         {/* Header with gradient */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white">
+        <div className="bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <h3 className="text-xl font-bold mb-1">{classData.name}</h3>
@@ -235,7 +235,7 @@ export default function ClassDetailModal({
                     key={student._id}
                     className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xs font-bold">
+                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xs font-bold">
                       {student.name.charAt(0).toUpperCase()}
                     </div>
                     <span className="text-sm text-gray-700 truncate flex-1">

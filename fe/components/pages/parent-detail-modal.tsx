@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,13 +22,7 @@ export default function ParentDetailModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen && parent._id) {
-      loadChildren();
-    }
-  }, [isOpen, parent._id]);
-
-  const loadChildren = async () => {
+  const loadChildren = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -36,13 +30,19 @@ export default function ParentDetailModal({
       const childrenData = await fetchParentChildren(parent._id!);
       console.log("Children data received:", childrenData);
       setChildren(childrenData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error loading children:", err);
-      setError(err.message || "Lỗi khi tải thông tin con");
+      setError((err as Error).message || "Lỗi khi tải thông tin con");
     } finally {
       setLoading(false);
     }
-  };
+  }, [parent, fetchParentChildren]);
+
+  useEffect(() => {
+    if (isOpen && parent._id) {
+      loadChildren();
+    }
+  }, [isOpen, parent._id, loadChildren]);
 
   if (!isOpen) return null;
 
@@ -57,7 +57,7 @@ export default function ParentDetailModal({
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6">
+        <div className="bg-linear-to-r from-purple-600 to-indigo-600 text-white p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-3xl">
@@ -91,7 +91,8 @@ export default function ParentDetailModal({
               <div>
                 <p className="text-gray-500">Mã phụ huynh</p>
                 <p className="font-medium text-gray-900">
-                  {(parent as any).parentCode || "Chưa có"}
+                  {(parent as unknown as Record<string, string>).parentCode ||
+                    "Chưa có"}
                 </p>
               </div>
               <div>
@@ -105,7 +106,8 @@ export default function ParentDetailModal({
               <div>
                 <p className="text-gray-500">Email con</p>
                 <p className="font-medium text-gray-900">
-                  {(parent as any).childEmail || "Chưa liên kết"}
+                  {(parent as unknown as Record<string, string>).childEmail ||
+                    "Chưa liên kết"}
                 </p>
               </div>
               <div>
@@ -133,9 +135,15 @@ export default function ParentDetailModal({
                       className="text-sm py-1 px-3"
                     >
                       {index + 1}. {child.name}
-                      {(child as any).studentCode && (
+                      {(child as unknown as Record<string, string>)
+                        .studentCode && (
                         <span className="ml-1 text-xs opacity-75">
-                          ({(child as any).studentCode})
+                          (
+                          {
+                            (child as unknown as Record<string, string>)
+                              .studentCode
+                          }
+                          )
                         </span>
                       )}
                     </Badge>
@@ -199,7 +207,7 @@ export default function ParentDetailModal({
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xl">
+                        <div className="w-12 h-12 bg-linear-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xl">
                           {child.name?.charAt(0) || "👧"}
                         </div>
                         <div>
@@ -224,9 +232,13 @@ export default function ParentDetailModal({
                             ? "Đang học"
                             : child.status}
                         </Badge>
-                        {(child as any).studentCode && (
+                        {(child as unknown as Record<string, string>)
+                          .studentCode && (
                           <p className="text-xs text-gray-500 mt-1">
-                            {(child as any).studentCode}
+                            {
+                              (child as unknown as Record<string, string>)
+                                .studentCode
+                            }
                           </p>
                         )}
                       </div>
@@ -238,7 +250,7 @@ export default function ParentDetailModal({
                         <p className="font-medium text-gray-900">
                           {child.dateOfBirth
                             ? new Date(child.dateOfBirth).toLocaleDateString(
-                                "vi-VN"
+                                "vi-VN",
                               )
                             : "Chưa có"}
                         </p>
@@ -246,17 +258,20 @@ export default function ParentDetailModal({
                       <div>
                         <p className="text-gray-500">Giới tính</p>
                         <p className="font-medium text-gray-900">
-                          {(child as any).gender === "male"
+                          {(child as unknown as Record<string, string>)
+                            .gender === "male"
                             ? "Nam"
-                            : (child as any).gender === "female"
-                            ? "Nữ"
-                            : "Chưa có"}
+                            : (child as unknown as Record<string, string>)
+                                  .gender === "female"
+                              ? "Nữ"
+                              : "Chưa có"}
                         </p>
                       </div>
                       <div>
                         <p className="text-gray-500">Chi nhánh</p>
                         <p className="font-medium text-gray-900">
-                          {(child as any).branchId || "Chưa phân"}
+                          {(child as unknown as Record<string, string>)
+                            .branchId || "Chưa phân"}
                         </p>
                       </div>
                     </div>

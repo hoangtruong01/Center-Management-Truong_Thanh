@@ -60,7 +60,7 @@ function AttendanceDetailModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4">
+        <div className="bg-linear-to-r from-emerald-600 to-teal-600 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
@@ -313,7 +313,7 @@ export default function AttendanceManager() {
             ))}
           </select>
 
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-50">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                 🔍
@@ -332,7 +332,7 @@ export default function AttendanceManager() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
+        <Card className="p-4 bg-linear-to-br from-blue-50 to-indigo-50 border-blue-100">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white text-2xl">
               📚
@@ -346,7 +346,7 @@ export default function AttendanceManager() {
           </div>
         </Card>
 
-        <Card className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-green-100">
+        <Card className="p-4 bg-linear-to-br from-green-50 to-emerald-50 border-green-100">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl">
               ✓
@@ -369,7 +369,7 @@ export default function AttendanceManager() {
           </div>
         </Card>
 
-        <Card className="p-4 bg-gradient-to-br from-red-50 to-rose-50 border-red-100">
+        <Card className="p-4 bg-linear-to-br from-red-50 to-rose-50 border-red-100">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center text-white text-2xl">
               ⚠️
@@ -387,7 +387,7 @@ export default function AttendanceManager() {
           </div>
         </Card>
 
-        <Card className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100">
+        <Card className="p-4 bg-linear-to-br from-amber-50 to-orange-50 border-amber-100">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center text-white text-2xl">
               👥
@@ -438,17 +438,17 @@ export default function AttendanceManager() {
                   className={`flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:shadow-md ${
                     stats.hasConsecutiveAbsent
                       ? "border-red-200 bg-red-50"
-                      : "border-gray-100 bg-gradient-to-r from-white to-gray-50 hover:border-blue-200"
+                      : "border-gray-100 bg-linear-to-r from-white to-gray-50 hover:border-blue-200"
                   }`}
                 >
                   <div className="flex items-center gap-4">
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl shadow-md ${
                         stats.attendanceRate >= 90
-                          ? "bg-gradient-to-br from-green-500 to-emerald-500"
+                          ? "bg-linear-to-br from-green-500 to-emerald-500"
                           : stats.attendanceRate >= 70
-                          ? "bg-gradient-to-br from-amber-500 to-orange-500"
-                          : "bg-gradient-to-br from-red-500 to-rose-500"
+                          ? "bg-linear-to-br from-amber-500 to-orange-500"
+                          : "bg-linear-to-br from-red-500 to-rose-500"
                       }`}
                     >
                       {stats.attendanceRate >= 90

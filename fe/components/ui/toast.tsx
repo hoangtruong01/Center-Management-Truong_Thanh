@@ -100,7 +100,7 @@ export function ToastContainer() {
               ${variant.container}
             `}
           >
-            <div className="mt-1 flex-shrink-0">
+            <div className="mt-1 shrink-0">
               <Icon className="w-6 h-6" strokeWidth={2.5} />
             </div>
 
@@ -108,14 +108,14 @@ export function ToastContainer() {
               <h4 className="font-bold text-base leading-none mb-1">
                 {variant.title}
               </h4>
-              <p className="text-sm font-medium opacity-90 leading-relaxed break-words">
+              <p className="text-sm font-medium opacity-90 leading-relaxed wrap-break-word">
                 {toastItem.message}
               </p>
             </div>
 
             <button
               onClick={() => removeToast(toastItem.id)}
-              className="flex-shrink-0 mt-1 opacity-70 hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-white/20"
+              className="shrink-0 mt-1 opacity-70 hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-white/20"
             >
               <X className="w-5 h-5" />
             </button>

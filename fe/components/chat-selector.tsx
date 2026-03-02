@@ -122,7 +122,7 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
                   >
                     <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white">
                         <User className="w-5 h-5" />
                       </div>
                       {onlineUsers.includes(conversation.otherUser._id) && (
@@ -135,7 +135,7 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
                           {conversation.otherUser.name}
                         </p>
                         {conversation.unreadCount > 0 && (
-                          <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                          <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-5 text-center">
                             {conversation.unreadCount}
                           </span>
                         )}
@@ -166,7 +166,7 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
                   >
                     <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white">
                         <User className="w-5 h-5" />
                       </div>
                       {onlineUsers.includes(user._id) && (

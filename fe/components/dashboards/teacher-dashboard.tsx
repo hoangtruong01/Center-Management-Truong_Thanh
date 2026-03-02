@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Bounce, ToastContainer, toast } from "react-toastify";
+// @ts-expect-error - CSS import for react-toastify
 import "react-toastify/dist/ReactToastify.css";
 import {
   BarChart,
@@ -14,23 +15,18 @@ import {
   Line,
 } from "recharts";
 import { ChevronDown, Camera } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useClassesStore, Class } from "@/lib/stores/classes-store";
-import {
-  useScheduleStore,
-  Session,
-  SessionStatus,
-} from "@/lib/stores/schedule-store";
+import { useScheduleStore, Session } from "@/lib/stores/schedule-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import {
   useDocumentsStore,
-  Document as TeachingDocument,
-  DocumentVisibility,
+  UploadDocumentDto,
 } from "@/lib/stores/documents-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
@@ -44,6 +40,20 @@ import {
 } from "@/lib/services/teacher-grading.service";
 
 // Leaderboard types
+// Grade item returned from API
+interface GradeItem {
+  _id: string;
+  score: number;
+  maxScore: number;
+  gradedAt: string;
+  feedback?: string;
+  gradingSheetId?: {
+    _id: string;
+    title: string;
+    category: string;
+  };
+}
+
 type RankingCategory = "score" | "attendance";
 
 const leaderboardOptions: Record<
@@ -109,30 +119,6 @@ const evaluationSummary = {
   ],
 };
 
-const studentDetailMock = {
-  id: "HS001",
-  name: "Nguyễn Văn A",
-  status: "Tốt",
-  email: "student@mail.com",
-  phone: "0987 654 321",
-  parent: "Nguyễn Văn X",
-  subject: "Toán",
-  progress: [
-    { week: "Tuần 1", score: 65 },
-    { week: "Tuần 2", score: 70 },
-    { week: "Tuần 3", score: 75 },
-    { week: "Tuần 4", score: 78 },
-    { week: "Tuần 5", score: 82 },
-  ],
-  midterm: 85,
-  final: 82,
-  average: 82,
-  teacherNote:
-    "Học sinh có tiến độ học tập tốt, nắm vững kiến thức cơ bản, hoạt động tích cực trong lớp. Cần tăng cường luyện tập các bài toán nâng cao để phát triển kỹ năng giải quyết vấn đề.",
-  attendance: "11/12",
-  homework: "10/12",
-};
-
 interface StudentItem {
   _id: string;
   name: string;
@@ -146,7 +132,7 @@ function StudentDetailModal({
   student: StudentItem;
   onClose: () => void;
 }) {
-  const [grades, setGrades] = useState<any[]>([]);
+  const [grades, setGrades] = useState<GradeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -229,9 +215,7 @@ function StudentDetailModal({
             </Card>
             <Card className="p-4 bg-purple-50 border-purple-100">
               <p className="text-xs text-gray-500">Số bài kiểm tra</p>
-              <p className="text-sm text-gray-900 font-bold text-lg">
-                {grades.length}
-              </p>
+              <p className="text-gray-900 font-bold text-lg">{grades.length}</p>
               <p className="text-xs text-gray-500 mt-2">Cập nhật gần nhất</p>
               <p className="text-sm text-gray-900">
                 {grades.length > 0
@@ -319,8 +303,8 @@ function StudentDetailModal({
                       <p className="text-[10px] text-gray-500">
                         {
                           GRADE_CATEGORY_LABELS[
-                          grade.gradingSheetId
-                            ?.category as keyof typeof GRADE_CATEGORY_LABELS
+                            grade.gradingSheetId
+                              ?.category as keyof typeof GRADE_CATEGORY_LABELS
                           ]
                         }{" "}
                         • {new Date(grade.gradedAt).toLocaleDateString()}
@@ -331,7 +315,7 @@ function StudentDetailModal({
                         {grade.score}/{grade.maxScore}
                       </span>
                       {grade.feedback && (
-                        <p className="text-[10px] text-gray-600 italic truncate max-w-[100px]">
+                        <p className="text-[10px] text-gray-600 italic truncate max-w-25">
                           {grade.feedback}
                         </p>
                       )}
@@ -618,9 +602,10 @@ function TimetableAttendanceModal({
           setRows((prevRows) =>
             prevRows.map((row) => {
               const existingRecord = existingRecords.find(
-                (r: any) =>
+                (r: Record<string, unknown>) =>
                   r.studentId === row.studentId ||
-                  r.studentId?._id === row.studentId,
+                  (r.studentId as Record<string, unknown>)?._id ===
+                    row.studentId,
               );
               if (existingRecord) {
                 return { ...row, status: existingRecord.status };
@@ -743,8 +728,9 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
-                  }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
+                  !canEdit ? "opacity-60" : ""
+                }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -964,7 +950,7 @@ function SettingsModal({
       if (selectedFile) {
         try {
           avatarUrl = await uploadToCloudinary(selectedFile);
-        } catch (error) {
+        } catch {
           toast.error("Không thể tải ảnh lên. Vui lòng thử lại.");
           setIsLoading(false);
           return;
@@ -992,8 +978,12 @@ function SettingsModal({
       });
       setIsEditing(false);
       window.location.reload();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Cập nhật thất bại", {
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      toast.error(err.response?.data?.message || "Cập nhật thất bại", {
         position: "top-right",
         autoClose: 3000,
         hideProgressBar: false,
@@ -1042,7 +1032,7 @@ function SettingsModal({
         <div className="flex flex-col items-center justify-center py-6">
           <div className="relative">
             <div
-              className={`w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
+              className={`w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
               onClick={() => {
                 if (!isEditing && avatarPreview) {
                   setShowImagePreview(true);
@@ -1050,13 +1040,14 @@ function SettingsModal({
               }}
             >
               {avatarPreview ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={avatarPreview}
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
+                <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
               )}
@@ -1085,13 +1076,14 @@ function SettingsModal({
         {/* Image Preview Modal */}
         {showImagePreview && avatarPreview && (
           <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+            className="fixed inset-0 z-60 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowImagePreview(false)}
           >
             <div
               className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={avatarPreview}
                 alt="Profile Large"
@@ -1126,10 +1118,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
                     ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     : "border-gray-300"
-                  }`}
+                }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -1138,10 +1131,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
                     ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     : "border-gray-300"
-                  }`}
+                }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -1174,10 +1168,11 @@ function SettingsModal({
               Trình độ chuyên môn
             </label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                isEditing
                   ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   : "border-gray-300"
-                }`}
+              }`}
               value={
                 isEditing
                   ? formData.qualification
@@ -1194,10 +1189,11 @@ function SettingsModal({
             <label className="text-gray-700 font-medium">Ghi chú</label>
             <textarea
               rows={3}
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                isEditing
                   ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   : "border-gray-300"
-                }`}
+              }`}
               value={
                 isEditing
                   ? formData.teacherNote
@@ -1381,41 +1377,33 @@ export default function TeacherDashboard({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // State to hold full user details including sensitive/personal info not in initial props
-  const [fullUserDetails, setFullUserDetails] = useState<any>(null);
+  const [fullUserDetails, setFullUserDetails] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   // Fetch full teacher data
   useEffect(() => {
     if (user?.id) {
       api
         .get(`/users/${user.id}`)
-        .then((res: any) => {
+        .then((res: { data: Record<string, unknown> }) => {
           // Check if response data is wrapped in 'user' field or is direct
-          const userData = res.data.user || res.data;
+          const userData =
+            (res.data.user as Record<string, unknown>) || res.data;
           setFullUserDetails(userData);
         })
-        .catch((err: any) => {
+        .catch((err: unknown) => {
           console.error("Failed to fetch full user details:", err);
         });
     }
   }, [user.id]);
 
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user.avatarUrl || null,
-  );
-
-  // Sync avatarPreview when user prop changes
-  useEffect(() => {
-    if (user.avatarUrl) {
-      setAvatarPreview(user.avatarUrl);
-    }
-  }, [user.avatarUrl]);
-
-  // Sync avatarPreview when fullUserDetails is loaded
-  useEffect(() => {
-    if (fullUserDetails?.avatarUrl) {
-      setAvatarPreview(fullUserDetails.avatarUrl);
-    }
-  }, [fullUserDetails]);
+  const avatarPreview = useMemo(() => {
+    if (fullUserDetails?.avatarUrl) return fullUserDetails.avatarUrl as string;
+    if (user.avatarUrl) return user.avatarUrl;
+    return null;
+  }, [user.avatarUrl, fullUserDetails]);
 
   // Stores
   const {
@@ -1423,17 +1411,13 @@ export default function TeacherDashboard({
     fetchClasses,
     isLoading: classesLoading,
   } = useClassesStore();
-  const {
-    sessions,
-    fetchTeacherSchedule,
-    isLoading: scheduleLoading,
-  } = useScheduleStore();
+  const { fetchTeacherSchedule, isLoading: scheduleLoading } =
+    useScheduleStore();
   const { markAttendance, markTimetableAttendance } = useAttendanceStore();
   const {
     documents: teachingDocuments,
     fetchMyDocuments,
     uploadDocument,
-    createDocument,
     deleteDocument,
     shareToCommunity,
     restrictToClass,
@@ -1476,14 +1460,22 @@ export default function TeacherDashboard({
 
     // Fetch leaderboard for teacher's students
     fetchTeacherLeaderboard({ limit: 10 });
-  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments, fetchTeacherLeaderboard]);
+  }, [
+    user.id,
+    fetchClasses,
+    fetchTeacherSchedule,
+    fetchMyDocuments,
+    fetchTeacherLeaderboard,
+  ]);
 
   // Set first class as selected when classes load
+  const defaultClass = classes.length > 0 ? classes[0] : null;
   useEffect(() => {
-    if (classes.length > 0 && !selectedClass) {
-      setSelectedClass(classes[0]);
+    if (defaultClass && !selectedClass) {
+      setSelectedClass(defaultClass);
     }
-  }, [classes, selectedClass]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultClass]);
 
   // Build timetable from class schedules (thời khoá biểu)
   const timetableByDay = useMemo(() => {
@@ -1651,8 +1643,9 @@ export default function TeacherDashboard({
         await api.post("/notifications", {
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${classData.name
-            } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
+            classData.name
+          } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
           type: record.status === "absent" ? "warning" : "info",
           category: "attendance",
         });
@@ -1717,8 +1710,9 @@ export default function TeacherDashboard({
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${schedule.className
-                } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
+                schedule.className
+              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
             });
           } catch (notifError) {
@@ -1729,38 +1723,15 @@ export default function TeacherDashboard({
 
       alert("✅ Điểm danh thành công!");
       setTimetableAttendance(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       const errorMessage =
-        error.response?.data?.message || error.message || "Lỗi khi điểm danh";
+        err.response?.data?.message || err.message || "Lỗi khi điểm danh";
       alert(`❌ Lỗi: ${errorMessage}`);
     }
-  };
-
-  // Status style helper
-  const statusStyle = (status: SessionStatus) => {
-    if (status === SessionStatus.Approved)
-      return {
-        label: "Đã xác nhận",
-        className: "bg-emerald-500 hover:bg-emerald-600 text-white",
-      };
-    if (status === SessionStatus.Cancelled)
-      return {
-        label: "Đã hủy",
-        className: "bg-red-500 hover:bg-red-600 text-white",
-      };
-    return {
-      label: "Chờ duyệt",
-      className: "bg-amber-400 hover:bg-amber-500 text-white",
-    };
-  };
-
-  // Get class info for a session
-  const getSessionClass = (session: Session): Class | undefined => {
-    const classId =
-      typeof session.classId === "object"
-        ? session.classId._id
-        : session.classId;
-    return classes.find((c) => c._id === classId);
   };
 
   // Get all students from all classes for contact
@@ -1777,16 +1748,16 @@ export default function TeacherDashboard({
   }, [classes]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#89CFF0]/20 to-white">
+    <div className="min-h-screen bg-linear-to-br from-[#89CFF0]/20 to-white">
       <ToastContainer />
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
+            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
               T
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
+              <h1 className="text-lg font-bold bg-linear-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
                 Trường Thành Education
               </h1>
               <p className="text-xs text-gray-500">Dashboard Giáo viên</p>
@@ -1804,6 +1775,7 @@ export default function TeacherDashboard({
                 {/* Avatar chính */}
                 <div className="w-9 h-9 rounded-full bg-white text-gray-700 font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-gray-200 overflow-hidden">
                   {avatarPreview ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={avatarPreview}
                       alt={user.name}
@@ -1896,7 +1868,7 @@ export default function TeacherDashboard({
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
+        <div className="bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm">Xin chào 👋</p>
@@ -1913,55 +1885,55 @@ export default function TeacherDashboard({
           <TabsList className="w-full overflow-x-auto flex gap-1 rounded-2xl bg-white p-1.5 shadow-sm border border-gray-100 justify-start md:justify-center">
             <TabsTrigger
               value="overview"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📊 Tổng quan
             </TabsTrigger>
             <TabsTrigger
               value="classes"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📚 Lớp học
             </TabsTrigger>
             <TabsTrigger
               value="schedule"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📅 Lịch dạy
             </TabsTrigger>
             <TabsTrigger
               value="documents"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📄 Tài liệu
             </TabsTrigger>
             <TabsTrigger
               value="evaluation"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               ⭐ Đánh giá
             </TabsTrigger>
             <TabsTrigger
               value="contact"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💬 Liên hệ
             </TabsTrigger>
             <TabsTrigger
               value="assignments"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📝 Chấm Bài
             </TabsTrigger>
             <TabsTrigger
               value="incidents"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🐛 Sự cố
             </TabsTrigger>
             <TabsTrigger
               value="leaderboard"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🏆 Xếp hạng
             </TabsTrigger>
@@ -1981,7 +1953,7 @@ export default function TeacherDashboard({
                       className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                     >
                       <div
-                        className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-90`}
+                        className={`absolute inset-0 bg-linear-to-br ${item.color} opacity-90`}
                       />
                       <div className="relative p-5 text-white">
                         <div className="flex items-start justify-between">
@@ -2108,7 +2080,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                        selectedClass.students.length === 0 ? (
+                      selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -2193,8 +2165,9 @@ export default function TeacherDashboard({
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
-                                  }`}
+                                className={`rounded-lg border border-gray-200 bg-linear-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                                  canAttend ? "ring-2 ring-green-400" : ""
+                                }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -2322,7 +2295,8 @@ export default function TeacherDashboard({
                         >
                           <div className="flex items-center gap-4">
                             <div
-                              className={`h-12 w-12 rounded-lg flex items-center justify-center ${fileType === "PDF"
+                              className={`h-12 w-12 rounded-lg flex items-center justify-center ${
+                                fileType === "PDF"
                                   ? "bg-red-100"
                                   : fileType === "DOCX"
                                     ? "bg-blue-100"
@@ -2331,10 +2305,11 @@ export default function TeacherDashboard({
                                       : fileType === "XLSX"
                                         ? "bg-green-100"
                                         : "bg-gray-100"
-                                }`}
+                              }`}
                             >
                               <FileIcon
-                                className={`h-6 w-6 ${fileType === "PDF"
+                                className={`h-6 w-6 ${
+                                  fileType === "PDF"
                                     ? "text-red-600"
                                     : fileType === "DOCX"
                                       ? "text-blue-600"
@@ -2343,7 +2318,7 @@ export default function TeacherDashboard({
                                         : fileType === "XLSX"
                                           ? "text-green-600"
                                           : "text-gray-600"
-                                  }`}
+                                }`}
                               />
                             </div>
                             <div>
@@ -2426,7 +2401,9 @@ export default function TeacherDashboard({
                                 className="text-red-600 hover:bg-red-50"
                                 onClick={() => {
                                   if (
-                                    confirm("Bạn có chắc muốn xoá tài liệu này?")
+                                    confirm(
+                                      "Bạn có chắc muốn xoá tài liệu này?",
+                                    )
                                   ) {
                                     deleteDocument(doc._id);
                                     toast.success("Đã xoá tài liệu!");
@@ -2508,7 +2485,7 @@ export default function TeacherDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => { }}
+              onClose={() => {}}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2536,10 +2513,11 @@ export default function TeacherDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${rankingView === key
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                      rankingView === key
                         ? "bg-white text-blue-700 shadow-sm"
                         : "text-gray-600 hover:bg-white/50"
-                      }`}
+                    }`}
                   >
                     <span className="text-base leading-none">
                       {leaderboardTabIcons[key as RankingCategory]}
@@ -2553,106 +2531,132 @@ export default function TeacherDashboard({
               {leaderboardLoading && (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-gray-500 mt-4">Đang tải bảng xếp hạng...</p>
+                  <p className="text-gray-500 mt-4">
+                    Đang tải bảng xếp hạng...
+                  </p>
                 </div>
               )}
 
               {/* Leaderboard List */}
               {!leaderboardLoading && (
                 <div className="space-y-3">
-                  {rankingView === "score" && leaderboard?.score?.map((row) => (
-                    <div
-                      key={`score-${row.rank}-${row.studentId}`}
-                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
-                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                          : row.rank === 2
-                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
-                            : row.rank === 3
-                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                              : "border-gray-100 bg-white hover:border-blue-200"
+                  {rankingView === "score" &&
+                    leaderboard?.score?.map((row) => (
+                      <div
+                        key={`score-${row.rank}-${row.studentId}`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                          row.rank === 1
+                            ? "border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 shadow-md"
+                            : row.rank === 2
+                              ? "border-gray-200 bg-linear-to-r from-gray-50 to-slate-50"
+                              : row.rank === 3
+                                ? "border-orange-200 bg-linear-to-r from-orange-50 to-amber-50"
+                                : "border-gray-100 bg-white hover:border-blue-200"
                         }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
-                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                              : row.rank === 2
-                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                                : row.rank === 3
-                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                  : "bg-gray-100 text-gray-600"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                              row.rank === 1
+                                ? "bg-linear-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                                : row.rank === 2
+                                  ? "bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                  : row.rank === 3
+                                    ? "bg-linear-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                    : "bg-gray-100 text-gray-600"
                             }`}
-                        >
-                          {row.rank === 1 && "🏆"}
-                          {row.rank === 2 && "🥈"}
-                          {row.rank === 3 && "🥉"}
-                          {row.rank > 3 && (
-                            <span className="text-sm font-bold">{row.rank}</span>
-                          )}
+                          >
+                            {row.rank === 1 && "🏆"}
+                            {row.rank === 2 && "🥈"}
+                            {row.rank === 3 && "🥉"}
+                            {row.rank > 3 && (
+                              <span className="text-sm font-bold">
+                                {row.rank}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {row.studentName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {row.className ||
+                                `${row.totalGrades} bài kiểm tra`}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{row.studentName}</p>
-                          <p className="text-xs text-gray-500">{row.className || `${row.totalGrades} bài kiểm tra`}</p>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-blue-600">
+                            {row.averageScore.toFixed(1)}
+                          </p>
+                          <p className="text-xs text-gray-500">Điểm TB</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-blue-600">
-                          {row.averageScore.toFixed(1)}
-                        </p>
-                        <p className="text-xs text-gray-500">Điểm TB</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {rankingView === "attendance" && leaderboard?.attendance?.map((row) => (
-                    <div
-                      key={`attendance-${row.rank}-${row.studentId}`}
-                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
-                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                          : row.rank === 2
-                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
-                            : row.rank === 3
-                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                              : "border-gray-100 bg-white hover:border-blue-200"
+                  {rankingView === "attendance" &&
+                    leaderboard?.attendance?.map((row) => (
+                      <div
+                        key={`attendance-${row.rank}-${row.studentId}`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                          row.rank === 1
+                            ? "border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 shadow-md"
+                            : row.rank === 2
+                              ? "border-gray-200 bg-linear-to-r from-gray-50 to-slate-50"
+                              : row.rank === 3
+                                ? "border-orange-200 bg-linear-to-r from-orange-50 to-amber-50"
+                                : "border-gray-100 bg-white hover:border-blue-200"
                         }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
-                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                              : row.rank === 2
-                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                                : row.rank === 3
-                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                  : "bg-gray-100 text-gray-600"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                              row.rank === 1
+                                ? "bg-linear-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                                : row.rank === 2
+                                  ? "bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                  : row.rank === 3
+                                    ? "bg-linear-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                    : "bg-gray-100 text-gray-600"
                             }`}
-                        >
-                          {row.rank === 1 && "🏆"}
-                          {row.rank === 2 && "🥈"}
-                          {row.rank === 3 && "🥉"}
-                          {row.rank > 3 && (
-                            <span className="text-sm font-bold">{row.rank}</span>
-                          )}
+                          >
+                            {row.rank === 1 && "🏆"}
+                            {row.rank === 2 && "🥈"}
+                            {row.rank === 3 && "🥉"}
+                            {row.rank > 3 && (
+                              <span className="text-sm font-bold">
+                                {row.rank}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {row.studentName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Đã theo học {row.daysEnrolled} ngày
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{row.studentName}</p>
-                          <p className="text-xs text-gray-500">Đã theo học {row.daysEnrolled} ngày</p>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-emerald-600">
+                            {row.attendanceRate}%
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {row.presentCount}/{row.totalSessions} buổi
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-emerald-600">
-                          {row.attendanceRate}%
-                        </p>
-                        <p className="text-xs text-gray-500">{row.presentCount}/{row.totalSessions} buổi</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
 
                   {/* Empty State */}
-                  {!leaderboardLoading && (
-                    (rankingView === "score" && (!leaderboard?.score || leaderboard.score.length === 0)) ||
-                    (rankingView === "attendance" && (!leaderboard?.attendance || leaderboard.attendance.length === 0))
-                  ) && (
+                  {!leaderboardLoading &&
+                    ((rankingView === "score" &&
+                      (!leaderboard?.score ||
+                        leaderboard.score.length === 0)) ||
+                      (rankingView === "attendance" &&
+                        (!leaderboard?.attendance ||
+                          leaderboard.attendance.length === 0))) && (
                       <div className="text-center py-8 text-gray-500">
                         <p className="text-4xl mb-2">📊</p>
                         <p>Chưa có dữ liệu xếp hạng</p>
@@ -2663,19 +2667,19 @@ export default function TeacherDashboard({
 
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
-                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50">
+                <div className="text-center p-4 rounded-xl bg-linear-to-br from-blue-50 to-indigo-50">
                   <p className="text-2xl font-bold text-blue-600">
                     {leaderboard?.summary?.totalStudents || 0}
                   </p>
                   <p className="text-xs text-gray-500">Tổng học sinh</p>
                 </div>
-                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50">
+                <div className="text-center p-4 rounded-xl bg-linear-to-br from-emerald-50 to-green-50">
                   <p className="text-2xl font-bold text-emerald-600">
                     {leaderboard?.summary?.averageScore?.toFixed(1) || "0.0"}
                   </p>
                   <p className="text-xs text-gray-500">Điểm TB</p>
                 </div>
-                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50">
+                <div className="text-center p-4 rounded-xl bg-linear-to-br from-amber-50 to-orange-50">
                   <p className="text-2xl font-bold text-amber-600">
                     {leaderboard?.summary?.averageAttendanceRate || 0}%
                   </p>
@@ -2723,7 +2727,13 @@ export default function TeacherDashboard({
       )}
       {showSettings && (
         <SettingsModal
-          user={fullUserDetails || user}
+          user={
+            (fullUserDetails as typeof user & {
+              _id?: string;
+              qualification?: string;
+              teacherNote?: string;
+            }) || user
+          }
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -2736,8 +2746,9 @@ export default function TeacherDashboard({
               await uploadDocument(file, data);
               toast.success("Tải lên tài liệu thành công!");
               setShowUploadModal(false);
-            } catch (error: any) {
-              toast.error(error.message || "Lỗi khi tải lên tài liệu");
+            } catch (error: unknown) {
+              const err = error as { message?: string };
+              toast.error(err.message || "Lỗi khi tải lên tài liệu");
             }
           }}
         />
@@ -2754,7 +2765,7 @@ function UploadDocumentModal({
 }: {
   classes: Class[];
   onClose: () => void;
-  onUpload: (file: File, data: any) => Promise<void>;
+  onUpload: (file: File, data: UploadDocumentDto) => Promise<void>;
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -2888,12 +2899,13 @@ function UploadDocumentModal({
         <div className="space-y-4">
           {/* Drag & Drop Zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${isDragging
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+              isDragging
                 ? "border-blue-500 bg-blue-50"
                 : selectedFile
                   ? "border-green-500 bg-green-50"
                   : "border-gray-300 hover:border-gray-400"
-              }`}
+            }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -2912,7 +2924,7 @@ function UploadDocumentModal({
                   {getFileIcon(selectedFile.name)}
                 </span>
                 <div className="text-left">
-                  <p className="font-medium text-gray-900 truncate max-w-[250px]">
+                  <p className="font-medium text-gray-900 truncate max-w-62.5">
                     {selectedFile.name}
                   </p>
                   <p className="text-sm text-gray-500">
@@ -2983,10 +2995,11 @@ function UploadDocumentModal({
                     key={cls._id}
                     type="button"
                     onClick={() => toggleClass(cls._id)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedClassIds.includes(cls._id)
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                      selectedClassIds.includes(cls._id)
                         ? "bg-blue-600 text-white"
                         : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
-                      }`}
+                    }`}
                   >
                     {cls.name}
                   </button>

@@ -1,12 +1,11 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   useScheduleStore,
   Session,
-  SessionStatus,
   SessionType,
   CreateSessionData,
   UpdateSessionData,
@@ -34,17 +33,17 @@ export default function SessionFormModal({
 }: SessionFormModalProps) {
   const { createSession, updateSession, checkConflict, isLoading } =
     useScheduleStore();
-  
+
   // Use stores directly for fresh data
   const { branches: storeBranches, fetchBranches } = useBranchesStore();
   const { users: storeUsers, fetchUsers } = useUsersStore();
   const { classes: storeClasses, fetchClasses } = useClassesStore();
-  
+
   // Local state for data
   const [localBranches, setLocalBranches] = useState<Branch[]>(initialBranches);
   const [localTeachers, setLocalTeachers] = useState<User[]>(initialTeachers);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  
+
   // Fetch fresh data when modal opens
   useEffect(() => {
     const loadFreshData = async () => {
@@ -62,26 +61,27 @@ export default function SessionFormModal({
         setIsLoadingData(false);
       }
     };
-    
+
     loadFreshData();
   }, [fetchBranches, fetchUsers, fetchClasses]);
-  
+
   // Update local state when store data changes
   useEffect(() => {
     if (storeBranches.length > 0) {
       setLocalBranches(storeBranches);
     }
   }, [storeBranches]);
-  
+
   useEffect(() => {
     const teachers = storeUsers.filter((u) => u.role === "teacher");
     if (teachers.length > 0) {
       setLocalTeachers(teachers);
     }
   }, [storeUsers]);
-  
+
   // Use local data with fallback to initial props
   const branches = localBranches.length > 0 ? localBranches : initialBranches;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const teachers = localTeachers.length > 0 ? localTeachers : initialTeachers;
   const classes = storeClasses.length > 0 ? storeClasses : initialClasses;
 
@@ -105,20 +105,23 @@ export default function SessionFormModal({
   // Filter classes by selected branch and subject
   const filteredClasses = useMemo(() => {
     let result = classes;
-    
+
     // Filter by branch if selected
     if (formData.branchId) {
       result = result.filter((c) => {
-        const classBranchId = typeof c.branchId === 'string' ? c.branchId : c.branchId?._id || c.branch?._id;
+        const classBranchId =
+          typeof c.branchId === "string"
+            ? c.branchId
+            : c.branchId?._id || c.branch?._id;
         return classBranchId === formData.branchId;
       });
     }
-    
+
     // Filter by subject if selected
     if (formData.subject) {
       result = result.filter((c) => c.subject === formData.subject);
     }
-    
+
     return result;
   }, [classes, formData.branchId, formData.subject]);
 
@@ -159,13 +162,14 @@ export default function SessionFormModal({
                 : classInfo.teacherId._id;
           }
           if (!subject) {
-            subject = (classInfo as any).subject || classInfo.name || "";
+            subject = classInfo.subject || classInfo.name || "";
           }
           // Try to get branchId from class
-          if ((classInfo as any).branchId) {
-            branchId = typeof (classInfo as any).branchId === "string" 
-              ? (classInfo as any).branchId 
-              : (classInfo as any).branchId._id;
+          if ("branchId" in classInfo && classInfo.branchId) {
+            branchId =
+              typeof classInfo.branchId === "string"
+                ? classInfo.branchId
+                : classInfo.branchId._id;
           }
         }
       }
@@ -212,7 +216,7 @@ export default function SessionFormModal({
 
         if (result.hasConflict) {
           setConflictWarning(
-            `⚠️ Giáo viên đã có ${result.conflicts.length} buổi học trùng thời gian này!`
+            `⚠️ Giáo viên đã có ${result.conflicts.length} buổi học trùng thời gian này!`,
           );
         } else {
           setConflictWarning(null);
@@ -315,7 +319,7 @@ export default function SessionFormModal({
   const handleChange = async (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -346,9 +350,10 @@ export default function SessionFormModal({
     if (name === "classId" && value) {
       const selectedClass = classes.find((c) => c._id === value);
       if (selectedClass) {
-        const classTeacherId = typeof selectedClass.teacherId === "string" 
-          ? selectedClass.teacherId 
-          : selectedClass.teacherId?._id || selectedClass.teacher?._id;
+        const classTeacherId =
+          typeof selectedClass.teacherId === "string"
+            ? selectedClass.teacherId
+            : selectedClass.teacherId?._id || selectedClass.teacher?._id;
         if (classTeacherId) {
           setFormData((prev) => ({
             ...prev,
@@ -365,7 +370,7 @@ export default function SessionFormModal({
       <Card className="w-full max-w-lg p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
             📅
           </div>
           <div className="flex-1">
@@ -490,9 +495,10 @@ export default function SessionFormModal({
                   : "-- Chọn lớp --"}
               </option>
               {filteredClasses.map((c) => {
-                const teacherName = c.teacher?.name || 
-                  (typeof c.teacherId === 'object' ? c.teacherId?.name : '') || 
-                  'Chưa có GV';
+                const teacherName =
+                  c.teacher?.name ||
+                  (typeof c.teacherId === "object" ? c.teacherId?.name : "") ||
+                  "Chưa có GV";
                 return (
                   <option key={c._id} value={c._id}>
                     📚 {c.name} - GV: {teacherName}
@@ -503,11 +509,13 @@ export default function SessionFormModal({
             {errors.classId && (
               <p className="text-red-500 text-xs mt-1">{errors.classId}</p>
             )}
-            {formData.subject && filteredClasses.length === 0 && !isLoadingData && (
-              <p className="text-amber-600 text-xs mt-1">
-                ⚠️ Không có lớp nào dạy môn {formData.subject} tại cơ sở này.
-              </p>
-            )}
+            {formData.subject &&
+              filteredClasses.length === 0 &&
+              !isLoadingData && (
+                <p className="text-amber-600 text-xs mt-1">
+                  ⚠️ Không có lớp nào dạy môn {formData.subject} tại cơ sở này.
+                </p>
+              )}
           </div>
 
           {/* Title */}
@@ -638,7 +646,7 @@ export default function SessionFormModal({
             <Button
               type="submit"
               disabled={isLoading}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+              className="flex-1 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
             >
               {isLoading ? (
                 <>

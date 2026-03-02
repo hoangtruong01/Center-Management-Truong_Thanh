@@ -556,7 +556,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                         disabled={isLoading}
                         title={`${demoInfo.name}\n${demoInfo.email}\nMã: ${demoInfo.code}`}
                         className={`
-                          relative group p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-r ${config.color} ${config.hoverColor}
+                          relative group p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-linear-to-r ${config.color} ${config.hoverColor}
                           text-white font-medium transition-all duration-300
                           hover:shadow-lg hover:shadow-blue-200/50 hover:-translate-y-0.5
                           disabled:opacity-50 disabled:cursor-not-allowed
@@ -729,8 +729,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   !selectedRole ||
                   (!branchId && selectedRole !== "admin")
                 }
-                className="w-full bg-gradient-to-r from-blue-600/80 to-indigo-600/80 backdrop-blur-md border border-white/20 
-                  hover:bg-gradient-to-r hover:from-blue-600/90 hover:to-indigo-600/90 
+                className="w-full bg-linear-to-r from-blue-600/80 to-indigo-600/80 backdrop-blur-md border border-white/20 
+                  hover:bg-linear-to-r hover:from-blue-600/90 hover:to-indigo-600/90 
                   text-white font-semibold py-2.5 sm:py-3 rounded-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] 
                   transition-all duration-300 hover:-translate-y-0.5 hover:shadow-blue-500/40 text-sm sm:text-base
                   disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
@@ -792,7 +792,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+            <div className="bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
@@ -844,7 +844,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   </p>
                   <Button
                     onClick={closeModal}
-                    className="mt-4 w-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl"
+                    className="mt-4 w-full bg-linear-to-r from-blue-600 to-indigo-600 rounded-xl"
                   >
                     Đóng
                   </Button>
@@ -879,7 +879,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                       <Button
                         onClick={handleForgotPassword}
                         disabled={forgotLoading || !forgotEmail}
-                        className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl"
+                        className="flex-1 bg-linear-to-r from-blue-600 to-indigo-600 rounded-xl"
                       >
                         {forgotLoading ? "Đang gửi..." : "Gửi yêu cầu"}
                       </Button>
@@ -897,7 +897,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4">
+            <div className="bg-linear-to-r from-purple-600 to-indigo-600 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
@@ -949,7 +949,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   </p>
                   <Button
                     onClick={closeModal}
-                    className="mt-4 w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl"
+                    className="mt-4 w-full bg-linear-to-r from-purple-600 to-indigo-600 rounded-xl"
                   >
                     Đóng
                   </Button>
@@ -1052,7 +1052,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                         !contactEmail ||
                         !contactMessage
                       }
-                      className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl"
+                      className="flex-1 bg-linear-to-r from-purple-600 to-indigo-600 rounded-xl"
                     >
                       {contactLoading ? "Đang gửi..." : "Gửi yêu cầu"}
                     </Button>
