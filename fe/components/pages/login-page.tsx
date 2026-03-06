@@ -444,7 +444,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       <div className="lg:hidden relative px-6 py-8 text-white text-center overflow-hidden z-10">
         <div className="relative z-10">
           <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <span className="text-3xl">🎓</span>
+            <img src="/logo.png" alt="Trường Thành" className="w-10 h-10 object-contain" />
           </div>
           <h1 className="text-xl font-bold">Trường Thành Education</h1>
           <p className="text-sm text-blue-100 mt-1">
@@ -461,7 +461,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         <div className="relative z-10 flex flex-col justify-center px-12 text-white">
           <div className="mb-8">
             <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-6 shadow-xl">
-              <span className="text-4xl">🎓</span>
+              <img src="/logo.png" alt="Trường Thành" className="w-14 h-14 object-contain" />
             </div>
             <h1 className="text-4xl font-bold mb-4">Trường Thành Education</h1>
             <p className="text-xl text-blue-100 leading-relaxed">
