@@ -6,6 +6,8 @@ export type AttendanceDocument = HydratedDocument<Attendance>;
 
 @Schema({ timestamps: true })
 export class Attendance {
+  createdAt?: Date;
+  updatedAt?: Date;
   @Prop({ type: Types.ObjectId, ref: 'Session', required: true })
   sessionId: Types.ObjectId;
 

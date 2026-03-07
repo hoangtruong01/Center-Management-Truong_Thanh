@@ -182,7 +182,12 @@ export class AttendanceService {
       .exec();
 
     if (records.length === 0) {
-      return { currentStreak: 0, bestStreak: 0, totalPresent: 0, totalSessions: 0 };
+      return {
+        currentStreak: 0,
+        bestStreak: 0,
+        totalPresent: 0,
+        totalSessions: 0,
+      };
     }
 
     // Get unique session dates sorted descending
@@ -193,7 +198,7 @@ export class AttendanceService {
       const session = r.sessionId as any;
       const dateStr = session?.startTime
         ? new Date(session.startTime).toISOString().split('T')[0]
-        : new Date(r.createdAt).toISOString().split('T')[0];
+        : new Date(r.createdAt!).toISOString().split('T')[0];
 
       if (!statusByDate[dateStr]) {
         statusByDate[dateStr] = r.status;
