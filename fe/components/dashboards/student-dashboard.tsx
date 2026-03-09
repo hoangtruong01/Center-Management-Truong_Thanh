@@ -28,6 +28,7 @@ import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
 import { useDocumentsStore, Document } from "@/lib/stores/documents-store";
 import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
+import { useChatStore } from "@/lib/stores/chat-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -239,20 +240,7 @@ const tabIcons: Record<RankingCategory, string> = {
 
 // progressData sẽ được tính từ studentGrades thật
 
-const contacts = [
-  {
-    name: "Cô Trần Thị B",
-    subject: "Dạy môn Toán",
-    avatar: "👩‍🏫",
-    status: "online",
-  },
-  {
-    name: "Thầy Lê Văn E",
-    subject: "Dạy môn Anh văn",
-    avatar: "👨‍🏫",
-    status: "offline",
-  },
-];
+// contacts sẽ được tính động từ dashboardData.classes (giáo viên thật)
 
 const gradeBreakdown = {
   assignments: [
@@ -961,6 +949,7 @@ export default function StudentDashboard({
 
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
+  const { availableUsers, fetchAvailableUsers } = useChatStore();
 
   // Attendance streak data
   const [attendanceStreak, setAttendanceStreak] = useState<{
@@ -1403,12 +1392,13 @@ export default function StudentDashboard({
     const schedule: DaySchedule[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const now = new Date();
 
     for (let i = 0; i < 7; i++) {
       const dayDate = addDays(selectedWeekStart, i);
       const dayName = DAY_NAMES[i];
       const dateStr = formatDate(dayDate);
-      const isPast = dayDate < today;
+      const isDayPast = dayDate < today;
       const isToday = dayDate.getTime() === today.getTime();
 
       // Check if there's a session from API data for this day
@@ -1452,6 +1442,35 @@ export default function StudentDashboard({
         attendanceStatus = getAttendanceByDateAndClass(dayDate);
       }
 
+      // Determine if class time has ended (for today, check end time)
+      const getEndTimeStr = (): string | null => {
+        if (sessionForDay) return sessionForDay.endTime || null;
+        if (classForDay) return classForDay.schedule.endTime || null;
+        return null;
+      };
+      let classTimeEnded = isDayPast;
+      if (!classTimeEnded && isToday) {
+        const endTimeStr = getEndTimeStr();
+        if (endTimeStr) {
+          const [endH, endM] = endTimeStr.split(":").map(Number);
+          if (
+            now.getHours() > endH ||
+            (now.getHours() === endH && now.getMinutes() >= endM)
+          ) {
+            classTimeEnded = true;
+          }
+        }
+      }
+
+      // If class time ended and no attendance record, default to absent
+      if (
+        !attendanceStatus &&
+        classTimeEnded &&
+        (sessionForDay || classForDay)
+      ) {
+        attendanceStatus = "absent";
+      }
+
       if (sessionForDay) {
         schedule.push({
           day: dayName,
@@ -1462,7 +1481,7 @@ export default function StudentDashboard({
           teacher: sessionForDay.class?.teacher?.name || "Giáo viên",
           room: "Phòng học",
           time: `${sessionForDay.startTime}-${sessionForDay.endTime}`,
-          status: isPast
+          status: classTimeEnded
             ? "confirmed"
             : sessionForDay.status === "scheduled"
               ? "pending"
@@ -1479,7 +1498,7 @@ export default function StudentDashboard({
           teacher: classForDay.class.teacherName,
           room: classForDay.schedule.room || "Phòng học",
           time: `${classForDay.schedule.startTime}-${classForDay.schedule.endTime}`,
-          status: isPast ? "confirmed" : "pending",
+          status: classTimeEnded ? "confirmed" : "pending",
           attendanceStatus,
         });
       } else {
@@ -1539,6 +1558,8 @@ export default function StudentDashboard({
       fetchLeaderboard(leaderboardParams).catch(console.error);
       // Fetch my rank
       fetchMyRank().catch(console.error);
+      // Fetch real teacher contacts
+      fetchAvailableUsers().catch(console.error);
     }
     console.log("studentId: ", studentId);
   }, [
@@ -1548,6 +1569,7 @@ export default function StudentDashboard({
     fetchAttendance,
     fetchLeaderboard,
     fetchMyRank,
+    fetchAvailableUsers,
   ]);
 
   // Compute dynamic overview cards based on real data
@@ -1619,7 +1641,11 @@ export default function StudentDashboard({
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Trường Thành" className="w-10 h-10 rounded-xl object-contain" />
+            <img
+              src="/logo.png"
+              alt="Trường Thành"
+              className="w-10 h-10 rounded-xl object-contain"
+            />
             <div>
               <h1 className="text-lg font-bold bg-linear-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
                 Trường Thành Education
@@ -1928,9 +1954,7 @@ export default function StudentDashboard({
 
             {/* Chuỗi điểm danh */}
             <div className="mt-6">
-              <Card
-                className="p-5 bg-linear-to-br from-emerald-50 to-green-50 border-emerald-200 border-2 hover:shadow-lg transition-all duration-300"
-              >
+              <Card className="p-5 bg-linear-to-br from-emerald-50 to-green-50 border-emerald-200 border-2 hover:shadow-lg transition-all duration-300">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">🔥</span>
@@ -1948,7 +1972,9 @@ export default function StudentDashboard({
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-3">
-                  Kỷ lục: {attendanceStreak.bestStreak} buổi • Tổng có mặt: {attendanceStreak.totalPresent}/{attendanceStreak.totalSessions} buổi
+                  Kỷ lục: {attendanceStreak.bestStreak} buổi • Tổng có mặt:{" "}
+                  {attendanceStreak.totalPresent}/
+                  {attendanceStreak.totalSessions} buổi
                 </p>
                 <div className="mt-3 h-2.5 w-full rounded-full bg-white/80 overflow-hidden shadow-inner">
                   <div
@@ -1959,7 +1985,10 @@ export default function StudentDashboard({
                   />
                 </div>
                 <p className="text-xs text-gray-600 mt-3 bg-white/60 rounded-lg px-3 py-2">
-                  💡 {attendanceStreak.currentStreak >= attendanceStreak.bestStreak && attendanceStreak.currentStreak > 0
+                  💡{" "}
+                  {attendanceStreak.currentStreak >=
+                    attendanceStreak.bestStreak &&
+                  attendanceStreak.currentStreak > 0
                     ? "Tuyệt vời! Bạn đang ở kỷ lục mới!"
                     : attendanceStreak.currentStreak > 0
                       ? `Giữ vững thêm ${attendanceStreak.bestStreak - attendanceStreak.currentStreak} buổi để phá kỷ lục!`
@@ -1976,62 +2005,101 @@ export default function StudentDashboard({
                   desc: "Điểm danh 5 buổi liên tục",
                   earned: attendanceStreak.bestStreak >= 5,
                   icon: "🏃",
-                  howTo: "Đi học liên tục 5 buổi không vắng. Mỗi buổi được giáo viên điểm danh có mặt hoặc đi muộn đều được tính.",
+                  howTo:
+                    "Đi học liên tục 5 buổi không vắng. Mỗi buổi được giáo viên điểm danh có mặt hoặc đi muộn đều được tính.",
                   progress: `${Math.min(attendanceStreak.bestStreak, 5)}/5 buổi`,
-                  progressPercent: Math.min((attendanceStreak.bestStreak / 5) * 100, 100),
+                  progressPercent: Math.min(
+                    (attendanceStreak.bestStreak / 5) * 100,
+                    100,
+                  ),
                 },
                 {
                   title: "Kiên trì",
                   desc: "Điểm danh 10 buổi liên tục",
                   earned: attendanceStreak.bestStreak >= 10,
                   icon: "💪",
-                  howTo: "Đi học liên tục 10 buổi không vắng. Giữ chuỗi điểm danh bằng cách tham gia đầy đủ các buổi học.",
+                  howTo:
+                    "Đi học liên tục 10 buổi không vắng. Giữ chuỗi điểm danh bằng cách tham gia đầy đủ các buổi học.",
                   progress: `${Math.min(attendanceStreak.bestStreak, 10)}/10 buổi`,
-                  progressPercent: Math.min((attendanceStreak.bestStreak / 10) * 100, 100),
+                  progressPercent: Math.min(
+                    (attendanceStreak.bestStreak / 10) * 100,
+                    100,
+                  ),
                 },
                 {
                   title: "Siêu sao",
                   desc: "Điểm danh 20 buổi liên tục",
                   earned: attendanceStreak.bestStreak >= 20,
                   icon: "⭐",
-                  howTo: "Đi học liên tục 20 buổi không vắng. Đây là huy hiệu cao nhất về chuỗi điểm danh!",
+                  howTo:
+                    "Đi học liên tục 20 buổi không vắng. Đây là huy hiệu cao nhất về chuỗi điểm danh!",
                   progress: `${Math.min(attendanceStreak.bestStreak, 20)}/20 buổi`,
-                  progressPercent: Math.min((attendanceStreak.bestStreak / 20) * 100, 100),
+                  progressPercent: Math.min(
+                    (attendanceStreak.bestStreak / 20) * 100,
+                    100,
+                  ),
                 },
                 {
                   title: "Điểm cao",
                   desc: "Điểm TB ≥ 8.0",
                   earned: averageScore >= 8,
                   icon: "🎯",
-                  howTo: "Đạt điểm trung bình từ 8.0 trở lên trên tất cả các bài kiểm tra và bài tập được chấm điểm.",
+                  howTo:
+                    "Đạt điểm trung bình từ 8.0 trở lên trên tất cả các bài kiểm tra và bài tập được chấm điểm.",
                   progress: `Điểm TB hiện tại: ${averageScore > 0 ? averageScore : "Chưa có"}`,
-                  progressPercent: averageScore > 0 ? Math.min((averageScore / 8) * 100, 100) : 0,
+                  progressPercent:
+                    averageScore > 0
+                      ? Math.min((averageScore / 8) * 100, 100)
+                      : 0,
                 },
                 {
                   title: "Chuyên cần",
                   desc: "Tỷ lệ có mặt ≥ 90%",
-                  earned: attendanceStreak.totalSessions > 0 && (attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100 >= 90,
+                  earned:
+                    attendanceStreak.totalSessions > 0 &&
+                    (attendanceStreak.totalPresent /
+                      attendanceStreak.totalSessions) *
+                      100 >=
+                      90,
                   icon: "🏆",
-                  howTo: "Duy trì tỷ lệ có mặt từ 90% trở lên trong tổng số buổi học. Cố gắng không vắng quá nhiều buổi.",
-                  progress: attendanceStreak.totalSessions > 0
-                    ? `${Math.round((attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100)}% (${attendanceStreak.totalPresent}/${attendanceStreak.totalSessions} buổi)`
-                    : "Chưa có dữ liệu",
-                  progressPercent: attendanceStreak.totalSessions > 0
-                    ? Math.min(((attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100 / 90) * 100, 100)
-                    : 0,
+                  howTo:
+                    "Duy trì tỷ lệ có mặt từ 90% trở lên trong tổng số buổi học. Cố gắng không vắng quá nhiều buổi.",
+                  progress:
+                    attendanceStreak.totalSessions > 0
+                      ? `${Math.round((attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100)}% (${attendanceStreak.totalPresent}/${attendanceStreak.totalSessions} buổi)`
+                      : "Chưa có dữ liệu",
+                  progressPercent:
+                    attendanceStreak.totalSessions > 0
+                      ? Math.min(
+                          (((attendanceStreak.totalPresent /
+                            attendanceStreak.totalSessions) *
+                            100) /
+                            90) *
+                            100,
+                          100,
+                        )
+                      : 0,
                 },
                 {
                   title: "Hoàn hảo",
                   desc: "100% điểm danh",
-                  earned: attendanceStreak.totalSessions > 0 && attendanceStreak.totalPresent === attendanceStreak.totalSessions,
+                  earned:
+                    attendanceStreak.totalSessions > 0 &&
+                    attendanceStreak.totalPresent ===
+                      attendanceStreak.totalSessions,
                   icon: "👑",
-                  howTo: "Tham gia 100% tất cả các buổi học, không vắng buổi nào. Đây là huy hiệu danh giá nhất!",
-                  progress: attendanceStreak.totalSessions > 0
-                    ? `${attendanceStreak.totalPresent}/${attendanceStreak.totalSessions} buổi`
-                    : "Chưa có dữ liệu",
-                  progressPercent: attendanceStreak.totalSessions > 0
-                    ? (attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100
-                    : 0,
+                  howTo:
+                    "Tham gia 100% tất cả các buổi học, không vắng buổi nào. Đây là huy hiệu danh giá nhất!",
+                  progress:
+                    attendanceStreak.totalSessions > 0
+                      ? `${attendanceStreak.totalPresent}/${attendanceStreak.totalSessions} buổi`
+                      : "Chưa có dữ liệu",
+                  progressPercent:
+                    attendanceStreak.totalSessions > 0
+                      ? (attendanceStreak.totalPresent /
+                          attendanceStreak.totalSessions) *
+                        100
+                      : 0,
                 },
               ];
               return (
@@ -2049,7 +2117,8 @@ export default function StudentDashboard({
                       </div>
                     </div>
                     <span className="text-xs text-blue-600 font-medium bg-blue-50 px-3 py-1.5 rounded-full">
-                      {dynamicBadges.filter((b) => b.earned).length}/{dynamicBadges.length} đã đạt
+                      {dynamicBadges.filter((b) => b.earned).length}/
+                      {dynamicBadges.length} đã đạt
                     </span>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-3">
@@ -2106,8 +2175,12 @@ export default function StudentDashboard({
                         onClick={(e) => e.stopPropagation()}
                       >
                         {/* Header */}
-                        <div className={`p-6 text-center ${selectedBadge.earned ? "bg-linear-to-br from-emerald-500 to-green-600" : "bg-linear-to-br from-gray-400 to-gray-500"}`}>
-                          <span className={`text-6xl block mb-3 ${selectedBadge.earned ? "" : "grayscale"}`}>
+                        <div
+                          className={`p-6 text-center ${selectedBadge.earned ? "bg-linear-to-br from-emerald-500 to-green-600" : "bg-linear-to-br from-gray-400 to-gray-500"}`}
+                        >
+                          <span
+                            className={`text-6xl block mb-3 ${selectedBadge.earned ? "" : "grayscale"}`}
+                          >
                             {selectedBadge.icon}
                           </span>
                           <h3 className="text-xl font-bold text-white">
@@ -2116,8 +2189,12 @@ export default function StudentDashboard({
                           <p className="text-white/80 text-sm mt-1">
                             {selectedBadge.desc}
                           </p>
-                          <span className={`inline-flex mt-3 text-xs px-4 py-1.5 rounded-full font-semibold ${selectedBadge.earned ? "bg-white/20 text-white" : "bg-white/20 text-white"}`}>
-                            {selectedBadge.earned ? "✓ Đã đạt được" : "✗ Chưa đạt"}
+                          <span
+                            className={`inline-flex mt-3 text-xs px-4 py-1.5 rounded-full font-semibold ${selectedBadge.earned ? "bg-white/20 text-white" : "bg-white/20 text-white"}`}
+                          >
+                            {selectedBadge.earned
+                              ? "✓ Đã đạt được"
+                              : "✗ Chưa đạt"}
                           </span>
                         </div>
 
@@ -2146,7 +2223,9 @@ export default function StudentDashboard({
                             <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all duration-700 ${selectedBadge.earned ? "bg-linear-to-r from-emerald-400 to-emerald-600" : "bg-linear-to-r from-amber-400 to-orange-500"}`}
-                                style={{ width: `${selectedBadge.progressPercent}%` }}
+                                style={{
+                                  width: `${selectedBadge.progressPercent}%`,
+                                }}
                               />
                             </div>
                           </div>
@@ -2237,7 +2316,21 @@ export default function StudentDashboard({
                     DAY_NAMES.indexOf(slot.day),
                   );
                   const isToday = slotDate.getTime() === today.getTime();
-                  const isPast = slotDate < today;
+                  // Check if class time has passed: day is before today, OR it's today and class end time has passed
+                  let isPast = slotDate < today;
+                  if (isToday && slot.time && !isPast) {
+                    const endTimePart = slot.time.split("-")[1];
+                    if (endTimePart) {
+                      const [endH, endM] = endTimePart.split(":").map(Number);
+                      const now = new Date();
+                      if (
+                        now.getHours() > endH ||
+                        (now.getHours() === endH && now.getMinutes() >= endM)
+                      ) {
+                        isPast = true;
+                      }
+                    }
+                  }
 
                   return (
                     <div
@@ -2837,50 +2930,74 @@ export default function StudentDashboard({
                 </div>
               </div>
               <div className="space-y-3">
-                {contacts.map((c) => (
-                  <div
-                    key={c.name}
-                    className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-linear-to-r from-white to-gray-50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <div className="w-14 h-14 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-3xl">
-                          {c.avatar}
+                {availableUsers.length > 0 ? (
+                  availableUsers.map((teacher) => {
+                    // Find the class name this teacher teaches for this student
+                    const teacherClass = dashboardData?.classes?.find(
+                      (cls) => cls.teacherName === teacher.name,
+                    );
+                    const subjectLabel = teacherClass
+                      ? `Giáo viên lớp ${teacherClass.name}`
+                      : "Giáo viên";
+
+                    return (
+                      <div
+                        key={teacher._id}
+                        className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-linear-to-r from-white to-gray-50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="relative">
+                            <div className="w-14 h-14 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-3xl">
+                              👨‍🏫
+                            </div>
+                            <span
+                              className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${
+                                teacher.isOnline
+                                  ? "bg-emerald-500"
+                                  : "bg-gray-300"
+                              }`}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {teacher.name}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {subjectLabel}
+                            </p>
+                            <p
+                              className={`text-xs mt-0.5 ${
+                                teacher.isOnline
+                                  ? "text-emerald-600"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {teacher.isOnline
+                                ? "● Đang hoạt động"
+                                : "○ Không hoạt động"}
+                            </p>
+                          </div>
                         </div>
-                        <span
-                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${
-                            c.status === "online"
-                              ? "bg-emerald-500"
-                              : "bg-gray-300"
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-900">{c.name}</p>
-                        <p className="text-sm text-gray-500">{c.subject}</p>
-                        <p
-                          className={`text-xs mt-0.5 ${
-                            c.status === "online"
-                              ? "text-emerald-600"
-                              : "text-gray-400"
-                          }`}
+                        <Button
+                          className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl px-6 shadow-md shadow-blue-200"
+                          onClick={() =>
+                            setChatWith({ name: teacher.name, role: "teacher" })
+                          }
                         >
-                          {c.status === "online"
-                            ? "● Đang hoạt động"
-                            : "○ Không hoạt động"}
-                        </p>
+                          💬 Chat
+                        </Button>
                       </div>
-                    </div>
-                    <Button
-                      className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl px-6 shadow-md shadow-blue-200"
-                      onClick={() =>
-                        setChatWith({ name: c.name, role: "teacher" })
-                      }
-                    >
-                      💬 Chat
-                    </Button>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <span className="text-4xl mb-3 block">👨‍🏫</span>
+                    <p className="font-medium">Chưa có giáo viên nào</p>
+                    <p className="text-sm">
+                      Bạn cần tham gia lớp học để liên hệ với giáo viên
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
 
               {/* Quick Actions */}

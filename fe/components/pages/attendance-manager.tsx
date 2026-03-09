@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { useClassesStore, type Class } from "@/lib/stores/classes-store";
 import { useBranchesStore } from "@/lib/stores/branches-store";
+import api from "@/lib/api";
 
 interface AttendanceDetailModalProps {
   classData: Class;
@@ -33,26 +34,117 @@ function AttendanceDetailModal({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load actual students from the class
-    // TODO: Fetch actual attendance records from API for this date
-    const realStudents: StudentAttendance[] = (classData.students || []).map(
-      (student) => ({
-        studentId: student._id,
-        studentName: student.name,
-        status: "present" as const, // Default to present, will be updated from attendance API
-        consecutiveAbsences: 0, // Will come from attendance API
-        checkInTime: undefined,
-      })
-    );
-    setAttendanceData(realStudents);
-    setIsLoading(false);
-  }, [classData]);
+    const fetchAttendanceData = async () => {
+      try {
+        // Fetch actual attendance records from API for this date
+        const response = await api.get("/attendance/by-class-date", {
+          params: { classId: classData._id, date },
+        });
+        const existingRecords = response.data || [];
+
+        // Check if class time has passed for this date
+        const now = new Date();
+        const selDate = new Date(date);
+        const isDayPast = selDate.toDateString() < now.toDateString();
+        let classTimeEnded = isDayPast;
+        if (
+          !classTimeEnded &&
+          selDate.toDateString() === now.toDateString() &&
+          classData.schedule
+        ) {
+          const todayDow = now.getDay();
+          const todaySchedule = (classData.schedule as any[])?.find(
+            (s: any) => s.dayOfWeek === todayDow,
+          );
+          if (todaySchedule?.endTime) {
+            const [endH, endM] = todaySchedule.endTime.split(":").map(Number);
+            if (
+              now.getHours() > endH ||
+              (now.getHours() === endH && now.getMinutes() >= endM)
+            ) {
+              classTimeEnded = true;
+            }
+          }
+        }
+
+        // Map students with actual attendance data
+        const realStudents: StudentAttendance[] = (
+          classData.students || []
+        ).map((student) => {
+          const record = existingRecords.find(
+            (r: any) =>
+              (typeof r.studentId === "string"
+                ? r.studentId
+                : r.studentId?._id) === student._id,
+          );
+          return {
+            studentId: student._id,
+            studentName: student.name,
+            status: record
+              ? record.status
+              : classTimeEnded
+                ? ("absent" as const)
+                : ("present" as const),
+            consecutiveAbsences: 0,
+            checkInTime: record?.createdAt
+              ? new Date(record.createdAt).toLocaleTimeString("vi-VN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : undefined,
+          };
+        });
+        setAttendanceData(realStudents);
+      } catch (error) {
+        console.error("Error fetching attendance:", error);
+        // On error, check if class time has passed
+        const now = new Date();
+        const selDate = new Date(date);
+        const isDayPast = selDate.toDateString() < now.toDateString();
+        let classTimeEnded = isDayPast;
+        if (
+          !classTimeEnded &&
+          selDate.toDateString() === now.toDateString() &&
+          classData.schedule
+        ) {
+          const todayDow = now.getDay();
+          const todaySchedule = (classData.schedule as any[])?.find(
+            (s: any) => s.dayOfWeek === todayDow,
+          );
+          if (todaySchedule?.endTime) {
+            const [endH, endM] = todaySchedule.endTime.split(":").map(Number);
+            if (
+              now.getHours() > endH ||
+              (now.getHours() === endH && now.getMinutes() >= endM)
+            ) {
+              classTimeEnded = true;
+            }
+          }
+        }
+
+        const realStudents: StudentAttendance[] = (
+          classData.students || []
+        ).map((student) => ({
+          studentId: student._id,
+          studentName: student.name,
+          status: classTimeEnded ? ("absent" as const) : ("present" as const),
+          consecutiveAbsences: 0,
+          checkInTime: undefined,
+        }));
+        setAttendanceData(realStudents);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAttendanceData();
+  }, [classData, date]);
 
   const presentCount = attendanceData.filter(
-    (a) => a.status === "present"
+    (a) => a.status === "present",
   ).length;
   const absentCount = attendanceData.filter(
-    (a) => a.status === "absent"
+    (a) => a.status === "absent",
   ).length;
   const lateCount = attendanceData.filter((a) => a.status === "late").length;
 
@@ -133,8 +225,8 @@ function AttendanceDetailModal({
                     student.status === "present"
                       ? "border-green-200 bg-green-50"
                       : student.status === "absent"
-                      ? "border-red-200 bg-red-50"
-                      : "border-amber-200 bg-amber-50"
+                        ? "border-red-200 bg-red-50"
+                        : "border-amber-200 bg-amber-50"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -143,15 +235,15 @@ function AttendanceDetailModal({
                         student.status === "present"
                           ? "bg-green-500"
                           : student.status === "absent"
-                          ? "bg-red-500"
-                          : "bg-amber-500"
+                            ? "bg-red-500"
+                            : "bg-amber-500"
                       }`}
                     >
                       {student.status === "present"
                         ? "✓"
                         : student.status === "absent"
-                        ? "✗"
-                        : "⏰"}
+                          ? "✗"
+                          : "⏰"}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -168,8 +260,8 @@ function AttendanceDetailModal({
                         {student.status === "present"
                           ? `Check-in: ${student.checkInTime}`
                           : student.status === "late"
-                          ? `Đến lúc: ${student.checkInTime}`
-                          : "Không tham gia"}
+                            ? `Đến lúc: ${student.checkInTime}`
+                            : "Không tham gia"}
                       </p>
                     </div>
                   </div>
@@ -178,15 +270,15 @@ function AttendanceDetailModal({
                       student.status === "present"
                         ? "bg-green-200 text-green-800"
                         : student.status === "absent"
-                        ? "bg-red-200 text-red-800"
-                        : "bg-amber-200 text-amber-800"
+                          ? "bg-red-200 text-red-800"
+                          : "bg-amber-200 text-amber-800"
                     }`}
                   >
                     {student.status === "present"
                       ? "Có mặt"
                       : student.status === "absent"
-                      ? "Vắng"
-                      : "Đi trễ"}
+                        ? "Vắng"
+                        : "Đi trễ"}
                   </span>
                 </div>
               ))}
@@ -211,11 +303,11 @@ function AttendanceDetailModal({
 
 export default function AttendanceManager() {
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [selectedBranchFilter, setSelectedBranchFilter] = useState("");
   const [selectedClassDetail, setSelectedClassDetail] = useState<Class | null>(
-    null
+    null,
   );
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -236,7 +328,7 @@ export default function AttendanceManager() {
       result = result.filter(
         (c) =>
           c.branchId === selectedBranchFilter ||
-          c.branch?._id === selectedBranchFilter
+          c.branch?._id === selectedBranchFilter,
       );
     }
 
@@ -245,7 +337,7 @@ export default function AttendanceManager() {
       result = result.filter(
         (c) =>
           c.name?.toLowerCase().includes(query) ||
-          c.teacher?.name?.toLowerCase().includes(query)
+          c.teacher?.name?.toLowerCase().includes(query),
       );
     }
 
@@ -254,22 +346,161 @@ export default function AttendanceManager() {
 
   // Get actual attendance data from classes
   // For now, show student counts from real data - attendance will need backend support
+  // Track per-class attendance stats from API
+  const [classAttendanceMap, setClassAttendanceMap] = useState<
+    Record<
+      string,
+      { present: number; absent: number; late: number; total: number }
+    >
+  >({});
+
+  // Fetch attendance data for all classes when date changes
+  useEffect(() => {
+    const fetchAllClassAttendance = async () => {
+      const map: Record<
+        string,
+        { present: number; absent: number; late: number; total: number }
+      > = {};
+      for (const cls of filteredClasses) {
+        try {
+          const response = await api.get("/attendance/by-class-date", {
+            params: { classId: cls._id, date: selectedDate },
+          });
+          const records = response.data || [];
+          const totalStudents =
+            cls.students?.length || cls.studentIds?.length || 0;
+          const present = records.filter(
+            (r: any) => r.status === "present",
+          ).length;
+          const late = records.filter((r: any) => r.status === "late").length;
+          const markedAbsent = records.filter(
+            (r: any) => r.status === "absent",
+          ).length;
+          // Students without any record are considered absent if class time has passed
+          const unmarked = totalStudents - records.length;
+          // Check if any scheduled class time for this day has ended
+          const now = new Date();
+          const selDate = new Date(selectedDate);
+          const isSelectedDayPast =
+            selDate.toDateString() < new Date().toDateString();
+          let classTimeEnded = isSelectedDayPast;
+          if (
+            !classTimeEnded &&
+            selDate.toDateString() === now.toDateString() &&
+            cls.schedule
+          ) {
+            // For today, check if the class end time has passed
+            const todayDow = now.getDay();
+            const todaySchedule = cls.schedule.find(
+              (s: any) => s.dayOfWeek === todayDow,
+            );
+            if (todaySchedule?.endTime) {
+              const [endH, endM] = todaySchedule.endTime.split(":").map(Number);
+              if (
+                now.getHours() > endH ||
+                (now.getHours() === endH && now.getMinutes() >= endM)
+              ) {
+                classTimeEnded = true;
+              }
+            }
+          }
+          const absent = markedAbsent + (classTimeEnded ? unmarked : 0);
+          map[cls._id] = {
+            present: present + late,
+            absent,
+            late,
+            total: totalStudents,
+          };
+        } catch {
+          // If fetch fails, assume no data
+          const totalStudents =
+            cls.students?.length || cls.studentIds?.length || 0;
+          const now = new Date();
+          const selDate = new Date(selectedDate);
+          const isSelectedDayPast = selDate.toDateString() < now.toDateString();
+          let classTimeEnded = isSelectedDayPast;
+          if (
+            !classTimeEnded &&
+            selDate.toDateString() === now.toDateString() &&
+            cls.schedule
+          ) {
+            const todayDow = now.getDay();
+            const todaySchedule = cls.schedule.find(
+              (s: any) => s.dayOfWeek === todayDow,
+            );
+            if (todaySchedule?.endTime) {
+              const [endH, endM] = todaySchedule.endTime.split(":").map(Number);
+              if (
+                now.getHours() > endH ||
+                (now.getHours() === endH && now.getMinutes() >= endM)
+              ) {
+                classTimeEnded = true;
+              }
+            }
+          }
+          map[cls._id] = {
+            present: 0,
+            absent: classTimeEnded ? totalStudents : 0,
+            late: 0,
+            total: totalStudents,
+          };
+        }
+      }
+      setClassAttendanceMap(map);
+    };
+
+    if (filteredClasses.length > 0) {
+      fetchAllClassAttendance();
+    }
+  }, [filteredClasses, selectedDate]);
+
   const getClassAttendanceStats = (classData: Class) => {
     const totalStudents =
       classData.students?.length || classData.studentIds?.length || 0;
-    // TODO: Replace with real attendance data from API when available
-    // For now, showing placeholder based on student count
-    const present = totalStudents; // All students until attendance is marked
-    const absent = 0;
-    const attendanceRate = totalStudents > 0 ? 100 : 0;
-    const hasConsecutiveAbsent = false; // Will come from attendance API
+    const stats = classAttendanceMap[classData._id];
 
+    if (stats) {
+      const attendanceRate =
+        stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
+      return {
+        totalStudents,
+        present: stats.present,
+        absent: stats.absent,
+        attendanceRate,
+        hasConsecutiveAbsent: false,
+      };
+    }
+
+    // Default: if class time has passed and no records, show all absent
+    const now = new Date();
+    const selDate = new Date(selectedDate);
+    const isSelectedDayPast = selDate.toDateString() < now.toDateString();
+    let classTimeEnded = isSelectedDayPast;
+    if (
+      !classTimeEnded &&
+      selDate.toDateString() === now.toDateString() &&
+      classData.schedule
+    ) {
+      const todayDow = now.getDay();
+      const todaySchedule = (classData.schedule as any[]).find(
+        (s: any) => s.dayOfWeek === todayDow,
+      );
+      if (todaySchedule?.endTime) {
+        const [endH, endM] = todaySchedule.endTime.split(":").map(Number);
+        if (
+          now.getHours() > endH ||
+          (now.getHours() === endH && now.getMinutes() >= endM)
+        ) {
+          classTimeEnded = true;
+        }
+      }
+    }
     return {
       totalStudents,
-      present,
-      absent,
-      attendanceRate,
-      hasConsecutiveAbsent,
+      present: classTimeEnded ? 0 : totalStudents,
+      absent: classTimeEnded ? totalStudents : 0,
+      attendanceRate: classTimeEnded ? 0 : 100,
+      hasConsecutiveAbsent: false,
     };
   };
 
@@ -359,8 +590,8 @@ export default function AttendanceManager() {
                       filteredClasses.reduce(
                         (acc, c) =>
                           acc + getClassAttendanceStats(c).attendanceRate,
-                        0
-                      ) / filteredClasses.length
+                        0,
+                      ) / filteredClasses.length,
                     )
                   : 0}
                 %
@@ -379,7 +610,7 @@ export default function AttendanceManager() {
               <p className="text-2xl font-bold text-red-700">
                 {
                   filteredClasses.filter(
-                    (c) => getClassAttendanceStats(c).hasConsecutiveAbsent
+                    (c) => getClassAttendanceStats(c).hasConsecutiveAbsent,
                   ).length
                 }
               </p>
@@ -398,7 +629,7 @@ export default function AttendanceManager() {
                 {filteredClasses.reduce(
                   (acc, c) =>
                     acc + (c.students?.length || c.studentIds?.length || 0),
-                  0
+                  0,
                 )}
               </p>
             </div>
@@ -447,15 +678,15 @@ export default function AttendanceManager() {
                         stats.attendanceRate >= 90
                           ? "bg-linear-to-br from-green-500 to-emerald-500"
                           : stats.attendanceRate >= 70
-                          ? "bg-linear-to-br from-amber-500 to-orange-500"
-                          : "bg-linear-to-br from-red-500 to-rose-500"
+                            ? "bg-linear-to-br from-amber-500 to-orange-500"
+                            : "bg-linear-to-br from-red-500 to-rose-500"
                       }`}
                     >
                       {stats.attendanceRate >= 90
                         ? "✓"
                         : stats.attendanceRate >= 70
-                        ? "⚠"
-                        : "!"}
+                          ? "⚠"
+                          : "!"}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -500,8 +731,8 @@ export default function AttendanceManager() {
                             stats.attendanceRate >= 90
                               ? "text-green-600"
                               : stats.attendanceRate >= 70
-                              ? "text-amber-600"
-                              : "text-red-600"
+                                ? "text-amber-600"
+                                : "text-red-600"
                           }`}
                         >
                           {stats.attendanceRate}%
