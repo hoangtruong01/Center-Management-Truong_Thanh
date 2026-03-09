@@ -28,6 +28,7 @@ import { SubmissionsModule } from './submissions/submissions.module';
 import { GradesModule } from './grades/grades.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AdminStatsModule } from './admin-stats/admin-stats.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AdminStatsModule } from './admin-stats/admin-stats.module';
       isGlobal: true,
       expandVariables: true,
     }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

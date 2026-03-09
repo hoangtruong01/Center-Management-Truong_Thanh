@@ -2,9 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { ClassEntity, ClassDocument } from './schemas/class.schema';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
@@ -14,12 +16,53 @@ import { Session, SessionDocument } from '../sessions/schemas/session.schema';
 
 @Injectable()
 export class ClassesService {
+  private readonly logger = new Logger(ClassesService.name);
+
   constructor(
     @InjectModel(ClassEntity.name)
     private readonly classModel: Model<ClassDocument>,
     @InjectModel(Session.name)
     private readonly sessionModel: Model<SessionDocument>,
   ) {}
+
+  /**
+   * Tự động xoá các khoá học đã kết thúc quá 2 ngày mà không được gia hạn.
+   * Chạy mỗi ngày lúc 2:00 sáng.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async handleExpiredClasses(): Promise<void> {
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    twoDaysAgo.setHours(23, 59, 59, 999);
+
+    const expiredClasses = await this.classModel
+      .find({
+        endDate: { $exists: true, $lte: twoDaysAgo },
+        status: 'active',
+      })
+      .exec();
+
+    if (expiredClasses.length === 0) return;
+
+    this.logger.log(
+      `Tìm thấy ${expiredClasses.length} khoá học hết hạn quá 2 ngày, đang xoá...`,
+    );
+
+    for (const cls of expiredClasses) {
+      try {
+        const classId = (cls as any)._id.toString();
+        await this.classModel.findByIdAndDelete(classId).exec();
+        await this.sessionModel
+          .deleteMany({ classId: new Types.ObjectId(classId) })
+          .exec();
+        this.logger.log(`Đã xoá khoá học: ${cls.name} (${classId})`);
+      } catch (error) {
+        this.logger.error(`Lỗi khi xoá khoá học ${cls.name}: ${error.message}`);
+      }
+    }
+
+    this.logger.log(`Hoàn tất xoá ${expiredClasses.length} khoá học hết hạn.`);
+  }
 
   async create(dto: CreateClassDto): Promise<ClassEntity> {
     // Convert string IDs to ObjectId
