@@ -1416,6 +1416,7 @@ export default function StudentDashboard({
       if (dashboardData?.classes) {
         const dayOfWeek = dayDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
         for (const cls of dashboardData.classes) {
+          if ((cls as any).status && (cls as any).status !== "active") continue;
           const matchingSchedule = cls.schedule?.find(
             (s) => s.dayOfWeek === dayOfWeek,
           );

@@ -169,6 +169,7 @@ export const useStudentDashboardStore = create<
             teacherName: c.teacherId?.name || c.teacher?.name || "Chưa có GV",
             schedule: c.schedule || [],
             studentCount: c.studentIds?.length || 0,
+            status: c.status || "active",
             progress: 75, // TODO: Calculate from sessions
           })),
           upcomingSessions,

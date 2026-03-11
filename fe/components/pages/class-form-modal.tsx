@@ -80,7 +80,7 @@ export default function ClassFormModal({
     // Filter by branch
     if (formData.branchId) {
       result = result.filter(
-        (t) => !t.branchId || t.branchId === formData.branchId
+        (t) => !t.branchId || t.branchId === formData.branchId,
       );
     }
 
@@ -94,13 +94,34 @@ export default function ClassFormModal({
               s.toLowerCase().includes(formData.subject.toLowerCase()) ||
               formData.subject
                 .toLowerCase()
-                .includes(s.toLowerCase().replace(/\d+/g, "").trim())
-          )
+                .includes(s.toLowerCase().replace(/\d+/g, "").trim()),
+          ),
       );
     }
 
+    // When editing, always include the currently assigned teacher
+    if (isEditing && formData.teacherId) {
+      const currentTeacherInList = result.some(
+        (t) => t._id === formData.teacherId,
+      );
+      if (!currentTeacherInList) {
+        const currentTeacher = teachers.find(
+          (t) => t._id === formData.teacherId,
+        );
+        if (currentTeacher) {
+          result = [currentTeacher, ...result];
+        }
+      }
+    }
+
     return result;
-  }, [teachers, formData.branchId, formData.subject]);
+  }, [
+    teachers,
+    formData.branchId,
+    formData.subject,
+    formData.teacherId,
+    isEditing,
+  ]);
 
   // Auto-generate class name when subject and grade change
   useEffect(() => {
@@ -130,7 +151,10 @@ export default function ClassFormModal({
       let teacherIdValue = "";
       if (typeof classData.teacherId === "string") {
         teacherIdValue = classData.teacherId;
-      } else if (classData.teacherId && typeof classData.teacherId === "object") {
+      } else if (
+        classData.teacherId &&
+        typeof classData.teacherId === "object"
+      ) {
         teacherIdValue = (classData.teacherId as any)._id || "";
       } else if (classData.teacher?._id) {
         teacherIdValue = classData.teacher._id;
@@ -166,7 +190,7 @@ export default function ClassFormModal({
   const handleScheduleChange = (
     index: number,
     field: keyof ClassSchedule,
-    value: string | number
+    value: string | number,
   ) => {
     const newSchedules = [...schedules];
     newSchedules[index] = { ...newSchedules[index], [field]: value };
@@ -214,7 +238,7 @@ export default function ClassFormModal({
           startTime,
           endTime,
           room: room || undefined,
-        })
+        }),
       );
 
       const submitData = {
@@ -404,8 +428,8 @@ export default function ClassFormModal({
                     {!formData.branchId
                       ? "-- Chọn chi nhánh trước --"
                       : filteredTeachers.length === 0
-                      ? "-- Không có giáo viên phù hợp --"
-                      : "-- Chọn giáo viên --"}
+                        ? "-- Không có giáo viên phù hợp --"
+                        : "-- Chọn giáo viên --"}
                   </option>
                   {filteredTeachers.map((teacher) => (
                     <option key={teacher._id} value={teacher._id}>
@@ -561,7 +585,7 @@ export default function ClassFormModal({
                           handleScheduleChange(
                             index,
                             "dayOfWeek",
-                            parseInt(e.target.value)
+                            parseInt(e.target.value),
                           )
                         }
                         className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -583,7 +607,7 @@ export default function ClassFormModal({
                             handleScheduleChange(
                               index,
                               "startTime",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           className="w-28 rounded-lg text-sm"
@@ -600,7 +624,7 @@ export default function ClassFormModal({
                             handleScheduleChange(
                               index,
                               "endTime",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           className="w-28 rounded-lg text-sm"

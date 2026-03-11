@@ -214,7 +214,7 @@ export const useParentDashboardStore = create<
       const upcomingSessions = sessionsRaw.map((s: any) => {
         // Try to find attendance by sessionId first
         let attendanceRecord = attendanceRecords.find(
-          (r: any) => r.sessionId === s._id || r.sessionId?._id === s._id
+          (r: any) => r.sessionId === s._id || r.sessionId?._id === s._id,
         );
 
         // If not found, try to find by date
@@ -259,7 +259,8 @@ export const useParentDashboardStore = create<
           const maxScore = typeof a.maxScore === "number" ? a.maxScore : null;
           const calculatedPercentage =
             score !== null && maxScore && maxScore > 0
-              ? Math.round(((score / maxScore) * 100 + Number.EPSILON) * 10) / 10
+              ? Math.round(((score / maxScore) * 100 + Number.EPSILON) * 10) /
+                10
               : null;
           const payloadPercentage =
             typeof a.percentage === "number"
@@ -268,8 +269,9 @@ export const useParentDashboardStore = create<
                 ? Number(a.percentage)
                 : null;
           const rawPercentage =
-            typeof payloadPercentage === "number" && !Number.isNaN(payloadPercentage)
-              ? Math.round(((payloadPercentage + Number.EPSILON) * 10)) / 10
+            typeof payloadPercentage === "number" &&
+            !Number.isNaN(payloadPercentage)
+              ? Math.round((payloadPercentage + Number.EPSILON) * 10) / 10
               : null;
           const percentage = calculatedPercentage ?? rawPercentage;
           const assessedAt =
@@ -363,6 +365,7 @@ export const useParentDashboardStore = create<
             teacherId: c.teacherId?._id || c.teacher?._id || c.teacherId,
             schedule: c.schedule || [],
             studentCount: c.studentIds?.length || 0,
+            status: c.status || "active",
           })),
           upcomingSessions,
           recentGrades,

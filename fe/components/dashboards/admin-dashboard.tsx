@@ -2046,6 +2046,7 @@ export default function AdminDashboard({
     null,
   );
   const [classSearchQuery, setClassSearchQuery] = useState("");
+  const [classBranchFilter, setClassBranchFilter] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -2209,7 +2210,10 @@ export default function AdminDashboard({
         return (
           u.name?.toLowerCase().includes(query) ||
           u.email?.toLowerCase().includes(query) ||
-          u.phone?.toLowerCase().includes(query)
+          u.phone?.toLowerCase().includes(query) ||
+          (u as any).studentCode?.toLowerCase().includes(query) ||
+          (u as any).teacherCode?.toLowerCase().includes(query) ||
+          (u as any).parentCode?.toLowerCase().includes(query)
         );
       })
     : filteredUsers;
@@ -2514,7 +2518,11 @@ export default function AdminDashboard({
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Trường Thành" className="w-10 h-10 rounded-xl object-contain" />
+            <img
+              src="/logo.png"
+              alt="Trường Thành"
+              className="w-10 h-10 rounded-xl object-contain"
+            />
             <div>
               <h1 className="text-lg font-bold bg-linear-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
                 Trường Thành Education
@@ -3024,25 +3032,57 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              {/* Search Bar for Classes */}
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  🔍
-                </span>
-                <Input
-                  type="text"
-                  placeholder="Tìm kiếm khóa học theo tên, giáo viên, môn học..."
-                  value={classSearchQuery}
-                  onChange={(e) => setClassSearchQuery(e.target.value)}
-                  className="pl-9 pr-8 w-full rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500"
-                />
-                {classSearchQuery && (
-                  <button
-                    onClick={() => setClassSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              {/* Branch Filter & Search Bar for Classes */}
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-600">
+                    🏢 Cơ sở:
+                  </span>
+                  <select
+                    value={classBranchFilter}
+                    onChange={(e) => setClassBranchFilter(e.target.value)}
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-45"
                   >
-                    ✕
-                  </button>
+                    <option value="">Tất cả cơ sở</option>
+                    {branches.map((branch) => (
+                      <option key={branch._id} value={branch._id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="relative flex-1 min-w-50">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    🔍
+                  </span>
+                  <Input
+                    type="text"
+                    placeholder="Tìm kiếm khóa học theo tên, giáo viên, môn học..."
+                    value={classSearchQuery}
+                    onChange={(e) => setClassSearchQuery(e.target.value)}
+                    className="pl-9 pr-8 w-full rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500"
+                  />
+                  {classSearchQuery && (
+                    <button
+                      onClick={() => setClassSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {(classBranchFilter || classSearchQuery) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setClassBranchFilter("");
+                      setClassSearchQuery("");
+                    }}
+                    className="text-gray-500 rounded-xl"
+                  >
+                    Xóa bộ lọc
+                  </Button>
                 )}
               </div>
 
@@ -3058,6 +3098,16 @@ export default function AdminDashboard({
                 ) : (
                   classes
                     .filter((course) => {
+                      // Filter by branch
+                      if (classBranchFilter) {
+                        const courseBranchId =
+                          course.branch?._id ||
+                          (typeof course.branchId === "string"
+                            ? course.branchId
+                            : (course.branchId as any)?._id);
+                        if (courseBranchId !== classBranchFilter) return false;
+                      }
+                      // Filter by search query
                       if (!classSearchQuery.trim()) return true;
                       const query = classSearchQuery.toLowerCase();
                       return (
@@ -3067,82 +3117,106 @@ export default function AdminDashboard({
                         course.subject?.toLowerCase().includes(query)
                       );
                     })
-                    .map((course) => (
-                      <div
-                        key={course._id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-linear-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
-                            📖
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-900">
-                              {course.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Giáo viên:{" "}
-                              {course.teacher?.name || "Chưa phân công"}
-                            </p>
-                            {course.branch && (
-                              <p className="text-xs text-blue-500">
-                                Chi nhánh: {course.branch.name}
+                    .map((course) => {
+                      const courseEndDate = course.endDate
+                        ? new Date(course.endDate)
+                        : null;
+                      if (courseEndDate) {
+                        courseEndDate.setHours(23, 59, 59, 999);
+                      }
+                      const isExpired =
+                        course.status === "completed" ||
+                        (!!courseEndDate && courseEndDate < new Date());
+                      const displayStatus = isExpired
+                        ? "completed"
+                        : course.status;
+
+                      return (
+                        <div
+                          key={course._id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-linear-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
+                              📖
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900">
+                                {course.name}
                               </p>
-                            )}
+                              <p className="text-xs text-gray-500">
+                                Giáo viên:{" "}
+                                {course.teacher?.name || "Chưa phân công"}
+                              </p>
+                              {course.branch && (
+                                <p className="text-xs text-blue-500">
+                                  Chi nhánh: {course.branch.name}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 mt-3 sm:mt-0">
+                            <div className="text-center">
+                              <p className="text-xs text-gray-500">Học sinh</p>
+                              <p className="font-bold text-gray-900">
+                                {course.studentIds?.length || 0}/
+                                {course.maxStudents || 30}
+                              </p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs text-gray-500">Lịch học</p>
+                              <p className="font-bold text-blue-600">
+                                {course.schedule?.length || 0} buổi/tuần
+                              </p>
+                            </div>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                displayStatus === "active"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : displayStatus === "completed"
+                                    ? "bg-red-100 text-red-700"
+                                    : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {displayStatus === "active"
+                                ? "Đang mở"
+                                : displayStatus === "completed"
+                                  ? "Đã kết thúc"
+                                  : "Tạm dừng"}
+                            </span>
+                            <Button
+                              variant="outline"
+                              className="rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
+                              onClick={() => setClassStudentsModal(course)}
+                            >
+                              👥 Danh sách
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="rounded-xl"
+                              onClick={() => {
+                                setEditingClass(course);
+                                setShowClassModal(true);
+                              }}
+                            >
+                              ✏️ Sửa
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 mt-3 sm:mt-0">
-                          <div className="text-center">
-                            <p className="text-xs text-gray-500">Học sinh</p>
-                            <p className="font-bold text-gray-900">
-                              {course.studentIds?.length || 0}/
-                              {course.maxStudents || 30}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xs text-gray-500">Lịch học</p>
-                            <p className="font-bold text-blue-600">
-                              {course.schedule?.length || 0} buổi/tuần
-                            </p>
-                          </div>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              course.status === "active"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : course.status === "completed"
-                                  ? "bg-gray-100 text-gray-700"
-                                  : "bg-amber-100 text-amber-700"
-                            }`}
-                          >
-                            {course.status === "active"
-                              ? "Đang mở"
-                              : course.status === "completed"
-                                ? "Đã kết thúc"
-                                : "Tạm dừng"}
-                          </span>
-                          <Button
-                            variant="outline"
-                            className="rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
-                            onClick={() => setClassStudentsModal(course)}
-                          >
-                            👥 Danh sách
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="rounded-xl"
-                            onClick={() => {
-                              setEditingClass(course);
-                              setShowClassModal(true);
-                            }}
-                          >
-                            ✏️ Sửa
-                          </Button>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                 )}
-                {classSearchQuery &&
+                {(classSearchQuery || classBranchFilter) &&
                   classes.filter((course) => {
+                    if (classBranchFilter) {
+                      const courseBranchId =
+                        course.branch?._id ||
+                        (typeof course.branchId === "string"
+                          ? course.branchId
+                          : (course.branchId as any)?._id);
+                      if (courseBranchId !== classBranchFilter) return false;
+                    }
+                    if (!classSearchQuery.trim()) return true;
                     const query = classSearchQuery.toLowerCase();
                     return (
                       course.name?.toLowerCase().includes(query) ||
@@ -3229,7 +3303,7 @@ export default function AdminDashboard({
                     </span>
                     <Input
                       type="text"
-                      placeholder="Tìm kiếm theo tên, email, SĐT..."
+                      placeholder="Tìm kiếm theo tên, email, SĐT, MSSH..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-9 pr-8 w-full sm:w-70 rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500"
@@ -3767,7 +3841,7 @@ export default function AdminDashboard({
                 <select
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
-                  className="w-full rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="ALL">Tất cả cơ sở</option>
                   {branches.map((branch) => (
@@ -3785,7 +3859,7 @@ export default function AdminDashboard({
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="w-full rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value={2026}>2026</option>
                   <option value={2025}>2025</option>

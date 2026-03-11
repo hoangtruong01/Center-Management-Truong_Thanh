@@ -26,7 +26,7 @@ export class ClassesService {
   ) {}
 
   /**
-   * Tự động xoá các khoá học đã kết thúc quá 2 ngày mà không được gia hạn.
+   * Tự động chuyển trạng thái các khoá học đã kết thúc sang "completed".
    * Chạy mỗi ngày lúc 2:00 sáng.
    */
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
@@ -45,23 +45,28 @@ export class ClassesService {
     if (expiredClasses.length === 0) return;
 
     this.logger.log(
-      `Tìm thấy ${expiredClasses.length} khoá học hết hạn quá 2 ngày, đang xoá...`,
+      `Tìm thấy ${expiredClasses.length} khoá học hết hạn quá 2 ngày, đang chuyển sang trạng thái "đã kết thúc"...`,
     );
 
     for (const cls of expiredClasses) {
       try {
         const classId = (cls as any)._id.toString();
-        await this.classModel.findByIdAndDelete(classId).exec();
-        await this.sessionModel
-          .deleteMany({ classId: new Types.ObjectId(classId) })
+        await this.classModel
+          .findByIdAndUpdate(classId, { status: 'completed' })
           .exec();
-        this.logger.log(`Đã xoá khoá học: ${cls.name} (${classId})`);
+        this.logger.log(
+          `Đã chuyển trạng thái khoá học: ${cls.name} (${classId}) → completed`,
+        );
       } catch (error) {
-        this.logger.error(`Lỗi khi xoá khoá học ${cls.name}: ${error.message}`);
+        this.logger.error(
+          `Lỗi khi cập nhật khoá học ${cls.name}: ${error.message}`,
+        );
       }
     }
 
-    this.logger.log(`Hoàn tất xoá ${expiredClasses.length} khoá học hết hạn.`);
+    this.logger.log(
+      `Hoàn tất cập nhật ${expiredClasses.length} khoá học hết hạn.`,
+    );
   }
 
   async create(dto: CreateClassDto): Promise<ClassEntity> {

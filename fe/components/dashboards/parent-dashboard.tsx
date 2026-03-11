@@ -1299,19 +1299,21 @@ export default function ParentDashboard({
       }>
     >();
 
-    dashboardData.classes.forEach((classItem) => {
-      const scheduleArray = classItem.schedule || [];
-      scheduleArray.forEach((sched) => {
-        const day = sched.dayOfWeek;
-        if (!scheduleMap.has(day)) {
-          scheduleMap.set(day, []);
-        }
-        scheduleMap.get(day)!.push({
-          classInfo: classItem,
-          schedule: sched,
+    dashboardData.classes
+      .filter((c: any) => !c.status || c.status === "active")
+      .forEach((classItem) => {
+        const scheduleArray = classItem.schedule || [];
+        scheduleArray.forEach((sched) => {
+          const day = sched.dayOfWeek;
+          if (!scheduleMap.has(day)) {
+            scheduleMap.set(day, []);
+          }
+          scheduleMap.get(day)!.push({
+            classInfo: classItem,
+            schedule: sched,
+          });
         });
       });
-    });
 
     // Convert to array sorted by dayOfWeek (0-6)
     const result: Array<{
@@ -1367,129 +1369,134 @@ export default function ParentDashboard({
 
       const items: ParentDaySchedule["items"] = [];
 
-      dashboardData.classes.forEach((classItem) => {
-        const scheduleArray = classItem.schedule || [];
-        scheduleArray.forEach((sched) => {
-          if (sched.dayOfWeek === dayOfWeek) {
-            const targetYear = dayDate.getFullYear();
-            const targetMonth = dayDate.getMonth();
-            const targetDay = dayDate.getDate();
+      dashboardData.classes
+        .filter((c: any) => !c.status || c.status === "active")
+        .forEach((classItem) => {
+          const scheduleArray = classItem.schedule || [];
+          scheduleArray.forEach((sched) => {
+            if (sched.dayOfWeek === dayOfWeek) {
+              const targetYear = dayDate.getFullYear();
+              const targetMonth = dayDate.getMonth();
+              const targetDay = dayDate.getDate();
 
-            // Look up attendance from records
-            let attendanceStatus:
-              | "present"
-              | "absent"
-              | "late"
-              | "excused"
-              | null = null;
+              // Look up attendance from records
+              let attendanceStatus:
+                | "present"
+                | "absent"
+                | "late"
+                | "excused"
+                | null = null;
 
-            let attendanceRecord = dashboardData.attendanceRecords?.find(
-              (r) => {
-                const session = r.sessionId as {
-                  _id: string;
-                  startTime: string;
-                  classId: { _id: string; name: string } | string;
-                };
-                if (session?.startTime) {
-                  const sessionDate = new Date(session.startTime);
-                  if (
-                    sessionDate.getFullYear() === targetYear &&
-                    sessionDate.getMonth() === targetMonth &&
-                    sessionDate.getDate() === targetDay
-                  ) {
-                    const sessionClassId =
-                      typeof session.classId === "object" && session.classId
-                        ? (session.classId as { _id: string })._id
-                        : session.classId;
-                    return sessionClassId === classItem._id;
+              let attendanceRecord = dashboardData.attendanceRecords?.find(
+                (r) => {
+                  const session = r.sessionId as {
+                    _id: string;
+                    startTime: string;
+                    classId: { _id: string; name: string } | string;
+                  };
+                  if (session?.startTime) {
+                    const sessionDate = new Date(session.startTime);
+                    if (
+                      sessionDate.getFullYear() === targetYear &&
+                      sessionDate.getMonth() === targetMonth &&
+                      sessionDate.getDate() === targetDay
+                    ) {
+                      const sessionClassId =
+                        typeof session.classId === "object" && session.classId
+                          ? (session.classId as { _id: string })._id
+                          : session.classId;
+                      return sessionClassId === classItem._id;
+                    }
                   }
-                }
-                return false;
-              },
-            );
-
-            if (!attendanceRecord) {
-              attendanceRecord = dashboardData.attendanceRecords?.find((r) => {
-                const session = r.sessionId as {
-                  _id: string;
-                  startTime: string;
-                  classId: { _id: string; name: string } | string;
-                };
-                if (session?.startTime) {
-                  const sessionDate = new Date(session.startTime);
-                  return (
-                    sessionDate.getFullYear() === targetYear &&
-                    sessionDate.getMonth() === targetMonth &&
-                    sessionDate.getDate() === targetDay
-                  );
-                }
-                return false;
-              });
-            }
-
-            if (attendanceRecord) {
-              attendanceStatus = attendanceRecord.status;
-            } else {
-              const sessionRecord = dashboardData.upcomingSessions?.find(
-                (s) => {
-                  const sessionDate = new Date(s.date);
-                  return (
-                    sessionDate.getFullYear() === targetYear &&
-                    sessionDate.getMonth() === targetMonth &&
-                    sessionDate.getDate() === targetDay &&
-                    s.classId === classItem._id
-                  );
+                  return false;
                 },
               );
-              if (sessionRecord) {
-                attendanceStatus = sessionRecord.attendanceStatus || null;
+
+              if (!attendanceRecord) {
+                attendanceRecord = dashboardData.attendanceRecords?.find(
+                  (r) => {
+                    const session = r.sessionId as {
+                      _id: string;
+                      startTime: string;
+                      classId: { _id: string; name: string } | string;
+                    };
+                    if (session?.startTime) {
+                      const sessionDate = new Date(session.startTime);
+                      return (
+                        sessionDate.getFullYear() === targetYear &&
+                        sessionDate.getMonth() === targetMonth &&
+                        sessionDate.getDate() === targetDay
+                      );
+                    }
+                    return false;
+                  },
+                );
               }
-            }
 
-            // Determine session status: past / in-progress / upcoming
-            let sessionStatus: "past" | "in-progress" | "upcoming" = "upcoming";
-            if (isPast && !isToday) {
-              sessionStatus = "past";
-            } else if (isToday) {
-              // Parse startTime and endTime (format "HH:mm")
-              const [startH, startM] = sched.startTime.split(":").map(Number);
-              const [endH, endM] = sched.endTime.split(":").map(Number);
-              const sessionStart = new Date(dayDate);
-              sessionStart.setHours(startH, startM, 0, 0);
-              const sessionEnd = new Date(dayDate);
-              sessionEnd.setHours(endH, endM, 0, 0);
-
-              if (now >= sessionStart && now <= sessionEnd) {
-                sessionStatus = "in-progress";
-              } else if (now > sessionEnd) {
-                sessionStatus = "past";
+              if (attendanceRecord) {
+                attendanceStatus = attendanceRecord.status;
               } else {
-                sessionStatus = "upcoming";
+                const sessionRecord = dashboardData.upcomingSessions?.find(
+                  (s) => {
+                    const sessionDate = new Date(s.date);
+                    return (
+                      sessionDate.getFullYear() === targetYear &&
+                      sessionDate.getMonth() === targetMonth &&
+                      sessionDate.getDate() === targetDay &&
+                      s.classId === classItem._id
+                    );
+                  },
+                );
+                if (sessionRecord) {
+                  attendanceStatus = sessionRecord.attendanceStatus || null;
+                }
               }
-            }
 
-            // Auto absent: if session is past and no attendance was recorded
-            if (sessionStatus === "past" && !attendanceStatus) {
-              attendanceStatus = "absent";
-            }
+              // Determine session status: past / in-progress / upcoming
+              let sessionStatus: "past" | "in-progress" | "upcoming" =
+                "upcoming";
+              if (isPast && !isToday) {
+                sessionStatus = "past";
+              } else if (isToday) {
+                // Parse startTime and endTime (format "HH:mm")
+                const [startH, startM] = sched.startTime.split(":").map(Number);
+                const [endH, endM] = sched.endTime.split(":").map(Number);
+                const sessionStart = new Date(dayDate);
+                sessionStart.setHours(startH, startM, 0, 0);
+                const sessionEnd = new Date(dayDate);
+                sessionEnd.setHours(endH, endM, 0, 0);
 
-            items.push({
-              classId: classItem._id,
-              className: classItem.name,
-              classCode:
-                ((classItem as unknown as Record<string, unknown>)
-                  .code as string) ||
-                classItem.name.substring(0, 7).toUpperCase(),
-              teacherName: classItem.teacherName,
-              startTime: sched.startTime,
-              endTime: sched.endTime,
-              room: sched.room,
-              attendanceStatus,
-              sessionStatus,
-            });
-          }
+                if (now >= sessionStart && now <= sessionEnd) {
+                  sessionStatus = "in-progress";
+                } else if (now > sessionEnd) {
+                  sessionStatus = "past";
+                } else {
+                  sessionStatus = "upcoming";
+                }
+              }
+
+              // Auto absent: if session is past and no attendance was recorded
+              if (sessionStatus === "past" && !attendanceStatus) {
+                attendanceStatus = "absent";
+              }
+
+              items.push({
+                classId: classItem._id,
+                className: classItem.name,
+                classCode:
+                  ((classItem as unknown as Record<string, unknown>)
+                    .code as string) ||
+                  classItem.name.substring(0, 7).toUpperCase(),
+                teacherName: classItem.teacherName,
+                startTime: sched.startTime,
+                endTime: sched.endTime,
+                room: sched.room,
+                attendanceStatus,
+                sessionStatus,
+              });
+            }
+          });
         });
-      });
 
       result.push({
         day: DAY_NAMES[i],
@@ -1556,7 +1563,11 @@ export default function ParentDashboard({
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Trường Thành" className="w-10 h-10 rounded-xl object-contain" />
+            <img
+              src="/logo.png"
+              alt="Trường Thành"
+              className="w-10 h-10 rounded-xl object-contain"
+            />
             <div>
               <h1 className="text-lg font-bold bg-linear-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
                 Trường Thành Education

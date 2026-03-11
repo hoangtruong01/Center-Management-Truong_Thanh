@@ -31,8 +31,13 @@ export default function SessionFormModal({
   branches: initialBranches = [],
   onClose,
 }: SessionFormModalProps) {
-  const { createSession, updateSession, checkConflict, isLoading } =
-    useScheduleStore();
+  const {
+    createSession,
+    updateSession,
+    deleteSession,
+    checkConflict,
+    isLoading,
+  } = useScheduleStore();
 
   // Use stores directly for fresh data
   const { branches: storeBranches, fetchBranches } = useBranchesStore();
@@ -90,6 +95,7 @@ export default function SessionFormModal({
     classId: "", // Lớp được chọn
     teacherId: "",
     subject: "", // Môn học được chọn
+    grade: "", // Khối lớp được chọn
     title: "",
     room: "",
     date: "",
@@ -102,9 +108,9 @@ export default function SessionFormModal({
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Filter classes by selected branch and subject
+  // Filter classes by selected branch, subject, and grade
   const filteredClasses = useMemo(() => {
-    let result = classes;
+    let result = classes.filter((c) => c.status === "active");
 
     // Filter by branch if selected
     if (formData.branchId) {
@@ -122,8 +128,30 @@ export default function SessionFormModal({
       result = result.filter((c) => c.subject === formData.subject);
     }
 
+    // Filter by grade if selected
+    if (formData.grade) {
+      result = result.filter((c) => c.grade === formData.grade);
+    }
+
     return result;
-  }, [classes, formData.branchId, formData.subject]);
+  }, [classes, formData.branchId, formData.subject, formData.grade]);
+
+  // Filter teachers by subject - show teachers who can teach the selected subject
+  const filteredTeachers = useMemo(() => {
+    const allTeachers = storeUsers.filter((u) => u.role === "teacher");
+    if (!formData.subject) return allTeachers;
+    return allTeachers.filter(
+      (t: any) =>
+        t.subjects &&
+        t.subjects.some(
+          (s: string) =>
+            s.toLowerCase().includes(formData.subject.toLowerCase()) ||
+            formData.subject
+              .toLowerCase()
+              .includes(s.toLowerCase().replace(/\d+/g, "").trim()),
+        ),
+    );
+  }, [storeUsers, formData.subject]);
 
   // Initialize form data when editing
   useEffect(() => {
@@ -179,6 +207,12 @@ export default function SessionFormModal({
         classId: "",
         teacherId: teacherId,
         subject: subject,
+        grade:
+          typeof session.classId !== "string" &&
+          session.classId &&
+          "grade" in session.classId
+            ? (session.classId as any).grade || ""
+            : "",
         title: session.title || "",
         room: session.room || "",
         date: startDate.toISOString().split("T")[0],
@@ -281,8 +315,13 @@ export default function SessionFormModal({
 
     try {
       if (session) {
-        // Update existing session
+        // Update existing session - send all relevant fields
         const updateData: UpdateSessionData = {
+          classId: formData.classId || undefined,
+          teacherId: formData.teacherId || undefined,
+          subject: formData.subject || undefined,
+          title: formData.title || undefined,
+          room: formData.room || undefined,
           startTime: startDateTime.toISOString(),
           endTime: endDateTime.toISOString(),
           type: formData.type,
@@ -333,6 +372,7 @@ export default function SessionFormModal({
         ...prev,
         branchId: value,
         subject: "",
+        grade: "",
         classId: "",
         teacherId: "",
       }));
@@ -344,6 +384,14 @@ export default function SessionFormModal({
         subject: value,
         classId: "",
         teacherId: "",
+      }));
+    }
+    // Reset class when grade changes
+    if (name === "grade") {
+      setFormData((prev) => ({
+        ...prev,
+        grade: value,
+        classId: "",
       }));
     }
     // Auto-fill teacher from class if class is selected
@@ -475,9 +523,37 @@ export default function SessionFormModal({
           {/* Class Selection - Third Step (Optional) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Lớp học
+              Khối lớp
               <span className="text-xs text-gray-400 ml-2">
-                ({filteredClasses.length} lớp phù hợp - không bắt buộc)
+                (lọc theo khối)
+              </span>
+            </label>
+            <select
+              name="grade"
+              value={formData.grade}
+              onChange={handleChange}
+              disabled={!!session || !formData.subject || isLoadingData}
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 ${
+                session || !formData.subject || isLoadingData
+                  ? "bg-gray-100"
+                  : ""
+              }`}
+            >
+              <option value="">-- Tất cả khối --</option>
+              {["6", "7", "8", "9", "10", "11", "12"].map((g) => (
+                <option key={g} value={g}>
+                  🎓 Khối {g}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Class Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Lớp học <span className="text-red-500">*</span>
+              <span className="text-xs text-gray-400 ml-2">
+                ({filteredClasses.length} lớp phù hợp)
               </span>
             </label>
             <select
@@ -516,6 +592,34 @@ export default function SessionFormModal({
                   ⚠️ Không có lớp nào dạy môn {formData.subject} tại cơ sở này.
                 </p>
               )}
+          </div>
+
+          {/* Teacher Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Giáo viên
+              <span className="text-xs text-gray-400 ml-2">
+                ({filteredTeachers.length} giáo viên
+                {formData.subject ? ` dạy ${formData.subject}` : ""})
+              </span>
+            </label>
+            <select
+              name="teacherId"
+              value={formData.teacherId}
+              onChange={handleChange}
+              disabled={isLoadingData}
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 ${
+                isLoadingData ? "bg-gray-100" : ""
+              }`}
+            >
+              <option value="">-- Chọn giáo viên --</option>
+              {filteredTeachers.map((t) => (
+                <option key={t._id} value={t._id}>
+                  👨‍🏫 {t.name}{" "}
+                  {(t as any).teacherCode ? `(${(t as any).teacherCode})` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Title */}
@@ -659,11 +763,31 @@ export default function SessionFormModal({
                 "➕ Tạo buổi học bất thường"
               )}
             </Button>
+            {session && session.type !== "regular" && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isLoading}
+                onClick={async () => {
+                  if (confirm("Bạn có chắc muốn xóa buổi học này?")) {
+                    try {
+                      await deleteSession(session._id);
+                      onClose();
+                    } catch (error) {
+                      console.error("Error deleting session:", error);
+                    }
+                  }
+                }}
+                className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                🗑️ Xóa
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="flex-1 rounded-xl"
+              className="rounded-xl"
             >
               Hủy
             </Button>

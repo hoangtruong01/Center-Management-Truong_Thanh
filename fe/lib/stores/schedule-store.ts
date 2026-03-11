@@ -70,6 +70,11 @@ export interface CreateSessionData {
 }
 
 export interface UpdateSessionData {
+  classId?: string;
+  teacherId?: string;
+  subject?: string;
+  title?: string;
+  room?: string;
   startTime?: string;
   endTime?: string;
   type?: SessionType;
@@ -124,18 +129,18 @@ interface ScheduleActions {
   fetchTeacherSchedule: (
     teacherId: string,
     startDate: string,
-    endDate: string
+    endDate: string,
   ) => Promise<void>;
   fetchStudentSchedule: (
     studentId: string,
     startDate: string,
-    endDate: string
+    endDate: string,
   ) => Promise<void>;
   fetchSessionById: (id: string) => Promise<Session>;
   fetchStatistics: (
     startDate: string,
     endDate: string,
-    branchId?: string
+    branchId?: string,
   ) => Promise<void>;
 
   // CRUD operations
@@ -145,7 +150,7 @@ interface ScheduleActions {
 
   // Bulk operations
   generateSessions: (
-    data: GenerateSessionsData
+    data: GenerateSessionsData,
   ) => Promise<{ message: string; sessions: Session[] }>;
   bulkCreateSessions: (
     classId: string,
@@ -154,7 +159,7 @@ interface ScheduleActions {
       endTime: string;
       type?: SessionType;
       note?: string;
-    }>
+    }>,
   ) => Promise<Session[]>;
 
   // Utility
@@ -183,7 +188,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
         if (query.status) params.append("status", query.status);
 
         const response = await api.get(
-          `/sessions/schedule?${params.toString()}`
+          `/sessions/schedule?${params.toString()}`,
         );
         set({ sessions: response.data, isLoading: false });
       } catch (error: any) {
@@ -198,12 +203,12 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
     fetchTeacherSchedule: async (
       teacherId: string,
       startDate: string,
-      endDate: string
+      endDate: string,
     ) => {
       set({ isLoading: true, error: null });
       try {
         const response = await api.get(
-          `/sessions/teacher/${teacherId}?startDate=${startDate}&endDate=${endDate}`
+          `/sessions/teacher/${teacherId}?startDate=${startDate}&endDate=${endDate}`,
         );
         set({ sessions: response.data, isLoading: false });
       } catch (error: any) {
@@ -219,12 +224,12 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
     fetchStudentSchedule: async (
       studentId: string,
       startDate: string,
-      endDate: string
+      endDate: string,
     ) => {
       set({ isLoading: true, error: null });
       try {
         const response = await api.get(
-          `/sessions/student/${studentId}?startDate=${startDate}&endDate=${endDate}`
+          `/sessions/student/${studentId}?startDate=${startDate}&endDate=${endDate}`,
         );
         set({ sessions: response.data, isLoading: false });
       } catch (error: any) {
@@ -255,7 +260,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
     fetchStatistics: async (
       startDate: string,
       endDate: string,
-      branchId?: string
+      branchId?: string,
     ) => {
       set({ isLoading: true, error: null });
       try {
@@ -298,7 +303,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
         const updatedSession = response.data;
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s._id === id ? updatedSession : s
+            s._id === id ? updatedSession : s,
           ),
           selectedSession:
             state.selectedSession?._id === id
@@ -361,7 +366,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
         endTime: string;
         type?: SessionType;
         note?: string;
-      }>
+      }>,
     ) => {
       set({ isLoading: true, error: null });
       try {
@@ -401,7 +406,7 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
     clearError: () => {
       set({ error: null });
     },
-  })
+  }),
 );
 
 // Helper functions

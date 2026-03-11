@@ -53,7 +53,7 @@ export class ClassEntity {
   endDate?: Date;
 
   @Prop({ default: 'active' })
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'completed';
 
   // ===== Payment Fields =====
   @Prop({ default: 0 })

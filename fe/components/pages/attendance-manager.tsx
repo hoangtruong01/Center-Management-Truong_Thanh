@@ -662,38 +662,52 @@ export default function AttendanceManager() {
           ) : (
             filteredClasses.map((classData) => {
               const stats = getClassAttendanceStats(classData);
+              const isClassActive = classData.status === "active";
 
               return (
                 <div
                   key={classData._id}
-                  className={`flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:shadow-md ${
-                    stats.hasConsecutiveAbsent
-                      ? "border-red-200 bg-red-50"
-                      : "border-gray-100 bg-linear-to-r from-white to-gray-50 hover:border-blue-200"
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                    !isClassActive
+                      ? "border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed"
+                      : stats.hasConsecutiveAbsent
+                        ? "border-red-200 bg-red-50 hover:shadow-md"
+                        : "border-gray-100 bg-linear-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md"
                   }`}
                 >
                   <div className="flex items-center gap-4">
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl shadow-md ${
-                        stats.attendanceRate >= 90
-                          ? "bg-linear-to-br from-green-500 to-emerald-500"
-                          : stats.attendanceRate >= 70
-                            ? "bg-linear-to-br from-amber-500 to-orange-500"
-                            : "bg-linear-to-br from-red-500 to-rose-500"
+                        !isClassActive
+                          ? "bg-linear-to-br from-red-500 to-rose-600"
+                          : stats.attendanceRate >= 90
+                            ? "bg-linear-to-br from-green-500 to-emerald-500"
+                            : stats.attendanceRate >= 70
+                              ? "bg-linear-to-br from-amber-500 to-orange-500"
+                              : "bg-linear-to-br from-red-500 to-rose-500"
                       }`}
                     >
-                      {stats.attendanceRate >= 90
-                        ? "✓"
-                        : stats.attendanceRate >= 70
-                          ? "⚠"
-                          : "!"}
+                      {!isClassActive
+                        ? "!"
+                        : stats.attendanceRate >= 90
+                          ? "✓"
+                          : stats.attendanceRate >= 70
+                            ? "⚠"
+                            : "!"}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-gray-900">
                           {classData.name}
                         </p>
-                        {stats.hasConsecutiveAbsent && (
+                        {!isClassActive && (
+                          <span className="px-2 py-0.5 bg-gray-500 text-white text-xs rounded-full font-medium">
+                            {classData.status === "completed"
+                              ? "Đã kết thúc"
+                              : "Không hoạt động"}
+                          </span>
+                        )}
+                        {isClassActive && stats.hasConsecutiveAbsent && (
                           <span className="px-2 py-0.5 bg-red-600 text-white text-xs rounded-full font-medium animate-pulse">
                             🔔 Có HS nghỉ 3+ buổi
                           </span>
@@ -742,10 +756,17 @@ export default function AttendanceManager() {
 
                     <Button
                       variant="outline"
-                      className="rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
-                      onClick={() => setSelectedClassDetail(classData)}
+                      className={`rounded-xl ${
+                        isClassActive
+                          ? "text-blue-600 border-blue-200 hover:bg-blue-50"
+                          : "text-gray-400 border-gray-200 cursor-not-allowed"
+                      }`}
+                      onClick={() =>
+                        isClassActive && setSelectedClassDetail(classData)
+                      }
+                      disabled={!isClassActive}
                     >
-                      👁️ Xem chi tiết
+                      {isClassActive ? "👁️ Xem chi tiết" : "🚫 Không hoạt động"}
                     </Button>
                   </div>
                 </div>

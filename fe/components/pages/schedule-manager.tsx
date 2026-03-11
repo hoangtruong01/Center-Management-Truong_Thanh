@@ -194,7 +194,8 @@ export default function ScheduleManager({
   // Generate class-based schedule events from classes
   const classScheduleEvents = useMemo(() => {
     const events: ClassScheduleEvent[] = [];
-    let filteredClasses = classes;
+    // Filter out completed/inactive classes - they should not appear on schedule
+    let filteredClasses = classes.filter((c) => c.status === "active");
 
     // Apply filters
     if (selectedBranchFilter) {
