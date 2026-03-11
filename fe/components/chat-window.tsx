@@ -246,7 +246,7 @@ export default function ChatWindow({
             value={text}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
-            placeholder="Nhập tin nhắn... (Enter để gửi, Shift+Enter để xuống dòng)"
+            placeholder="Nhập tin nhắn... "
             className="flex-1 resize-none min-h-10 max-h-30"
             rows={1}
           />
