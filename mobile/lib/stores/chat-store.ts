@@ -58,6 +58,7 @@ interface ChatState {
     setUserOnline: (userId: string, isOnline: boolean) => void;
     initializeSocket: (token: string) => void;
     disconnectSocket: () => void;
+    markAsRead: (otherUserId: string) => Promise<void>;
     reset: () => void;
 }
 
@@ -228,6 +229,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
             socketService.onUserOffline((data) => {
                 get().setUserOnline(data.userId, false);
             });
+        }
+    },
+
+    markAsRead: async (otherUserId: string) => {
+        try {
+            await api.post('/chat/mark-as-read', { otherUserId });
+            // Update local state to reflect that messages are read
+            set(state => {
+                const updatedConversations = state.conversations.map(conv =>
+                    conv.otherUser._id === otherUserId ? { ...conv, unreadCount: 0 } : conv
+                );
+
+                const updatedMessages = { ...state.messages };
+                if (updatedMessages[otherUserId]) {
+                    updatedMessages[otherUserId] = updatedMessages[otherUserId].map(msg =>
+                        msg.senderId._id === otherUserId ? { ...msg, isRead: true } : msg
+                    );
+                }
+
+                return {
+                    conversations: updatedConversations,
+                    messages: updatedMessages,
+                };
+            });
+        } catch (error: any) {
+            console.error('[Chat] Error marking as read:', error);
         }
     },
 

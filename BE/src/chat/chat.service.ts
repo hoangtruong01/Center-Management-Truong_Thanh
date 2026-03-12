@@ -219,4 +219,22 @@ export class ChatService {
     console.log('Final availableUsers:', availableUsers.length);
     return availableUsers;
   }
+
+  async markAsRead(user: UserDocument, otherUserId: string) {
+    try {
+      const result = await this.model.updateMany(
+        {
+          senderId: new Types.ObjectId(otherUserId),
+          receiverId: user._id,
+          isRead: false,
+        },
+        { $set: { isRead: true } },
+      );
+      console.log(`Marked ${result.modifiedCount} messages as read for user ${user._id} from ${otherUserId}`);
+      return result;
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      throw error;
+    }
+  }
 }
