@@ -36,8 +36,10 @@ import type {
 
 // ============ SHARED HELPERS ============
 
-const formatTime = (dateString: string) => {
-  const date = new Date(dateString);
+const formatTime = (dateString: any) => {
+  if (!dateString) return "";
+  const actualDate = typeof dateString === 'object' && dateString.$date ? dateString.$date : dateString;
+  const date = new Date(actualDate);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -177,7 +179,9 @@ function ChatDetailModal({
   const isOnline = recipient ? onlineUsers.includes(recipient._id) : false;
 
   const renderMessage = ({ item }: { item: Message }) => {
-    const isOwnMessage = item.senderId._id === user?._id;
+    const sId = typeof item.senderId === 'string' ? item.senderId : (item.senderId?._id || (item.senderId as any)?.$oid);
+    const uId = typeof user?._id === 'string' ? user?._id : (user?._id as any)?.$oid;
+    const isOwnMessage = sId === uId;
 
     return (
       <View
@@ -216,69 +220,79 @@ function ChatDetailModal({
   if (!recipient) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.modalContainer} edges={["top"]}>
-        {/* Header */}
-        <View style={styles.chatDetailHeader}>
-          <TouchableOpacity onPress={onClose} style={styles.headerBackBtn}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <View style={styles.chatDetailInfo}>
-            <View style={styles.chatAvatarWrapper}>
-              <LinearGradient
-                colors={getRoleColors(recipient.role)}
-                style={styles.chatDetailAvatar}
-              >
-                <Text style={styles.chatDetailAvatarText}>
-                  {recipient.name.charAt(0).toUpperCase()}
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 63 : 0}
+      >
+        <SafeAreaView
+          style={[styles.incidentModalContainer, { flex: 1 }]}
+          edges={['top', 'bottom']}
+        >
+          {/* Header */}
+          <View style={styles.chatDetailHeader}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.incidentCloseBtn}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            </TouchableOpacity>
+            <View style={styles.chatDetailInfo}>
+              <View style={styles.chatAvatarWrapper}>
+                <LinearGradient
+                  colors={getRoleColors(recipient.role)}
+                  style={styles.chatDetailAvatar}
+                >
+                  <Text style={styles.chatDetailAvatarText}>
+                    {recipient.name.charAt(0).toUpperCase()}
+                  </Text>
+                </LinearGradient>
+                {isOnline && <View style={styles.chatOnlineDot} />}
+              </View>
+              <View>
+                <Text style={styles.chatDetailName}>{recipient.name}</Text>
+                <Text style={styles.chatDetailRole}>
+                  {getRoleLabel(recipient.role)}
+                  {isOnline ? " • Trực tuyến" : ""}
                 </Text>
-              </LinearGradient>
-              {isOnline && <View style={styles.chatOnlineDot} />}
-            </View>
-            <View>
-              <Text style={styles.chatDetailName}>{recipient.name}</Text>
-              <Text style={styles.chatDetailRole}>
-                {getRoleLabel(recipient.role)}
-                {isOnline ? " • Trực tuyến" : ""}
-              </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Messages */}
-        <KeyboardAvoidingView
-          style={styles.messagesContainer}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-        >
-          {isLoading && conversationMessages.length === 0 ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-            </View>
-          ) : conversationMessages.length === 0 ? (
-            <View style={styles.emptyMessages}>
-              <Ionicons
-                name="chatbubbles-outline"
-                size={64}
-                color="#D1D5DB"
+          {/* Messages Area */}
+          <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+            {isLoading && conversationMessages.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#3B82F6" />
+              </View>
+            ) : conversationMessages.length === 0 ? (
+              <View style={styles.emptyMessages}>
+                <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyMsgText}>Chưa có tin nhắn</Text>
+                <Text style={styles.emptyMsgSubtext}>Hãy gửi tin nhắn đầu tiên!</Text>
+              </View>
+            ) : (
+              <FlatList
+                ref={scrollViewRef}
+                // Đảo ngược mảng data trước khi render
+                data={[...conversationMessages].reverse()}
+                renderItem={renderMessage}
+                keyExtractor={(item) => item._id}
+                contentContainerStyle={[styles.messagesList, { paddingBottom: 10 }]}
+                // Kích hoạt chế độ lộn ngược
+                inverted={true}
+                showsVerticalScrollIndicator={false}
+              // Xoá bỏ onContentSizeChange gây giật lag
               />
-              <Text style={styles.emptyMsgText}>Chưa có tin nhắn</Text>
-              <Text style={styles.emptyMsgSubtext}>
-                Hãy gửi tin nhắn đầu tiên!
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              ref={scrollViewRef}
-              data={conversationMessages}
-              renderItem={renderMessage}
-              keyExtractor={(item) => item._id}
-              contentContainerStyle={styles.messagesList}
-              onContentSizeChange={() =>
-                scrollViewRef.current?.scrollToEnd()
-              }
-            />
-          )}
+            )}
+          </View>
 
           {/* Typing indicator */}
           {recipient && typingUsers[recipient._id] && (
@@ -314,8 +328,8 @@ function ChatDetailModal({
               />
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -350,16 +364,34 @@ function NewChatModal({
   );
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.newChatOverlay}>
-        <View style={styles.newChatContainer}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet" // 1. Đổi thành pageSheet thay vì transparent
+      onRequestClose={onClose}      // Bắt sự kiện vuốt xuống hoặc nút back Android
+    >
+      {/* 2. Đưa KeyboardAvoidingView ra ngoài cùng để quản lý không gian khi gõ phím */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        {/* 3. Dùng SafeAreaView bọc nội dung, bỏ overlay dư thừa */}
+        <SafeAreaView
+          style={[styles.newChatContainer, { flex: 1, backgroundColor: '#FFFFFF' }]}
+          edges={['top', 'bottom']}
+        >
+          {/* Header */}
           <View style={styles.newChatHeader}>
             <Text style={styles.newChatTitle}>Tin nhắn mới</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }} // 4. Thêm hitSlop để dễ bấm
+            >
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
+          {/* Search Input */}
           <View style={styles.newChatSearch}>
             <Ionicons name="search" size={20} color="#9CA3AF" />
             <TextInput
@@ -368,9 +400,11 @@ function NewChatModal({
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor="#9CA3AF"
+              autoFocus={false} // Mẹo: Đặt true nếu muốn mở modal lên là bàn phím bật sẵn
             />
           </View>
 
+          {/* Danh sách User */}
           {isLoading ? (
             <ActivityIndicator
               size="large"
@@ -381,6 +415,8 @@ function NewChatModal({
             <FlatList
               data={filteredUsers}
               keyExtractor={(item) => item._id}
+              keyboardShouldPersistTaps="handled" // 5. Cho phép click item ngay cả khi bàn phím đang bật
+              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.userItem}
@@ -423,8 +459,8 @@ function NewChatModal({
               }
             />
           )}
-        </View>
-      </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -561,6 +597,7 @@ function ReportIncidentModal({
                 <TouchableOpacity
                   style={styles.backStepButton}
                   onPress={() => setStep("type")}
+                  hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                 >
                   <Ionicons name="arrow-back" size={20} color="#3B82F6" />
                   <Text style={styles.backStepButtonText}>Quay lại</Text>
@@ -1304,7 +1341,18 @@ export default function ChatScreen() {
                         ]}
                         numberOfLines={1}
                       >
-                        {conv.lastMessage?.content || "Chưa có tin nhắn"}
+                        {conv.lastMessage ? (
+                          <>
+                            {(() => {
+                              const senderId = conv.lastMessage.senderId;
+                              const currentUserId = user?._id;
+                              const sId = typeof senderId === 'string' ? senderId : (senderId?._id || (senderId as any)?.$oid);
+                              const uId = typeof currentUserId === 'string' ? currentUserId : (currentUserId as any)?.$oid;
+                              return sId === uId ? "Bạn: " : "";
+                            })()}
+                            {conv.lastMessage.content}
+                          </>
+                        ) : "Chưa có tin nhắn"}
                       </Text>
                       {conv.unreadCount > 0 && (
                         <View style={styles.unreadBadge}>
@@ -1611,7 +1659,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   otherBubble: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FFFFFF",
     borderBottomLeftRadius: 4,
   },
   messageText: {

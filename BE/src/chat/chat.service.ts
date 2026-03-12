@@ -60,10 +60,11 @@ export class ChatService {
 
   async getConversations(user: UserDocument) {
     // Get all unique conversations for the user
+    const userId = new Types.ObjectId(user._id as any);
     const conversations = await this.model.aggregate([
       {
         $match: {
-          $or: [{ senderId: user._id }, { receiverId: user._id }],
+          $or: [{ senderId: userId }, { receiverId: userId }],
         },
       },
       {
@@ -73,12 +74,12 @@ export class ChatService {
         $group: {
           _id: {
             $cond: [
-              { $eq: ['$senderId', user._id] },
+              { $eq: ['$senderId', userId] },
               '$receiverId',
               '$senderId',
             ],
           },
-          lastMessage: { $first: '$ROOT' },
+          lastMessage: { $first: '$$ROOT' },
           unreadCount: {
             $sum: {
               $cond: [
