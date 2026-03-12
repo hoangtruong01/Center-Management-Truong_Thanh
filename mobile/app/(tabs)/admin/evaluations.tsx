@@ -49,9 +49,11 @@ interface TeacherStatistic {
 interface ClassStatistic {
   classId: string;
   className: string;
-  totalEvaluations: number;
-  completionRate: number;
-  teachers: TeacherStatistic[];
+  totalEvaluated: number;
+  evaluationRate: number;
+  teacherName: string;
+  averageRating: number;
+  totalStudents?: number;
 }
 
 // Format date
@@ -494,32 +496,23 @@ export default function AdminEvaluationsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.classStatName}>{item.className}</Text>
                     <Text style={styles.classStatInfo}>
-                      {item.totalEvaluations} đánh giá • {item.completionRate}%
+                      {item.totalEvaluated} đánh giá • {item.evaluationRate}%
                       hoàn thành
                     </Text>
                   </View>
                 </View>
 
-                {item.teachers.length > 0 && (
-                  <View style={styles.teachersList}>
-                    {item.teachers.map((teacher, idx) => (
-                      <View
-                        key={teacher.teacherId}
-                        style={styles.teacherStatRow}
-                      >
-                        <Text style={styles.teacherName}>
-                          {teacher.teacherName}
-                        </Text>
-                        <View style={styles.teacherRating}>
-                          {renderStars(teacher.averageRating)}
-                          <Text style={styles.ratingText}>
-                            {teacher.averageRating.toFixed(1)}
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
+                <View style={styles.teachersList}>
+                  <View style={styles.teacherStatRow}>
+                    <Text style={styles.teacherName}>{item.teacherName}</Text>
+                    <View style={styles.teacherRating}>
+                      {renderStars(item.averageRating)}
+                      <Text style={styles.ratingText}>
+                        {item.averageRating.toFixed(1)}
+                      </Text>
+                    </View>
                   </View>
-                )}
+                </View>
               </View>
             )}
           />

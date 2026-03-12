@@ -39,4 +39,9 @@ export class ChatController {
     console.log('Creating test message from', user.name, 'to', body.receiverId, ':', body.content);
     return this.chatService.send(user, body);
   }
+
+  @Post('mark-as-read')
+  markAsRead(@CurrentUser() user: UserDocument, @Body() body: { otherUserId: string }) {
+    return this.chatService.markAsRead(user, body.otherUserId);
+  }
 }

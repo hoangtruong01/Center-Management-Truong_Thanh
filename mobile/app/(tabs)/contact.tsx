@@ -76,6 +76,7 @@ function ChatDetailModal({
         initializeSocket,
         typingUsers,
         isLoading,
+        markAsRead,
     } = useChatStore();
     const [inputText, setInputText] = useState("");
     const scrollViewRef = useRef<FlatList>(null);
@@ -85,6 +86,7 @@ function ChatDetailModal({
             initializeSocket(accessToken);
             setCurrentConversation(recipient._id);
             fetchMessages(recipient._id);
+            markAsRead(recipient._id);
         }
 
         return () => {

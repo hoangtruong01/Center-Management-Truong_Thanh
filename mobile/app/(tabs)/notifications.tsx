@@ -90,12 +90,14 @@ export default function NotificationsScreen() {
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
     fetchNotifications();
   }, []);
 
   const onRefresh = async () => {
+    setVisibleCount(5);
     await fetchNotifications();
   };
 
@@ -105,6 +107,10 @@ export default function NotificationsScreen() {
     }
     setSelectedNotification(notification);
     setIsDetailVisible(true);
+  };
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => prev + 5);
   };
 
   const closeDetail = () => {
@@ -203,7 +209,7 @@ export default function NotificationsScreen() {
 
       {/* Notifications List */}
       <FlatList
-        data={notifications}
+        data={notifications.slice(0, visibleCount)}
         keyExtractor={(item) => item._id}
         renderItem={renderNotification}
         contentContainerStyle={styles.listContent}
@@ -211,6 +217,21 @@ export default function NotificationsScreen() {
           <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
         }
         showsVerticalScrollIndicator={false}
+        ListFooterComponent={() =>
+          notifications.length > visibleCount ? (
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={handleLoadMore}
+            >
+              <Text style={styles.loadMoreText}>Xem thêm</Text>
+              <Ionicons name="chevron-down" size={16} color="#3B82F6" />
+            </TouchableOpacity>
+          ) : notifications.length > 0 ? (
+            <View style={styles.noMoreContainer}>
+              <Text style={styles.noMoreText}>Bạn đã xem hết thông báo</Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <LinearGradient
@@ -612,5 +633,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#374151",
     fontWeight: "500",
+  },
+  loadMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 24,
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  loadMoreText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#3B82F6",
+  },
+  noMoreContainer: {
+    alignItems: "center",
+    paddingVertical: 20,
+    marginBottom: 20,
+  },
+  noMoreText: {
+    fontSize: 14,
+    color: "#9CA3AF",
   },
 });
