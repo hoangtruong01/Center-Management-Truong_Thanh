@@ -3041,7 +3041,7 @@ export default function AdminDashboard({
                   <select
                     value={classBranchFilter}
                     onChange={(e) => setClassBranchFilter(e.target.value)}
-                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-45"
+                    className="nice-select rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-45"
                   >
                     <option value="">Tất cả cơ sở</option>
                     {branches.map((branch) => (
