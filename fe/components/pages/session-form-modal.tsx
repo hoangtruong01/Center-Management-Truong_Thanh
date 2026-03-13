@@ -521,7 +521,7 @@ export default function SessionFormModal({
               value={formData.branchId}
               onChange={handleChange}
               disabled={!!session || isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`nice-select w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.branchId ? "border-red-300" : "border-gray-200"
               } ${session || isLoadingData ? "bg-gray-100" : ""}`}
             >
@@ -549,7 +549,7 @@ export default function SessionFormModal({
               value={formData.subject}
               onChange={handleChange}
               disabled={!!session || !formData.branchId || isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`nice-select w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.subject ? "border-red-300" : "border-gray-200"
               } ${session || !formData.branchId || isLoadingData ? "bg-gray-100" : ""}`}
             >
@@ -582,7 +582,7 @@ export default function SessionFormModal({
               value={formData.grade}
               onChange={handleChange}
               disabled={!!session || !formData.subject || isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 ${
+              className={`nice-select w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 ${
                 session || !formData.subject || isLoadingData
                   ? "bg-gray-100"
                   : ""
@@ -610,7 +610,7 @@ export default function SessionFormModal({
               value={formData.classId}
               onChange={handleChange}
               disabled={!!session || !formData.subject || isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`nice-select w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.classId ? "border-red-300" : "border-gray-200"
               } ${session || !formData.subject || isLoadingData ? "bg-gray-100" : ""}`}
             >
@@ -761,7 +761,7 @@ export default function SessionFormModal({
               name="type"
               value={formData.type}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="nice-select w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={SessionType.Makeup}>🔄 Học bù</option>
               <option value={SessionType.Exam}>📝 Kiểm tra</option>
