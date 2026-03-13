@@ -67,9 +67,20 @@ export default function SessionFormModal({
     }
   }, [storeBranches]);
 
-  // Use local data with fallback to initial props
-  const branches = localBranches.length > 0 ? localBranches : initialBranches;
-  const classes = storeClasses.length > 0 ? storeClasses : initialClasses;
+  // Khi chỉnh sửa, ưu tiên lớp/cơ sở đã có trong danh sách hiện có để select hiển thị được option tương ứng
+  const branches = useMemo(() => {
+    if (localBranches.length > 0) return localBranches;
+    if (initialBranches.length > 0) return initialBranches;
+    return storeBranches;
+  }, [localBranches, initialBranches, storeBranches]);
+
+  const classes = useMemo(() => {
+    const source = storeClasses.length > 0 ? storeClasses : initialClasses;
+    if (!session || !source.some((c) => c._id === session.classId)) {
+      return source;
+    }
+    return source;
+  }, [storeClasses, initialClasses, session]);
 
   const [formData, setFormData] = useState({
     branchId: "", // Cơ sở được chọn
@@ -131,6 +142,17 @@ export default function SessionFormModal({
       let teacherId = "";
       let subject = "";
       let branchId = "";
+      let classId = "";
+      let grade = "";
+
+      const sessionClassId =
+        typeof session.classId === "string"
+          ? session.classId
+          : session.classId?._id;
+
+      const classFromStore = sessionClassId
+        ? classes.find((c) => c._id === sessionClassId)
+        : undefined;
 
       // First try to get from session directly (new format)
       if (session.teacherId) {
@@ -143,44 +165,60 @@ export default function SessionFormModal({
         subject = session.subject;
       }
 
-      // Fallback to classId if not found (old format)
-      if (!teacherId || !subject) {
-        const classInfo =
-          typeof session.classId === "string"
-            ? classes.find((c) => c._id === session.classId)
-            : session.classId;
+      const classCandidates = [
+        typeof session.classId === "string" ? undefined : session.classId,
+        classFromStore,
+      ].filter(Boolean) as Class[];
 
-        if (classInfo && typeof classInfo !== "string") {
-          if (!teacherId && classInfo.teacherId) {
-            teacherId =
-              typeof classInfo.teacherId === "string"
-                ? classInfo.teacherId
-                : classInfo.teacherId._id;
-          }
-          if (!subject) {
-            subject = classInfo.subject || classInfo.name || "";
-          }
-          // Try to get branchId from class
-          if ("branchId" in classInfo && classInfo.branchId) {
-            branchId =
-              typeof classInfo.branchId === "string"
-                ? classInfo.branchId
-                : classInfo.branchId._id;
-          }
+      for (const classInfo of classCandidates) {
+        classId = classInfo._id || classId;
+        grade = classInfo.grade || grade;
+        if (!teacherId && classInfo.teacherId) {
+          teacherId =
+            typeof classInfo.teacherId === "string"
+              ? classInfo.teacherId
+              : classInfo.teacherId._id;
+        }
+        if (!subject) {
+          subject = classInfo.subject || classInfo.name || "";
+        }
+        if (!branchId && classInfo.branchId) {
+          branchId =
+            typeof classInfo.branchId === "string"
+              ? classInfo.branchId
+              : classInfo.branchId?._id || classInfo.branchId?.id || "";
+        }
+        if (!branchId && classInfo.branch) {
+          branchId = classInfo.branch._id;
+        }
+      }
+
+      if (!classId && sessionClassId) {
+        classId = sessionClassId;
+      }
+
+      if (!grade) {
+        grade =
+          typeof session.classId !== "string" &&
+          session.classId &&
+          "grade" in session.classId
+            ? (session.classId as any).grade || ""
+            : "";
+      }
+
+      if (!branchId && typeof session.classId !== "string") {
+        const classBranch = (session.classId as any)?.branch;
+        if (classBranch?._id) {
+          branchId = classBranch._id;
         }
       }
 
       setFormData({
         branchId: branchId,
-        classId: "",
+        classId,
         teacherId: teacherId,
         subject: subject,
-        grade:
-          typeof session.classId !== "string" &&
-          session.classId &&
-          "grade" in session.classId
-            ? (session.classId as any).grade || ""
-            : "",
+        grade,
         title: session.title || "",
         room: session.room || "",
         date: startDate.toISOString().split("T")[0],
