@@ -386,24 +386,28 @@ export default function AdminEvaluationManager() {
 
         {/* Periods Tab */}
         <TabsContent value="periods" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">
-              Danh sách đợt đánh giá -{" "}
-              {branches.find((b) => b._id === selectedBranch)?.name ||
-                "Tất cả cơ sở"}
-            </h3>
-            <Button
-              onClick={openCreatePeriodModal}
-              className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Tạo đợt đánh giá
-            </Button>
-          </div>
+          <Card className="p-6 space-y-5 bg-white border-0 shadow-lg rounded-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
+                  Danh sách đợt đánh giá
+                </p>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {branches.find((b) => b._id === selectedBranch)?.name ||
+                    "Tất cả cơ sở"}
+                </h3>
+              </div>
+              <Button
+                onClick={openCreatePeriodModal}
+                className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Tạo đợt đánh giá
+              </Button>
+            </div>
 
-          {periods.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-gray-500">
+            {periods.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
                 <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                 <p>Chưa có đợt đánh giá nào</p>
                 <Button
@@ -413,17 +417,18 @@ export default function AdminEvaluationManager() {
                   <Plus className="w-4 h-4 mr-2" />
                   Tạo đợt đánh giá đầu tiên
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {periods.map((period) => (
-                <Card key={period._id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {periods.map((period) => (
+                  <div
+                    key={period._id}
+                    className="border border-gray-100 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-semibold text-lg">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
+                          <h4 className="text-lg font-semibold text-gray-900">
                             {period.name}
                           </h4>
                           {getStatusBadge(period.status)}
@@ -475,59 +480,67 @@ export default function AdminEvaluationManager() {
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </TabsContent>
 
         {/* Classes Tab */}
         <TabsContent value="classes" className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Thống kê theo lớp -{" "}
-              {branches.find((b) => b._id === selectedBranch)?.name ||
-                "Tất cả cơ sở"}
-            </h3>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-600">
-                Đợt đánh giá:
-              </span>
-              <select
-                value={selectedPeriodFilter}
-                onChange={(e) => setSelectedPeriodFilter(e.target.value)}
-                className="nice-select rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-48"
-              >
-                <option value="">Tất cả đợt đánh giá</option>
-                {periods.map((period) => (
-                  <option key={period._id} value={period._id}>
-                    {period.name}
-                  </option>
-                ))}
-              </select>
+          <Card className="p-6 space-y-5 bg-white border-0 shadow-lg rounded-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
+                  Thống kê theo lớp
+                </p>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {branches.find((b) => b._id === selectedBranch)?.name ||
+                    "Tất cả cơ sở"}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">
+                  Đợt đánh giá:
+                </span>
+                <select
+                  value={selectedPeriodFilter}
+                  onChange={(e) => setSelectedPeriodFilter(e.target.value)}
+                  className="nice-select rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-52"
+                >
+                  <option value="">Tất cả đợt đánh giá</option>
+                  {periods.map((period) => (
+                    <option key={period._id} value={period._id}>
+                      {period.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
 
-          {classStatistics.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-gray-500">
+            {classStatistics.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                 <p>Chưa có dữ liệu đánh giá</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {classStatistics.map((cls) => (
-                <Card key={cls.classId}>
-                  <CardContent className="p-4">
-                    <div
-                      className="flex justify-between items-center cursor-pointer"
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {classStatistics.map((cls) => (
+                  <div
+                    key={cls.classId}
+                    className="border border-gray-100 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-4"
                       onClick={() => toggleClassExpand(cls.classId)}
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-semibold">{cls.className}</h4>
+                      <div className="flex-1 text-left">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
+                          <h4 className="text-lg font-semibold text-gray-900">
+                            {cls.className}
+                          </h4>
                           {cls.averageRating > 0 &&
                             renderStars(cls.averageRating)}
                         </div>
@@ -542,23 +555,22 @@ export default function AdminEvaluationManager() {
                             đánh giá ({cls.evaluationRate}%)
                           </span>
                         </div>
-                        {/* Progress bar */}
-                        <div className="mt-2">
+                        <div className="mt-3">
                           <Progress
                             value={cls.evaluationRate}
-                            className="h-2"
+                            className="h-2 rounded-full"
                           />
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge
-                          className={
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             cls.totalEvaluated > 0
-                              ? "bg-blue-100 text-blue-800"
+                              ? "bg-blue-50 text-blue-700"
                               : "bg-gray-100 text-gray-600"
-                          }
+                          }`}
                         >
-                          {cls.feedbacks && cls.feedbacks.length} đánh giá
+                          {cls.feedbacks?.length || 0} đánh giá
                         </Badge>
                         {expandedClasses.has(cls.classId) ? (
                           <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -566,9 +578,8 @@ export default function AdminEvaluationManager() {
                           <ChevronDown className="w-5 h-5 text-gray-400" />
                         )}
                       </div>
-                    </div>
+                    </button>
 
-                    {/* Expanded feedbacks */}
                     {expandedClasses.has(cls.classId) &&
                       cls.feedbacks && cls.feedbacks.length > 0 && (
                         <div className="mt-4 pt-4 border-t space-y-3">
@@ -578,9 +589,9 @@ export default function AdminEvaluationManager() {
                           {cls.feedbacks.map((fb) => (
                             <div
                               key={fb._id}
-                              className="p-3 bg-gray-50 rounded-lg"
+                              className="p-3 bg-gray-50 rounded-xl"
                             >
-                              <div className="flex justify-between items-start mb-2">
+                              <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">
                                     {fb.studentName || "Ẩn danh"}
@@ -624,11 +635,11 @@ export default function AdminEvaluationManager() {
                           ))}
                         </div>
                       )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </TabsContent>
 
         {/* Statistics Tab */}
