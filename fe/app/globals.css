@@ -105,25 +105,46 @@
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* Custom Animation Utilities */
-@keyframes enter {
-  from {
-    opacity: var(--tw-enter-opacity, 1);
-    transform: scale(var(--tw-enter-scale, 1));
   }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
 
-.animate-in {
-  animation: enter 0.15s ease-out;
-  --tw-enter-opacity: 1;
-  --tw-enter-scale: 1;
-}
+  .nice-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230a0a0a' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 10px 6px;
+    padding-right: 2.5rem;
+    border: 1px solid #bee3f8;
+    border-radius: 0.75rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .nice-select:focus {
+    outline: none;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+  }
+
+  /* Custom Animation Utilities */
+  @keyframes enter {
+    from {
+      opacity: var(--tw-enter-opacity, 1);
+      transform: scale(var(--tw-enter-scale, 1));
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-in {
+    animation: enter 0.15s ease-out;
+    --tw-enter-opacity: 1;
+    --tw-enter-scale: 1;
+  }
 
 .fade-in {
   --tw-enter-opacity: 0;
