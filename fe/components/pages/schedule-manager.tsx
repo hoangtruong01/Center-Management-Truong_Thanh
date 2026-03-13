@@ -46,7 +46,7 @@ const getEndOfWeek = (date: Date): Date => {
 
 // Helper format date
 const formatDate = (date: Date): string => {
-  return date.toISOString().split("T")[0];
+  return date.toISOString();
 };
 
 const formatDisplayDate = (date: Date): string => {
