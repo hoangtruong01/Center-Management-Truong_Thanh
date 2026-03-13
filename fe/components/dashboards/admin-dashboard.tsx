@@ -3268,7 +3268,7 @@ export default function AdminDashboard({
                         onChange={(e) =>
                           setSelectedBranchFilter(e.target.value)
                         }
-                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-45"
+                        className="nice-select rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-45"
                       >
                         <option value="">Tất cả cơ sở</option>
                         {branches.map((branch) => (
@@ -3637,7 +3637,7 @@ export default function AdminDashboard({
                 <select
                   value={leaderboardBranch}
                   onChange={(e) => setLeaderboardBranch(e.target.value)}
-                  className="rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="nice-select rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Tất cả cơ sở</option>
                   {branches.map((branch) => (
@@ -3841,7 +3841,7 @@ export default function AdminDashboard({
                 <select
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="nice-select w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="ALL">Tất cả cơ sở</option>
                   {branches.map((branch) => (
@@ -3859,7 +3859,7 @@ export default function AdminDashboard({
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="nice-select w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value={2026}>2026</option>
                   <option value={2025}>2025</option>
