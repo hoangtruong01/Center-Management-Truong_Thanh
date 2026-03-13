@@ -11,15 +11,12 @@ import {
   UpdateSessionData,
 } from "@/lib/stores/schedule-store";
 import { Class, useClassesStore } from "@/lib/stores/classes-store";
-import { User } from "@/lib/stores/auth-store";
 import { Branch, useBranchesStore } from "@/lib/stores/branches-store";
-import { useUsersStore } from "@/lib/stores/users-store";
 import { SUBJECT_LIST } from "@/lib/constants/subjects";
 
 interface SessionFormModalProps {
   session: Session | null;
   classes: Class[];
-  teachers?: User[];
   branches?: Branch[];
   onClose: () => void;
 }
@@ -27,7 +24,6 @@ interface SessionFormModalProps {
 export default function SessionFormModal({
   session,
   classes: initialClasses,
-  teachers: initialTeachers = [],
   branches: initialBranches = [],
   onClose,
 }: SessionFormModalProps) {
@@ -41,12 +37,10 @@ export default function SessionFormModal({
 
   // Use stores directly for fresh data
   const { branches: storeBranches, fetchBranches } = useBranchesStore();
-  const { users: storeUsers, fetchUsers } = useUsersStore();
   const { classes: storeClasses, fetchClasses } = useClassesStore();
 
   // Local state for data
   const [localBranches, setLocalBranches] = useState<Branch[]>(initialBranches);
-  const [localTeachers, setLocalTeachers] = useState<User[]>(initialTeachers);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Fetch fresh data when modal opens
@@ -54,12 +48,8 @@ export default function SessionFormModal({
     const loadFreshData = async () => {
       setIsLoadingData(true);
       try {
-        // Fetch branches, teachers and classes
-        await Promise.all([
-          fetchBranches(),
-          fetchUsers({ role: "teacher" }),
-          fetchClasses(),
-        ]);
+        // Fetch branches và danh sách lớp mới nhất
+        await Promise.all([fetchBranches(), fetchClasses()]);
       } catch (error) {
         console.error("Error loading fresh data:", error);
       } finally {
@@ -68,7 +58,7 @@ export default function SessionFormModal({
     };
 
     loadFreshData();
-  }, [fetchBranches, fetchUsers, fetchClasses]);
+  }, [fetchBranches, fetchClasses]);
 
   // Update local state when store data changes
   useEffect(() => {
@@ -77,17 +67,8 @@ export default function SessionFormModal({
     }
   }, [storeBranches]);
 
-  useEffect(() => {
-    const teachers = storeUsers.filter((u) => u.role === "teacher");
-    if (teachers.length > 0) {
-      setLocalTeachers(teachers);
-    }
-  }, [storeUsers]);
-
   // Use local data with fallback to initial props
   const branches = localBranches.length > 0 ? localBranches : initialBranches;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const teachers = localTeachers.length > 0 ? localTeachers : initialTeachers;
   const classes = storeClasses.length > 0 ? storeClasses : initialClasses;
 
   const [formData, setFormData] = useState({
@@ -136,22 +117,9 @@ export default function SessionFormModal({
     return result;
   }, [classes, formData.branchId, formData.subject, formData.grade]);
 
-  // Filter teachers by subject - show teachers who can teach the selected subject
-  const filteredTeachers = useMemo(() => {
-    const allTeachers = storeUsers.filter((u) => u.role === "teacher");
-    if (!formData.subject) return allTeachers;
-    return allTeachers.filter(
-      (t: any) =>
-        t.subjects &&
-        t.subjects.some(
-          (s: string) =>
-            s.toLowerCase().includes(formData.subject.toLowerCase()) ||
-            formData.subject
-              .toLowerCase()
-              .includes(s.toLowerCase().replace(/\d+/g, "").trim()),
-        ),
-    );
-  }, [storeUsers, formData.subject]);
+  const selectedClass = useMemo(() => {
+    return classes.find((c) => c._id === formData.classId) || null;
+  }, [classes, formData.classId]);
 
   // Initialize form data when editing
   useEffect(() => {
@@ -395,20 +363,25 @@ export default function SessionFormModal({
       }));
     }
     // Auto-fill teacher from class if class is selected
-    if (name === "classId" && value) {
-      const selectedClass = classes.find((c) => c._id === value);
-      if (selectedClass) {
-        const classTeacherId =
-          typeof selectedClass.teacherId === "string"
-            ? selectedClass.teacherId
-            : selectedClass.teacherId?._id || selectedClass.teacher?._id;
-        if (classTeacherId) {
+    if (name === "classId") {
+      if (value) {
+        const selectedClass = classes.find((c) => c._id === value);
+        if (selectedClass) {
+          const classTeacherId =
+            typeof selectedClass.teacherId === "string"
+              ? selectedClass.teacherId
+              : selectedClass.teacherId?._id || selectedClass.teacher?._id;
           setFormData((prev) => ({
             ...prev,
             classId: value,
-            teacherId: classTeacherId,
+            teacherId: classTeacherId || "",
           }));
         }
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          teacherId: "",
+        }));
       }
     }
   };
@@ -594,33 +567,26 @@ export default function SessionFormModal({
               )}
           </div>
 
-          {/* Teacher Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Giáo viên
-              <span className="text-xs text-gray-400 ml-2">
-                ({filteredTeachers.length} giáo viên
-                {formData.subject ? ` dạy ${formData.subject}` : ""})
-              </span>
-            </label>
-            <select
-              name="teacherId"
-              value={formData.teacherId}
-              onChange={handleChange}
-              disabled={isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 ${
-                isLoadingData ? "bg-gray-100" : ""
-              }`}
-            >
-              <option value="">-- Chọn giáo viên --</option>
-              {filteredTeachers.map((t) => (
-                <option key={t._id} value={t._id}>
-                  👨‍🏫 {t.name}{" "}
-                  {(t as any).teacherCode ? `(${(t as any).teacherCode})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          {selectedClass && (
+            <div className="p-3 rounded-xl border border-gray-100 bg-gray-50">
+              <div className="text-sm font-medium text-gray-700">
+                Giáo viên phụ trách
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedClass.teacher?.name ||
+                  (typeof selectedClass.teacherId === "object"
+                    ? selectedClass.teacherId?.name
+                    : "Chưa phân công") ||
+                  "Chưa phân công"}
+              </p>
+              {!formData.teacherId && (
+                <p className="text-xs text-amber-600 mt-1">
+                  ⚠️ Lớp này chưa có giáo viên, vui lòng phân công trong phần
+                  quản lý lớp trước khi tạo buổi học.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Title */}
           <div>
