@@ -306,6 +306,41 @@ export default function SessionFormModal({
       newErrors.endTime = "Giờ kết thúc phải sau giờ bắt đầu";
     }
 
+    if (!newErrors.date && formData.date && formData.startTime) {
+      const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+      const now = new Date();
+      if (startDateTime.getTime() < now.getTime()) {
+        newErrors.date = "Không thể tạo buổi học trong quá khứ";
+      }
+    }
+
+    const parseMinutes = (time: string) => {
+      const [h, m] = time.split(":").map(Number);
+      return h * 60 + m;
+    };
+    const MIN_START_MINUTES = 7 * 60;
+    const MAX_END_MINUTES = 20 * 60;
+
+    if (!newErrors.startTime && formData.startTime) {
+      const startMinutes = parseMinutes(formData.startTime);
+      if (startMinutes < MIN_START_MINUTES) {
+        newErrors.startTime = "Giờ bắt đầu phải từ 07:00 trở đi";
+      }
+      if (startMinutes > MAX_END_MINUTES) {
+        newErrors.startTime = "Giờ bắt đầu không được sau 20:00";
+      }
+    }
+
+    if (!newErrors.endTime && formData.endTime) {
+      const endMinutes = parseMinutes(formData.endTime);
+      if (endMinutes > MAX_END_MINUTES) {
+        newErrors.endTime = "Giờ kết thúc phải trước hoặc bằng 20:00";
+      }
+      if (endMinutes < MIN_START_MINUTES) {
+        newErrors.endTime = "Giờ kết thúc không được trước 07:00";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
