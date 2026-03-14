@@ -69,6 +69,93 @@ const leaderboardTabIcons: Record<RankingCategory, string> = {
   attendance: "👥",
 };
 
+// Week navigation helper functions
+const getStartOfWeek = (date: Date): Date => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+};
+
+const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+const formatWeekRange = (startOfWeek: Date): string => {
+  const endOfWeek = addDays(startOfWeek, 6);
+  const startDay = startOfWeek.getDate().toString().padStart(2, "0");
+  const startMonth = (startOfWeek.getMonth() + 1).toString().padStart(2, "0");
+  const endDay = endOfWeek.getDate().toString().padStart(2, "0");
+  const endMonth = (endOfWeek.getMonth() + 1).toString().padStart(2, "0");
+  const year = startOfWeek.getFullYear();
+  if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
+    return `${startDay} - ${endDay}/${startMonth}/${year}`;
+  }
+  return `${startDay}/${startMonth} - ${endDay}/${endMonth}/${year}`;
+};
+
+const isSameWeek = (date1: Date, date2: Date): boolean => {
+  const start1 = getStartOfWeek(date1);
+  const start2 = getStartOfWeek(date2);
+  return start1.getTime() === start2.getTime();
+};
+
+const getWeeksInYear = (
+  year: number,
+  accountCreatedAt: Date,
+  currentDate: Date,
+): { value: string; label: string; startDate: Date }[] => {
+  const weeks: { value: string; label: string; startDate: Date }[] = [];
+  let date = new Date(year, 0, 1);
+  const day = date.getDay();
+  const diff = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
+  date.setDate(date.getDate() + diff);
+  const accountStart = getStartOfWeek(accountCreatedAt);
+  accountStart.setHours(0, 0, 0, 0);
+  const currentWeekStart = getStartOfWeek(currentDate);
+  currentWeekStart.setHours(0, 0, 0, 0);
+  while (
+    date.getFullYear() === year ||
+    (date.getFullYear() === year + 1 &&
+      date.getMonth() === 0 &&
+      date.getDate() <= 7)
+  ) {
+    const weekStart = new Date(date);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = addDays(weekStart, 6);
+    if (
+      weekStart.getTime() >= accountStart.getTime() &&
+      weekStart.getTime() <= currentWeekStart.getTime()
+    ) {
+      const startStr = `${weekStart.getDate().toString().padStart(2, "0")}/${(weekStart.getMonth() + 1).toString().padStart(2, "0")}`;
+      const endStr = `${weekEnd.getDate().toString().padStart(2, "0")}/${(weekEnd.getMonth() + 1).toString().padStart(2, "0")}`;
+      weeks.push({
+        value: weekStart.toISOString(),
+        label: `${startStr} - ${endStr}`,
+        startDate: weekStart,
+      });
+    }
+    date = addDays(date, 7);
+    if (weekStart.getTime() > currentWeekStart.getTime()) break;
+  }
+  return weeks;
+};
+
+const getAvailableYears = (
+  accountCreatedAt: Date,
+  currentDate: Date,
+): number[] => {
+  const years: number[] = [];
+  const startYear = accountCreatedAt.getFullYear();
+  const endYear = currentDate.getFullYear();
+  for (let year = endYear; year >= startYear; year--) {
+    years.push(year);
+  }
+  return years;
+};
+
 // Helper function to get file type from filename
 const getFileType = (filename?: string): string => {
   if (!filename) return "FILE";
@@ -1376,6 +1463,14 @@ export default function TeacherDashboard({
   const [showUploadModal, setShowUploadModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Week navigation state
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(
+    getStartOfWeek(new Date()),
+  );
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear(),
+  );
+
   // State to hold full user details including sensitive/personal info not in initial props
   const [fullUserDetails, setFullUserDetails] = useState<Record<
     string,
@@ -1432,6 +1527,52 @@ export default function TeacherDashboard({
   } = useLeaderboardStore();
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
 
+  // Week navigation logic
+  const accountStartDate = useMemo(() => {
+    const authUser = useAuthStore.getState().user;
+    const authUserCreatedAt = authUser?.createdAt;
+    if (authUserCreatedAt) return getStartOfWeek(new Date(authUserCreatedAt));
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    return getStartOfWeek(oneYearAgo);
+  }, []);
+
+  const isCurrentWeek = useMemo(
+    () => isSameWeek(selectedWeekStart, new Date()),
+    [selectedWeekStart],
+  );
+
+  const availableYears = useMemo(
+    () => getAvailableYears(accountStartDate, new Date()),
+    [accountStartDate],
+  );
+
+  const weeksInSelectedYear = useMemo(
+    () => getWeeksInYear(selectedYear, accountStartDate, new Date()),
+    [selectedYear, accountStartDate],
+  );
+
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    const weeksInYear = getWeeksInYear(year, accountStartDate, new Date());
+    if (weeksInYear.length > 0) {
+      setSelectedWeekStart(weeksInYear[weeksInYear.length - 1].startDate);
+    }
+  };
+
+  const handleWeekChange = (weekValue: string) => {
+    const week = weeksInSelectedYear.find((w) => w.value === weekValue);
+    if (week) {
+      setSelectedWeekStart(week.startDate);
+    }
+  };
+
+  const goToCurrentWeek = () => {
+    const currentDate = new Date();
+    setSelectedYear(currentDate.getFullYear());
+    setSelectedWeekStart(getStartOfWeek(currentDate));
+  };
+
   // Handle click outside to close profile dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -1479,8 +1620,7 @@ export default function TeacherDashboard({
 
   // Build timetable from class schedules (thời khoá biểu)
   const timetableByDay = useMemo(() => {
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Monday
+    const weekStart = new Date(selectedWeekStart);
 
     const days = [];
     for (let i = 0; i < 7; i++) {
@@ -1534,7 +1674,7 @@ export default function TeacherDashboard({
     // Reorder so Monday is first
     const mondayIndex = days.findIndex((d) => d.day === "THỨ HAI");
     return [...days.slice(mondayIndex), ...days.slice(0, mondayIndex)];
-  }, [classes]);
+  }, [classes, selectedWeekStart]);
 
   // Count total weekly sessions from timetable
   const totalWeeklySchedules = useMemo(() => {
@@ -2120,13 +2260,63 @@ export default function TeacherDashboard({
 
           <TabsContent value="schedule" className="mt-6">
             <Card className="p-5 space-y-4">
-              <div className="flex justify-between items-center">
-                <p className="font-semibold text-gray-900 text-lg">
-                  Thời khoá biểu tuần này
-                </p>
-                <p className="text-sm text-gray-500">
-                  Click vào tiết học để điểm danh
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📅</span>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      {isCurrentWeek ? "Lịch dạy tuần này" : "Lịch dạy"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {isCurrentWeek
+                        ? "Click vào tiết học để điểm danh"
+                        : `Tuần ${formatWeekRange(selectedWeekStart)}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Year Selector */}
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => handleYearChange(Number(e.target.value))}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                  >
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Week Selector */}
+                  <select
+                    value={
+                      weeksInSelectedYear.find(
+                        (w) =>
+                          w.startDate.toDateString() ===
+                          selectedWeekStart.toDateString(),
+                      )?.value || ""
+                    }
+                    onChange={(e) => handleWeekChange(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer min-w-35"
+                  >
+                    {weeksInSelectedYear.map((week) => (
+                      <option key={week.value} value={week.value}>
+                        {week.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Current Week Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToCurrentWeek}
+                    className="text-sm border-gray-200 hover:bg-gray-50"
+                  >
+                    Tuần hiện tại
+                  </Button>
+                </div>
               </div>
               {classesLoading ? (
                 <div className="text-center py-8 text-gray-500">
