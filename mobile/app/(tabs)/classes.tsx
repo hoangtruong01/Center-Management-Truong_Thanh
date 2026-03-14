@@ -104,15 +104,14 @@ export default function ClassesScreen() {
   });
   const [schedules, setSchedules] = useState<
     Array<{
-      dayOfWeek: number;
+      daysOfWeek: number[];
       startTime: string;
       endTime: string;
     }>
-  >([]);
-  const [showBranchPicker, setShowBranchPicker] = useState(false);
-  const [showTeacherPicker, setShowTeacherPicker] = useState(false);
-  const [showSubjectPicker, setShowSubjectPicker] = useState(false);
-  const [showGradePicker, setShowGradePicker] = useState(false);
+  >([]); 
+  const [activeCreatePicker, setActiveCreatePicker] = useState<
+    "subject" | "grade" | "branch" | "teacher" | null
+  >(null);
   const [showSchedulePicker, setShowSchedulePicker] = useState(false);
   const [showStudentsList, setShowStudentsList] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
@@ -208,10 +207,12 @@ export default function ClassesScreen() {
       maxStudents: "30",
     });
     setSchedules([]);
+    setActiveCreatePicker(null);
     setIsCreateVisible(true);
   };
 
   const closeCreateModal = () => {
+    setActiveCreatePicker(null);
     setIsCreateVisible(false);
   };
 
@@ -244,7 +245,13 @@ export default function ClassesScreen() {
         teacherId: createForm.teacherId,
         description: createForm.description,
         maxStudents: parseInt(createForm.maxStudents) || 30,
-        schedule: schedules,
+        schedule: schedules.flatMap((sch) =>
+          sch.daysOfWeek.map((day) => ({
+            dayOfWeek: day,
+            startTime: sch.startTime,
+            endTime: sch.endTime,
+          }))
+        ),
       });
       Alert.alert("Thành công", "Đã tạo lớp học mới");
       closeCreateModal();
@@ -259,7 +266,7 @@ export default function ClassesScreen() {
   const addSchedule = () => {
     setSchedules([
       ...schedules,
-      { dayOfWeek: 1, startTime: "08:00", endTime: "10:00" },
+      { daysOfWeek: [1], startTime: "08:00", endTime: "10:00" },
     ]);
   };
 
@@ -273,7 +280,18 @@ export default function ClassesScreen() {
     value: number | string,
   ) => {
     const newSchedules = [...schedules];
-    newSchedules[index] = { ...newSchedules[index], [field]: value };
+    if (field === "dayOfWeek") {
+      const day = value as number;
+      const current = newSchedules[index].daysOfWeek;
+      newSchedules[index] = {
+        ...newSchedules[index],
+        daysOfWeek: current.includes(day)
+          ? current.filter((d) => d !== day)
+          : [...current, day],
+      };
+    } else {
+      newSchedules[index] = { ...newSchedules[index], [field]: value };
+    }
     setSchedules(newSchedules);
   };
 
@@ -1131,12 +1149,105 @@ export default function ClassesScreen() {
               style={styles.modalContent}
               showsVerticalScrollIndicator={false}
             >
+              {/* Branch Picker */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Cơ sở *</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.formPicker,
+                    activeCreatePicker === "branch" && styles.formPickerActive,
+                  ]}
+                  onPress={() =>
+                    setActiveCreatePicker(
+                      activeCreatePicker === "branch" ? null : "branch",
+                    )
+                  }
+                >
+                  <Text
+                    style={
+                      createForm.branchId
+                        ? styles.formPickerText
+                        : styles.formPickerPlaceholder
+                    }
+                  >
+                    {createForm.branchId
+                      ? branches.find((b) => b._id === createForm.branchId)
+                          ?.name
+                      : "Chọn cơ sở"}
+                  </Text>
+                  <Ionicons
+                    name={
+                      activeCreatePicker === "branch"
+                        ? "chevron-up"
+                        : "chevron-down"
+                    }
+                    size={20}
+                    color="#6B7280"
+                  />
+                </TouchableOpacity>
+                {activeCreatePicker === "branch" && (
+                  <ScrollView
+                    style={styles.inlineDropdown}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {branches.length === 0 ? (
+                      <Text style={styles.inlineDropdownEmpty}>
+                        Không có cơ sở nào
+                      </Text>
+                    ) : (
+                      branches.map((item) => (
+                        <TouchableOpacity
+                          key={item._id}
+                          style={[
+                            styles.inlineDropdownItem,
+                            createForm.branchId === item._id &&
+                              styles.inlineDropdownItemActive,
+                          ]}
+                          onPress={() => {
+                            setCreateForm((prev) => ({
+                              ...prev,
+                              branchId: item._id,
+                            }));
+                            setActiveCreatePicker(null);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.inlineDropdownText,
+                              createForm.branchId === item._id &&
+                                styles.inlineDropdownTextActive,
+                            ]}
+                          >
+                            {item.name}
+                          </Text>
+                          {createForm.branchId === item._id && (
+                            <Ionicons
+                              name="checkmark"
+                              size={18}
+                              color="#3B82F6"
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+                )}
+              </View>
+
               {/* Subject Picker */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Môn học *</Text>
                 <TouchableOpacity
-                  style={styles.formPicker}
-                  onPress={() => setShowSubjectPicker(true)}
+                  style={[
+                    styles.formPicker,
+                    activeCreatePicker === "subject" && styles.formPickerActive,
+                  ]}
+                  onPress={() =>
+                    setActiveCreatePicker(
+                      activeCreatePicker === "subject" ? null : "subject",
+                    )
+                  }
                 >
                   <Text
                     style={
@@ -1150,16 +1261,73 @@ export default function ClassesScreen() {
                           ?.label
                       : "Chọn môn học"}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  <Ionicons
+                    name={
+                      activeCreatePicker === "subject"
+                        ? "chevron-up"
+                        : "chevron-down"
+                    }
+                    size={20}
+                    color="#6B7280"
+                  />
                 </TouchableOpacity>
+                {activeCreatePicker === "subject" && (
+                  <ScrollView
+                    style={styles.inlineDropdown}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {SUBJECTS.map((item) => (
+                      <TouchableOpacity
+                        key={item.value}
+                        style={[
+                          styles.inlineDropdownItem,
+                          createForm.subject === item.value &&
+                            styles.inlineDropdownItemActive,
+                        ]}
+                        onPress={() => {
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            subject: item.value,
+                          }));
+                          setActiveCreatePicker(null);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.inlineDropdownText,
+                            createForm.subject === item.value &&
+                              styles.inlineDropdownTextActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                        {createForm.subject === item.value && (
+                          <Ionicons
+                            name="checkmark"
+                            size={18}
+                            color="#3B82F6"
+                          />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
               </View>
 
               {/* Grade Picker */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Khối lớp *</Text>
+                <Text style={styles.formLabel}>Khối lỜp *</Text>
                 <TouchableOpacity
-                  style={styles.formPicker}
-                  onPress={() => setShowGradePicker(true)}
+                  style={[
+                    styles.formPicker,
+                    activeCreatePicker === "grade" && styles.formPickerActive,
+                  ]}
+                  onPress={() =>
+                    setActiveCreatePicker(
+                      activeCreatePicker === "grade" ? null : "grade",
+                    )
+                  }
                 >
                   <Text
                     style={
@@ -1172,8 +1340,58 @@ export default function ClassesScreen() {
                       ? `Lớp ${createForm.grade}`
                       : "Chọn khối lớp"}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  <Ionicons
+                    name={
+                      activeCreatePicker === "grade"
+                        ? "chevron-up"
+                        : "chevron-down"
+                    }
+                    size={20}
+                    color="#6B7280"
+                  />
                 </TouchableOpacity>
+                {activeCreatePicker === "grade" && (
+                  <ScrollView
+                    style={styles.inlineDropdown}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {GRADE_LEVELS.map((item) => (
+                      <TouchableOpacity
+                        key={item.value}
+                        style={[
+                          styles.inlineDropdownItem,
+                          createForm.grade === item.value &&
+                            styles.inlineDropdownItemActive,
+                        ]}
+                        onPress={() => {
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            grade: item.value,
+                          }));
+                          setActiveCreatePicker(null);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.inlineDropdownText,
+                            createForm.grade === item.value &&
+                              styles.inlineDropdownTextActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                        {createForm.grade === item.value && (
+                          <Ionicons
+                            name="checkmark"
+                            size={18}
+                            color="#3B82F6"
+                          />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
               </View>
 
               {/* Auto-generated Name */}
@@ -1189,35 +1407,20 @@ export default function ClassesScreen() {
                 />
               </View>
 
-              {/* Branch Picker */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Cơ sở *</Text>
-                <TouchableOpacity
-                  style={styles.formPicker}
-                  onPress={() => setShowBranchPicker(true)}
-                >
-                  <Text
-                    style={
-                      createForm.branchId
-                        ? styles.formPickerText
-                        : styles.formPickerPlaceholder
-                    }
-                  >
-                    {createForm.branchId
-                      ? branches.find((b) => b._id === createForm.branchId)
-                          ?.name
-                      : "Chọn cơ sở"}
-                  </Text>
-                  <Ionicons name="chevron-down" size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
-
               {/* Teacher Picker */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Giáo viên *</Text>
                 <TouchableOpacity
-                  style={styles.formPicker}
-                  onPress={() => setShowTeacherPicker(true)}
+                  style={[
+                    styles.formPicker,
+                    activeCreatePicker === "teacher" &&
+                      styles.formPickerActive,
+                  ]}
+                  onPress={() =>
+                    setActiveCreatePicker(
+                      activeCreatePicker === "teacher" ? null : "teacher",
+                    )
+                  }
                 >
                   <Text
                     style={
@@ -1233,8 +1436,69 @@ export default function ClassesScreen() {
                           ?.name
                       : "Chọn giáo viên"}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  <Ionicons
+                    name={
+                      activeCreatePicker === "teacher"
+                        ? "chevron-up"
+                        : "chevron-down"
+                    }
+                    size={20}
+                    color="#6B7280"
+                  />
                 </TouchableOpacity>
+                {activeCreatePicker === "teacher" && (
+                  <ScrollView
+                    style={styles.inlineDropdown}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {teachers.length === 0 ? (
+                      <Text style={styles.inlineDropdownEmpty}>
+                        Không có giáo viên nào
+                      </Text>
+                    ) : (
+                      teachers.map((item) => (
+                        <TouchableOpacity
+                          key={item._id}
+                          style={[
+                            styles.inlineDropdownItem,
+                            createForm.teacherId === item._id &&
+                              styles.inlineDropdownItemActive,
+                          ]}
+                          onPress={() => {
+                            setCreateForm((prev) => ({
+                              ...prev,
+                              teacherId: item._id,
+                            }));
+                            setActiveCreatePicker(null);
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.inlineDropdownText,
+                                createForm.teacherId === item._id &&
+                                  styles.inlineDropdownTextActive,
+                              ]}
+                            >
+                              {item.fullName || item.name || "Giáo viên"}
+                            </Text>
+                            <Text style={styles.inlineDropdownSubtext}>
+                              {item.email}
+                            </Text>
+                          </View>
+                          {createForm.teacherId === item._id && (
+                            <Ionicons
+                              name="checkmark"
+                              size={18}
+                              color="#3B82F6"
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+                )}
               </View>
 
               {/* Max Students */}
@@ -1273,7 +1537,7 @@ export default function ClassesScreen() {
                               key={day}
                               style={[
                                 styles.dayPickerItem,
-                                sch.dayOfWeek === day &&
+                                sch.daysOfWeek.includes(day) &&
                                   styles.dayPickerItemActive,
                               ]}
                               onPress={() =>
@@ -1283,7 +1547,7 @@ export default function ClassesScreen() {
                               <Text
                                 style={[
                                   styles.dayPickerText,
-                                  sch.dayOfWeek === day &&
+                                  sch.daysOfWeek.includes(day) &&
                                     styles.dayPickerTextActive,
                                 ]}
                               >
@@ -1374,205 +1638,6 @@ export default function ClassesScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Subject Picker Modal */}
-      <Modal visible={showSubjectPicker} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.pickerOverlay}
-          activeOpacity={1}
-          onPress={() => setShowSubjectPicker(false)}
-        >
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Chọn môn học</Text>
-              <TouchableOpacity onPress={() => setShowSubjectPicker(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={SUBJECTS}
-              keyExtractor={(item) => item.value}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.pickerItem,
-                    createForm.subject === item.value &&
-                      styles.pickerItemActive,
-                  ]}
-                  onPress={() => {
-                    setCreateForm({ ...createForm, subject: item.value });
-                    setShowSubjectPicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerItemText,
-                      createForm.subject === item.value &&
-                        styles.pickerItemTextActive,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                  {createForm.subject === item.value && (
-                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                  )}
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Grade Picker Modal */}
-      <Modal visible={showGradePicker} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.pickerOverlay}
-          activeOpacity={1}
-          onPress={() => setShowGradePicker(false)}
-        >
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Chọn khối lớp</Text>
-              <TouchableOpacity onPress={() => setShowGradePicker(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={GRADE_LEVELS}
-              keyExtractor={(item) => item.value}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.pickerItem,
-                    createForm.grade === item.value && styles.pickerItemActive,
-                  ]}
-                  onPress={() => {
-                    setCreateForm({ ...createForm, grade: item.value });
-                    setShowGradePicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerItemText,
-                      createForm.grade === item.value &&
-                        styles.pickerItemTextActive,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                  {createForm.grade === item.value && (
-                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                  )}
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Branch Picker Modal */}
-      <Modal visible={showBranchPicker} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.pickerOverlay}
-          activeOpacity={1}
-          onPress={() => setShowBranchPicker(false)}
-        >
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Chọn cơ sở</Text>
-              <TouchableOpacity onPress={() => setShowBranchPicker(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={branches}
-              keyExtractor={(item) => item._id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.pickerItem,
-                    createForm.branchId === item._id && styles.pickerItemActive,
-                  ]}
-                  onPress={() => {
-                    setCreateForm({ ...createForm, branchId: item._id });
-                    setShowBranchPicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerItemText,
-                      createForm.branchId === item._id &&
-                        styles.pickerItemTextActive,
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                  {createForm.branchId === item._id && (
-                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                  )}
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Teacher Picker Modal */}
-      <Modal visible={showTeacherPicker} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.pickerOverlay}
-          activeOpacity={1}
-          onPress={() => setShowTeacherPicker(false)}
-        >
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Chọn giáo viên</Text>
-              <TouchableOpacity onPress={() => setShowTeacherPicker(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={teachers}
-              keyExtractor={(item) => item._id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.pickerItem,
-                    createForm.teacherId === item._id &&
-                      styles.pickerItemActive,
-                  ]}
-                  onPress={() => {
-                    setCreateForm({ ...createForm, teacherId: item._id });
-                    setShowTeacherPicker(false);
-                  }}
-                >
-                  <View>
-                    <Text
-                      style={[
-                        styles.pickerItemText,
-                        createForm.teacherId === item._id &&
-                          styles.pickerItemTextActive,
-                      ]}
-                    >
-                      {item.fullName || item.name || "Giáo viên"}
-                    </Text>
-                    <Text style={styles.pickerItemSubtext}>{item.email}</Text>
-                  </View>
-                  {createForm.teacherId === item._id && (
-                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                  )}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={() => (
-                <View style={styles.emptyPicker}>
-                  <Text style={styles.emptyPickerText}>
-                    Không có giáo viên nào
-                  </Text>
-                </View>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -2043,6 +2108,49 @@ const styles = StyleSheet.create({
   formPickerPlaceholder: {
     fontSize: 16,
     color: "#9CA3AF",
+  },
+  formPickerActive: {
+    borderColor: "#3B82F6",
+    backgroundColor: "#F0F9FF",
+  },
+  inlineDropdown: {
+    marginTop: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+    borderRadius: 12,
+    maxHeight: 220,
+  },
+  inlineDropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  inlineDropdownItemActive: {
+    backgroundColor: "#EFF6FF",
+  },
+  inlineDropdownText: {
+    fontSize: 15,
+    color: "#1F2937",
+  },
+  inlineDropdownTextActive: {
+    color: "#3B82F6",
+    fontWeight: "600",
+  },
+  inlineDropdownSubtext: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+  inlineDropdownEmpty: {
+    padding: 16,
+    textAlign: "center",
+    color: "#9CA3AF",
+    fontSize: 14,
   },
   formLabelRow: {
     flexDirection: "row",
