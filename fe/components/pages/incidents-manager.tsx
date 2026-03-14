@@ -167,7 +167,7 @@ function IncidentDetailModal({
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as IncidentStatus)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="nice-select w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="pending">Chờ xử lý</option>
               <option value="in_progress">Đang xử lý</option>
@@ -339,13 +339,13 @@ export default function IncidentsManager() {
               placeholder="Tìm kiếm theo tên, email, mô tả..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="rounded-xl"
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as IncidentStatus)}
-            className="rounded-xl border border-gray-200 px-3 py-2"
+            className="nice-select rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-45"
           >
             <option value="">Tất cả trạng thái</option>
             <option value="pending">Chờ xử lý</option>
@@ -356,7 +356,7 @@ export default function IncidentsManager() {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="rounded-xl border border-gray-200 px-3 py-2"
+            className="nice-select rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-45"
           >
             <option value="">Tất cả loại</option>
             {Object.entries(INCIDENT_TYPE_LABELS).map(([value, label]) => (
@@ -367,7 +367,7 @@ export default function IncidentsManager() {
           </select>
           <Button
             onClick={handleRefresh}
-            className="bg-blue-600 hover:bg-blue-700 rounded-xl"
+            className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
           >
             🔄 Làm mới
           </Button>

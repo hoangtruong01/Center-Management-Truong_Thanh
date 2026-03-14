@@ -8,13 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -327,57 +320,65 @@ export default function AdminEvaluationManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Branch Filter */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">Quản lý đánh giá giáo viên</h2>
-          <p className="text-gray-600">
-            Tạo đợt đánh giá và xem thống kê chi tiết
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
+      <Card className="border-0 shadow-lg rounded-2xl bg-white">
+        <div className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-2xl shadow-lg shadow-blue-200">
+              ⭐
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Quản lý đánh giá giáo viên
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Theo dõi chất lượng giảng dạy và tạo đợt đánh giá đồng bộ giữa các cơ sở
+              </p>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
-            <Building className="w-5 h-5 text-gray-500" />
-            <Select
+            <span className="text-sm font-medium text-gray-600 flex items-center gap-2">
+              <Building className="w-4 h-4 text-gray-500" />
+              Cơ sở:
+            </span>
+            <select
               value={selectedBranch || "all"}
-              onValueChange={(val) =>
-                setSelectedBranch(val === "all" ? "" : val)
+              onChange={(e) =>
+                setSelectedBranch(e.target.value === "all" ? "" : e.target.value)
               }
+              className="nice-select rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-48"
             >
-              <SelectTrigger className="w-48">
-                <SelectValue>
-                  {selectedBranch
-                    ? branches.find((b) => b._id === selectedBranch)?.name ||
-                    "Chọn cơ sở"
-                    : "Tất cả cơ sở"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả cơ sở</SelectItem>
-                {branches.map((branch) => (
-                  <SelectItem key={branch._id} value={branch._id}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="all">Tất cả cơ sở</option>
+              {branches.map((branch) => (
+                <option key={branch._id} value={branch._id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="periods" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-3 rounded-xl bg-gray-100 p-1">
+          <TabsTrigger
+            value="periods"
+            className="flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-600 transition-colors data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
+          >
             <Calendar className="w-4 h-4" />
             Đợt đánh giá
           </TabsTrigger>
-          <TabsTrigger value="classes" className="flex items-center gap-2">
+          <TabsTrigger
+            value="classes"
+            className="flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-600 transition-colors data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
+          >
             <BookOpen className="w-4 h-4" />
             Theo lớp
           </TabsTrigger>
-          <TabsTrigger value="statistics" className="flex items-center gap-2">
+          <TabsTrigger
+            value="statistics"
+            className="flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-600 transition-colors data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
+          >
             <BarChart3 className="w-4 h-4" />
             Theo giáo viên
           </TabsTrigger>
@@ -385,38 +386,49 @@ export default function AdminEvaluationManager() {
 
         {/* Periods Tab */}
         <TabsContent value="periods" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">
-              Danh sách đợt đánh giá -{" "}
-              {branches.find((b) => b._id === selectedBranch)?.name ||
-                "Tất cả cơ sở"}
-            </h3>
-            <Button onClick={openCreatePeriodModal}>
-              <Plus className="w-4 h-4 mr-2" />
-              Tạo đợt đánh giá
-            </Button>
-          </div>
+          <Card className="p-6 space-y-5 bg-white border-0 shadow-lg rounded-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
+                  Danh sách đợt đánh giá
+                </p>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {branches.find((b) => b._id === selectedBranch)?.name ||
+                    "Tất cả cơ sở"}
+                </h3>
+              </div>
+              <Button
+                onClick={openCreatePeriodModal}
+                className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Tạo đợt đánh giá
+              </Button>
+            </div>
 
-          {periods.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-gray-500">
+            {periods.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
                 <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                 <p>Chưa có đợt đánh giá nào</p>
-                <Button className="mt-4" onClick={openCreatePeriodModal}>
+                <Button
+                  className="mt-4 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
+                  onClick={openCreatePeriodModal}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Tạo đợt đánh giá đầu tiên
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {periods.map((period) => (
-                <Card key={period._id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {periods.map((period) => (
+                  <div
+                    key={period._id}
+                    className="border border-gray-100 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-semibold text-lg">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
+                          <h4 className="text-lg font-semibold text-gray-900">
                             {period.name}
                           </h4>
                           {getStatusBadge(period.status)}
@@ -453,6 +465,7 @@ export default function AdminEvaluationManager() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="rounded-lg"
                           onClick={() => openEditPeriodModal(period)}
                         >
                           <Edit className="w-4 h-4" />
@@ -460,65 +473,74 @@ export default function AdminEvaluationManager() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700"
+                          className="rounded-lg text-red-600 border-red-200 hover:bg-red-50"
                           onClick={() => handleDeletePeriod(period._id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </TabsContent>
 
         {/* Classes Tab */}
         <TabsContent value="classes" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">
-              Thống kê theo lớp -{" "}
-              {branches.find((b) => b._id === selectedBranch)?.name ||
-                "Tất cả cơ sở"}
-            </h3>
-            <Select
-              value={selectedPeriodFilter}
-              onValueChange={setSelectedPeriodFilter}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Tất cả đợt đánh giá" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Tất cả đợt đánh giá</SelectItem>
-                {periods.map((period) => (
-                  <SelectItem key={period._id} value={period._id}>
-                    {period.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Card className="p-6 space-y-5 bg-white border-0 shadow-lg rounded-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
+                  Thống kê theo lớp
+                </p>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {branches.find((b) => b._id === selectedBranch)?.name ||
+                    "Tất cả cơ sở"}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">
+                  Đợt đánh giá:
+                </span>
+                <select
+                  value={selectedPeriodFilter}
+                  onChange={(e) => setSelectedPeriodFilter(e.target.value)}
+                  className="nice-select rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-52"
+                >
+                  <option value="">Tất cả đợt đánh giá</option>
+                  {periods.map((period) => (
+                    <option key={period._id} value={period._id}>
+                      {period.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-          {classStatistics.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-gray-500">
+            {classStatistics.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                 <p>Chưa có dữ liệu đánh giá</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {classStatistics.map((cls) => (
-                <Card key={cls.classId}>
-                  <CardContent className="p-4">
-                    <div
-                      className="flex justify-between items-center cursor-pointer"
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {classStatistics.map((cls) => (
+                  <div
+                    key={cls.classId}
+                    className="border border-gray-100 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-4"
                       onClick={() => toggleClassExpand(cls.classId)}
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-semibold">{cls.className}</h4>
+                      <div className="flex-1 text-left">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
+                          <h4 className="text-lg font-semibold text-gray-900">
+                            {cls.className}
+                          </h4>
                           {cls.averageRating > 0 &&
                             renderStars(cls.averageRating)}
                         </div>
@@ -533,23 +555,22 @@ export default function AdminEvaluationManager() {
                             đánh giá ({cls.evaluationRate}%)
                           </span>
                         </div>
-                        {/* Progress bar */}
-                        <div className="mt-2">
+                        <div className="mt-3">
                           <Progress
                             value={cls.evaluationRate}
-                            className="h-2"
+                            className="h-2 rounded-full"
                           />
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge
-                          className={
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             cls.totalEvaluated > 0
-                              ? "bg-blue-100 text-blue-800"
+                              ? "bg-blue-50 text-blue-700"
                               : "bg-gray-100 text-gray-600"
-                          }
+                          }`}
                         >
-                          {cls.feedbacks && cls.feedbacks.length} đánh giá
+                          {cls.feedbacks?.length || 0} đánh giá
                         </Badge>
                         {expandedClasses.has(cls.classId) ? (
                           <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -557,9 +578,8 @@ export default function AdminEvaluationManager() {
                           <ChevronDown className="w-5 h-5 text-gray-400" />
                         )}
                       </div>
-                    </div>
+                    </button>
 
-                    {/* Expanded feedbacks */}
                     {expandedClasses.has(cls.classId) &&
                       cls.feedbacks && cls.feedbacks.length > 0 && (
                         <div className="mt-4 pt-4 border-t space-y-3">
@@ -569,9 +589,9 @@ export default function AdminEvaluationManager() {
                           {cls.feedbacks.map((fb) => (
                             <div
                               key={fb._id}
-                              className="p-3 bg-gray-50 rounded-lg"
+                              className="p-3 bg-gray-50 rounded-xl"
                             >
-                              <div className="flex justify-between items-start mb-2">
+                              <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">
                                     {fb.studentName || "Ẩn danh"}
@@ -615,37 +635,38 @@ export default function AdminEvaluationManager() {
                           ))}
                         </div>
                       )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </TabsContent>
 
         {/* Statistics Tab */}
         <TabsContent value="statistics" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-gray-900">
               Thống kê theo giáo viên -{" "}
               {branches.find((b) => b._id === selectedBranch)?.name ||
                 "Tất cả cơ sở"}
             </h3>
-            <Select
-              value={selectedPeriodFilter}
-              onValueChange={setSelectedPeriodFilter}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Tất cả đợt đánh giá" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Tất cả đợt đánh giá</SelectItem>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-600">
+                Đợt đánh giá:
+              </span>
+              <select
+                value={selectedPeriodFilter}
+                onChange={(e) => setSelectedPeriodFilter(e.target.value)}
+                className="nice-select rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-48"
+              >
+                <option value="">Tất cả đợt đánh giá</option>
                 {periods.map((period) => (
-                  <SelectItem key={period._id} value={period._id}>
+                  <option key={period._id} value={period._id}>
                     {period.name}
-                  </SelectItem>
+                  </option>
                 ))}
-              </SelectContent>
-            </Select>
+              </select>
+            </div>
           </div>
 
           {statistics.length === 0 ? (
@@ -758,33 +779,24 @@ export default function AdminEvaluationManager() {
 
             <div>
               <Label>Cơ sở</Label>
-              <Select
+              <select
                 value={periodForm.branchId || "all"}
-                onValueChange={(val: string) =>
+                onChange={(e) =>
                   setPeriodForm({
                     ...periodForm,
-                    branchId: val === "all" ? "" : val,
+                    branchId: e.target.value === "all" ? "" : e.target.value,
                     classIds: [],
                   })
                 }
+                className="nice-select w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <SelectTrigger>
-                  <SelectValue>
-                    {periodForm.branchId
-                      ? branches.find((b) => b._id === periodForm.branchId)
-                        ?.name || "Chọn cơ sở"
-                      : "Tất cả cơ sở"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả cơ sở</SelectItem>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch._id} value={branch._id}>
-                      {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="all">Tất cả cơ sở</option>
+                {branches.map((branch) => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -816,30 +828,20 @@ export default function AdminEvaluationManager() {
 
             <div>
               <Label>Trạng thái</Label>
-              <Select
+              <select
                 value={periodForm.status || "draft"}
-                onValueChange={(val: string) =>
+                onChange={(e) =>
                   setPeriodForm({
                     ...periodForm,
-                    status: val as "draft" | "active" | "closed",
+                    status: e.target.value as "draft" | "active" | "closed",
                   })
                 }
+                className="nice-select w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <SelectTrigger>
-                  <SelectValue>
-                    {periodForm.status === "active"
-                      ? "Đang mở"
-                      : periodForm.status === "closed"
-                        ? "Đã đóng"
-                        : "Nháp"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Nháp</SelectItem>
-                  <SelectItem value="active">Đang mở</SelectItem>
-                  <SelectItem value="closed">Đã đóng</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="draft">Nháp</option>
+                <option value="active">Đang mở</option>
+                <option value="closed">Đã đóng</option>
+              </select>
             </div>
           </div>
 
@@ -847,10 +849,14 @@ export default function AdminEvaluationManager() {
             <Button
               variant="outline"
               onClick={() => setIsPeriodModalOpen(false)}
+              className="rounded-xl"
             >
               Hủy
             </Button>
-            <Button onClick={handleSavePeriod}>
+            <Button
+              onClick={handleSavePeriod}
+              className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
               {editingPeriod ? "Cập nhật" : "Tạo mới"}
             </Button>
           </DialogFooter>

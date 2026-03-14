@@ -11,15 +11,12 @@ import {
   UpdateSessionData,
 } from "@/lib/stores/schedule-store";
 import { Class, useClassesStore } from "@/lib/stores/classes-store";
-import { User } from "@/lib/stores/auth-store";
 import { Branch, useBranchesStore } from "@/lib/stores/branches-store";
-import { useUsersStore } from "@/lib/stores/users-store";
 import { SUBJECT_LIST } from "@/lib/constants/subjects";
 
 interface SessionFormModalProps {
   session: Session | null;
   classes: Class[];
-  teachers?: User[];
   branches?: Branch[];
   onClose: () => void;
 }
@@ -27,7 +24,6 @@ interface SessionFormModalProps {
 export default function SessionFormModal({
   session,
   classes: initialClasses,
-  teachers: initialTeachers = [],
   branches: initialBranches = [],
   onClose,
 }: SessionFormModalProps) {
@@ -41,12 +37,10 @@ export default function SessionFormModal({
 
   // Use stores directly for fresh data
   const { branches: storeBranches, fetchBranches } = useBranchesStore();
-  const { users: storeUsers, fetchUsers } = useUsersStore();
   const { classes: storeClasses, fetchClasses } = useClassesStore();
 
   // Local state for data
   const [localBranches, setLocalBranches] = useState<Branch[]>(initialBranches);
-  const [localTeachers, setLocalTeachers] = useState<User[]>(initialTeachers);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Fetch fresh data when modal opens
@@ -54,12 +48,8 @@ export default function SessionFormModal({
     const loadFreshData = async () => {
       setIsLoadingData(true);
       try {
-        // Fetch branches, teachers and classes
-        await Promise.all([
-          fetchBranches(),
-          fetchUsers({ role: "teacher" }),
-          fetchClasses(),
-        ]);
+        // Fetch branches và danh sách lớp mới nhất
+        await Promise.all([fetchBranches(), fetchClasses()]);
       } catch (error) {
         console.error("Error loading fresh data:", error);
       } finally {
@@ -68,7 +58,7 @@ export default function SessionFormModal({
     };
 
     loadFreshData();
-  }, [fetchBranches, fetchUsers, fetchClasses]);
+  }, [fetchBranches, fetchClasses]);
 
   // Update local state when store data changes
   useEffect(() => {
@@ -77,18 +67,20 @@ export default function SessionFormModal({
     }
   }, [storeBranches]);
 
-  useEffect(() => {
-    const teachers = storeUsers.filter((u) => u.role === "teacher");
-    if (teachers.length > 0) {
-      setLocalTeachers(teachers);
-    }
-  }, [storeUsers]);
+  // Khi chỉnh sửa, ưu tiên lớp/cơ sở đã có trong danh sách hiện có để select hiển thị được option tương ứng
+  const branches = useMemo(() => {
+    if (localBranches.length > 0) return localBranches;
+    if (initialBranches.length > 0) return initialBranches;
+    return storeBranches;
+  }, [localBranches, initialBranches, storeBranches]);
 
-  // Use local data with fallback to initial props
-  const branches = localBranches.length > 0 ? localBranches : initialBranches;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const teachers = localTeachers.length > 0 ? localTeachers : initialTeachers;
-  const classes = storeClasses.length > 0 ? storeClasses : initialClasses;
+  const classes = useMemo(() => {
+    const source = storeClasses.length > 0 ? storeClasses : initialClasses;
+    if (!session || !source.some((c) => c._id === session.classId)) {
+      return source;
+    }
+    return source;
+  }, [storeClasses, initialClasses, session]);
 
   const [formData, setFormData] = useState({
     branchId: "", // Cơ sở được chọn
@@ -136,22 +128,9 @@ export default function SessionFormModal({
     return result;
   }, [classes, formData.branchId, formData.subject, formData.grade]);
 
-  // Filter teachers by subject - show teachers who can teach the selected subject
-  const filteredTeachers = useMemo(() => {
-    const allTeachers = storeUsers.filter((u) => u.role === "teacher");
-    if (!formData.subject) return allTeachers;
-    return allTeachers.filter(
-      (t: any) =>
-        t.subjects &&
-        t.subjects.some(
-          (s: string) =>
-            s.toLowerCase().includes(formData.subject.toLowerCase()) ||
-            formData.subject
-              .toLowerCase()
-              .includes(s.toLowerCase().replace(/\d+/g, "").trim()),
-        ),
-    );
-  }, [storeUsers, formData.subject]);
+  const selectedClass = useMemo(() => {
+    return classes.find((c) => c._id === formData.classId) || null;
+  }, [classes, formData.classId]);
 
   // Initialize form data when editing
   useEffect(() => {
@@ -163,6 +142,17 @@ export default function SessionFormModal({
       let teacherId = "";
       let subject = "";
       let branchId = "";
+      let classId = "";
+      let grade = "";
+
+      const sessionClassId =
+        typeof session.classId === "string"
+          ? session.classId
+          : session.classId?._id;
+
+      const classFromStore = sessionClassId
+        ? classes.find((c) => c._id === sessionClassId)
+        : undefined;
 
       // First try to get from session directly (new format)
       if (session.teacherId) {
@@ -175,44 +165,60 @@ export default function SessionFormModal({
         subject = session.subject;
       }
 
-      // Fallback to classId if not found (old format)
-      if (!teacherId || !subject) {
-        const classInfo =
-          typeof session.classId === "string"
-            ? classes.find((c) => c._id === session.classId)
-            : session.classId;
+      const classCandidates = [
+        typeof session.classId === "string" ? undefined : session.classId,
+        classFromStore,
+      ].filter(Boolean) as Class[];
 
-        if (classInfo && typeof classInfo !== "string") {
-          if (!teacherId && classInfo.teacherId) {
-            teacherId =
-              typeof classInfo.teacherId === "string"
-                ? classInfo.teacherId
-                : classInfo.teacherId._id;
-          }
-          if (!subject) {
-            subject = classInfo.subject || classInfo.name || "";
-          }
-          // Try to get branchId from class
-          if ("branchId" in classInfo && classInfo.branchId) {
-            branchId =
-              typeof classInfo.branchId === "string"
-                ? classInfo.branchId
-                : classInfo.branchId._id;
-          }
+      for (const classInfo of classCandidates) {
+        classId = classInfo._id || classId;
+        grade = classInfo.grade || grade;
+        if (!teacherId && classInfo.teacherId) {
+          teacherId =
+            typeof classInfo.teacherId === "string"
+              ? classInfo.teacherId
+              : classInfo.teacherId._id;
+        }
+        if (!subject) {
+          subject = classInfo.subject || classInfo.name || "";
+        }
+        if (!branchId && classInfo.branchId) {
+          branchId =
+            typeof classInfo.branchId === "string"
+              ? classInfo.branchId
+              : classInfo.branchId?._id || classInfo.branchId?.id || "";
+        }
+        if (!branchId && classInfo.branch) {
+          branchId = classInfo.branch._id;
+        }
+      }
+
+      if (!classId && sessionClassId) {
+        classId = sessionClassId;
+      }
+
+      if (!grade) {
+        grade =
+          typeof session.classId !== "string" &&
+          session.classId &&
+          "grade" in session.classId
+            ? (session.classId as any).grade || ""
+            : "";
+      }
+
+      if (!branchId && typeof session.classId !== "string") {
+        const classBranch = (session.classId as any)?.branch;
+        if (classBranch?._id) {
+          branchId = classBranch._id;
         }
       }
 
       setFormData({
         branchId: branchId,
-        classId: "",
+        classId,
         teacherId: teacherId,
         subject: subject,
-        grade:
-          typeof session.classId !== "string" &&
-          session.classId &&
-          "grade" in session.classId
-            ? (session.classId as any).grade || ""
-            : "",
+        grade,
         title: session.title || "",
         room: session.room || "",
         date: startDate.toISOString().split("T")[0],
@@ -298,6 +304,41 @@ export default function SessionFormModal({
     }
     if (formData.startTime >= formData.endTime) {
       newErrors.endTime = "Giờ kết thúc phải sau giờ bắt đầu";
+    }
+
+    if (!newErrors.date && formData.date && formData.startTime) {
+      const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+      const now = new Date();
+      if (startDateTime.getTime() < now.getTime()) {
+        newErrors.date = "Không thể tạo buổi học trong quá khứ";
+      }
+    }
+
+    const parseMinutes = (time: string) => {
+      const [h, m] = time.split(":").map(Number);
+      return h * 60 + m;
+    };
+    const MIN_START_MINUTES = 7 * 60;
+    const MAX_END_MINUTES = 20 * 60;
+
+    if (!newErrors.startTime && formData.startTime) {
+      const startMinutes = parseMinutes(formData.startTime);
+      if (startMinutes < MIN_START_MINUTES) {
+        newErrors.startTime = "Giờ bắt đầu phải từ 07:00 trở đi";
+      }
+      if (startMinutes > MAX_END_MINUTES) {
+        newErrors.startTime = "Giờ bắt đầu không được sau 20:00";
+      }
+    }
+
+    if (!newErrors.endTime && formData.endTime) {
+      const endMinutes = parseMinutes(formData.endTime);
+      if (endMinutes > MAX_END_MINUTES) {
+        newErrors.endTime = "Giờ kết thúc phải trước hoặc bằng 20:00";
+      }
+      if (endMinutes < MIN_START_MINUTES) {
+        newErrors.endTime = "Giờ kết thúc không được trước 07:00";
+      }
     }
 
     setErrors(newErrors);
@@ -395,26 +436,34 @@ export default function SessionFormModal({
       }));
     }
     // Auto-fill teacher from class if class is selected
-    if (name === "classId" && value) {
-      const selectedClass = classes.find((c) => c._id === value);
-      if (selectedClass) {
-        const classTeacherId =
-          typeof selectedClass.teacherId === "string"
-            ? selectedClass.teacherId
-            : selectedClass.teacherId?._id || selectedClass.teacher?._id;
-        if (classTeacherId) {
+    if (name === "classId") {
+      if (value) {
+        const selectedClass = classes.find((c) => c._id === value);
+        if (selectedClass) {
+          const classTeacherId =
+            typeof selectedClass.teacherId === "string"
+              ? selectedClass.teacherId
+              : selectedClass.teacherId?._id || selectedClass.teacher?._id;
           setFormData((prev) => ({
             ...prev,
             classId: value,
-            teacherId: classTeacherId,
+            teacherId: classTeacherId || "",
           }));
         }
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          teacherId: "",
+        }));
       }
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
       <Card className="w-full max-w-lg p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -458,7 +507,7 @@ export default function SessionFormModal({
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" onClick={(e) => e.stopPropagation()}>
           {/* Branch Selection - First Step */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -472,7 +521,7 @@ export default function SessionFormModal({
               value={formData.branchId}
               onChange={handleChange}
               disabled={!!session || isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`nice-select w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.branchId ? "border-red-300" : "border-gray-200"
               } ${session || isLoadingData ? "bg-gray-100" : ""}`}
             >
@@ -500,7 +549,7 @@ export default function SessionFormModal({
               value={formData.subject}
               onChange={handleChange}
               disabled={!!session || !formData.branchId || isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`nice-select w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.subject ? "border-red-300" : "border-gray-200"
               } ${session || !formData.branchId || isLoadingData ? "bg-gray-100" : ""}`}
             >
@@ -533,7 +582,7 @@ export default function SessionFormModal({
               value={formData.grade}
               onChange={handleChange}
               disabled={!!session || !formData.subject || isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 ${
+              className={`nice-select w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 ${
                 session || !formData.subject || isLoadingData
                   ? "bg-gray-100"
                   : ""
@@ -561,7 +610,7 @@ export default function SessionFormModal({
               value={formData.classId}
               onChange={handleChange}
               disabled={!!session || !formData.subject || isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`nice-select w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.classId ? "border-red-300" : "border-gray-200"
               } ${session || !formData.subject || isLoadingData ? "bg-gray-100" : ""}`}
             >
@@ -594,33 +643,26 @@ export default function SessionFormModal({
               )}
           </div>
 
-          {/* Teacher Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Giáo viên
-              <span className="text-xs text-gray-400 ml-2">
-                ({filteredTeachers.length} giáo viên
-                {formData.subject ? ` dạy ${formData.subject}` : ""})
-              </span>
-            </label>
-            <select
-              name="teacherId"
-              value={formData.teacherId}
-              onChange={handleChange}
-              disabled={isLoadingData}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-200 ${
-                isLoadingData ? "bg-gray-100" : ""
-              }`}
-            >
-              <option value="">-- Chọn giáo viên --</option>
-              {filteredTeachers.map((t) => (
-                <option key={t._id} value={t._id}>
-                  👨‍🏫 {t.name}{" "}
-                  {(t as any).teacherCode ? `(${(t as any).teacherCode})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          {selectedClass && (
+            <div className="p-3 rounded-xl border border-gray-100 bg-gray-50">
+              <div className="text-sm font-medium text-gray-700">
+                Giáo viên phụ trách
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedClass.teacher?.name ||
+                  (typeof selectedClass.teacherId === "object"
+                    ? selectedClass.teacherId?.name
+                    : "Chưa phân công") ||
+                  "Chưa phân công"}
+              </p>
+              {!formData.teacherId && (
+                <p className="text-xs text-amber-600 mt-1">
+                  ⚠️ Lớp này chưa có giáo viên, vui lòng phân công trong phần
+                  quản lý lớp trước khi tạo buổi học.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Title */}
           <div>
@@ -719,7 +761,7 @@ export default function SessionFormModal({
               name="type"
               value={formData.type}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="nice-select w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={SessionType.Makeup}>🔄 Học bù</option>
               <option value={SessionType.Exam}>📝 Kiểm tra</option>
