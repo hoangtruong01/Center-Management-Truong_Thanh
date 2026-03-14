@@ -13,6 +13,7 @@ import {
   type IncidentType,
   type IncidentPlatform,
 } from "@/lib/stores/incidents-store";
+import { notificationService } from "@/lib/services/notificationService.service";
 
 interface IncidentReportModalProps {
   isOpen: boolean;
@@ -65,6 +66,18 @@ export default function IncidentReportModal({
         platform,
         description: description.trim(),
       });
+
+      // Gửi thông báo cho Admin
+      try {
+        await notificationService.notifyAdmin({
+          title: `[Báo cáo sự cố] ${INCIDENT_TYPE_LABELS[type]}`,
+          body: `Người gửi: ${userName} (${userRole})\nNền tảng: ${INCIDENT_PLATFORM_LABELS[platform]}\nMô tả: ${description.trim()}`,
+          type: "warning"
+        });
+      } catch (notifyErr) {
+        console.error("Lỗi khi gửi thông báo cho admin:", notifyErr);
+      }
+
       setSuccess("Đã gửi báo cáo sự cố thành công!");
       setDescription("");
       setType("bug_error");
@@ -101,21 +114,19 @@ export default function IncidentReportModal({
         {/* Tabs */}
         <div className="flex border-b">
           <button
-            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              activeTab === "report"
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${activeTab === "report"
                 ? "text-orange-600 border-b-2 border-orange-500"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
             onClick={() => setActiveTab("report")}
           >
             📝 Báo cáo mới
           </button>
           <button
-            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              activeTab === "history"
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${activeTab === "history"
                 ? "text-orange-600 border-b-2 border-orange-500"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
             onClick={() => setActiveTab("history")}
           >
             📋 Lịch sử ({myIncidents.length})
@@ -152,10 +163,10 @@ export default function IncidentReportModal({
                       {userRole === "student"
                         ? "Học sinh"
                         : userRole === "teacher"
-                        ? "Giáo viên"
-                        : userRole === "parent"
-                        ? "Phụ huynh"
-                        : userRole}
+                          ? "Giáo viên"
+                          : userRole === "parent"
+                            ? "Phụ huynh"
+                            : userRole}
                     </span>
                   </div>
                 </div>
@@ -259,9 +270,8 @@ export default function IncidentReportModal({
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            INCIDENT_STATUS_COLORS[incident.status]
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${INCIDENT_STATUS_COLORS[incident.status]
+                            }`}
                         >
                           {INCIDENT_STATUS_LABELS[incident.status]}
                         </span>
@@ -336,21 +346,19 @@ export default function IncidentReportModal({
         {/* Tabs */}
         <div className="flex border-b">
           <button
-            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              activeTab === "report"
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${activeTab === "report"
                 ? "text-orange-600 border-b-2 border-orange-500"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
             onClick={() => setActiveTab("report")}
           >
             📝 Báo cáo mới
           </button>
           <button
-            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              activeTab === "history"
+            className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${activeTab === "history"
                 ? "text-orange-600 border-b-2 border-orange-500"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
             onClick={() => setActiveTab("history")}
           >
             📋 Lịch sử ({myIncidents.length})
@@ -387,10 +395,10 @@ export default function IncidentReportModal({
                       {userRole === "student"
                         ? "Học sinh"
                         : userRole === "teacher"
-                        ? "Giáo viên"
-                        : userRole === "parent"
-                        ? "Phụ huynh"
-                        : userRole}
+                          ? "Giáo viên"
+                          : userRole === "parent"
+                            ? "Phụ huynh"
+                            : userRole}
                     </span>
                   </div>
                 </div>
@@ -494,9 +502,8 @@ export default function IncidentReportModal({
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            INCIDENT_STATUS_COLORS[incident.status]
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${INCIDENT_STATUS_COLORS[incident.status]
+                            }`}
                         >
                           {INCIDENT_STATUS_LABELS[incident.status]}
                         </span>

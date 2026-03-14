@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
+import { notificationService } from "@/lib/services/notificationService.service";
 
 export default function PaymentResultPage() {
   const searchParams = useSearchParams();
@@ -59,6 +60,14 @@ export default function PaymentResultPage() {
         body: `Giao dịch thanh toán học phí của bạn đã ${statusText}.${paymentId ? ` Mã GD: ${paymentId}` : ""}`,
         type: success ? "success" : "error",
       }).catch((err) => console.error("Error sending payment notification:", err));
+
+      if (success) {
+        notificationService.notifyAdmin({
+          title: `[Thanh toán học phí] Thành công`,
+          body: `Người đóng: ${user.name} (${user.role})\nMã GD: ${paymentId}\nKết quả: Thanh toán thành công`,
+          type: "success",
+        }).catch((err) => console.error("Error notifying admin about payment:", err));
+      }
     }
   }, [user, success, paymentId, searchParams]);
 

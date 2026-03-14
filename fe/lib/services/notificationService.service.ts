@@ -1,7 +1,7 @@
 import api from "../api"
 
 export interface SendNotificationParams {
-    userIds: string | string[]
+    userId?: string
     title: string
     body: string
     type?: "info" | "success" | "warning" | "error"
@@ -10,22 +10,38 @@ export interface SendNotificationParams {
 export const notificationService = {
     send: async (params: SendNotificationParams) => {
         try {
-            // Nếu userIds là mảng (gửi nhiều người 1 lúc)
-            if (Array.isArray(params.userIds)) {
-                // Tuỳ vào API Backend của bro hỗ trợ gửi 1 list ID không. 
-                // Nếu không thì dùng Promise.all để gửi từng cái.
-                const promises = params.userIds.map(id =>
-                    api.post("/notifications", { ...params, userId: id })
-                );
-                await Promise.all(promises);
-            } else {
-                // Gửi cho 1 người
-                await api.post("/notifications", { ...params, userId: params.userIds });
-            }
-            return true;
+            const response = await api.post("/notifications", params)
+            return response.data
         } catch (error) {
-            console.error("Lỗi khi gửi thông báo:", error);
+            console.error("Lỗi thông báo:", error)
+            throw error
+        }
+    },
+    delete: async (id: string) => {
+        try {
+            const response = await api.delete(`/notifications/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error("Lỗi xóa thông báo:", error);
             throw error;
         }
+    },
+    deleteAll: async () => {
+        try {
+            const response = await api.delete("/notifications");
+            return response.data;
+        } catch (error) {
+            console.error("Lỗi xóa tất cả thông báo:", error);
+            throw error;
+        }
+    },
+    notifyAdmin: async (params: SendNotificationParams) => {
+        try {
+            const response = await api.post("/notifications/notify-admin", params)
+            return response.data
+        } catch (error) {
+            console.error("Lỗi thông báo Admin:", error)
+            throw error
+        }
     }
-}
+};

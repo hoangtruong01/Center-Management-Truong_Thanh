@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -30,6 +31,12 @@ export class NotificationsController {
     return this.notificationsService.create(dto);
   }
 
+  @Post('notify-admin')
+  @Roles(UserRole.Admin, UserRole.Teacher, UserRole.Parent, UserRole.Student)
+  notifyAdmin(@Body() dto: CreateNotificationDto) {
+    return this.notificationsService.notifyAdmins(dto);
+  }
+
   @Get()
   list(@CurrentUser() user: UserDocument) {
     return this.notificationsService.listForUser(user);
@@ -43,5 +50,15 @@ export class NotificationsController {
   @Patch('read-all')
   markAllRead(@CurrentUser() user: UserDocument) {
     return this.notificationsService.markAllRead(user);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.notificationsService.remove(id);
+  }
+
+  @Delete()
+  removeAll(@CurrentUser() user: UserDocument) {
+    return this.notificationsService.removeAll(user);
   }
 }

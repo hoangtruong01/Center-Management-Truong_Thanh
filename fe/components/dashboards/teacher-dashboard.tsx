@@ -38,6 +38,7 @@ import {
   teacherGradingService,
   GRADE_CATEGORY_LABELS,
 } from "@/lib/services/teacher-grading.service";
+import { notificationService } from "@/lib/services/notificationService.service";
 
 // Leaderboard types
 // Grade item returned from API
@@ -1793,24 +1794,22 @@ export default function TeacherDashboard({
                 ? "Đi muộn"
                 : "Được phép nghỉ";
 
-        const notificationPayload = {
+        // Notify student
+        notificationService.send({
+          userId: record.studentId,
           title: "Điểm danh buổi học",
           body: `${statusText} buổi học ${classData.name} ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
-          type: record.status === "absent" ? "warning" : "info",
-        };
-
-        // Notify student
-        api.post("/notifications", {
-          ...notificationPayload,
-          userId: record.studentId,
+          type: (record.status === "absent" ? "warning" : "info") as "warning" | "info" | "success" | "error",
         }).catch((err) => console.error("Error notifying student:", err));
 
         // Notify parent if found
         const parentId = record.email ? parentMap[record.email.toLowerCase().trim()] : null;
         if (parentId) {
-          api.post("/notifications", {
-            ...notificationPayload,
+          notificationService.send({
             userId: parentId,
+            title: "Thông báo điểm danh",
+            body: `Điểm danh: ${record.name} ${statusText.toLowerCase()} buổi học ${classData.name} ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+            type: (record.status === "absent" ? "warning" : "info") as "warning" | "info" | "success" | "error",
           }).catch((err) => console.error("Error notifying parent:", err));
         }
       }
@@ -1886,25 +1885,22 @@ export default function TeacherDashboard({
                   ? "đi muộn"
                   : "được phép nghỉ";
 
-          const notificationPayload = {
-            title: "Điểm danh buổi học",
-            body: `${schedule.className}: "${statusText}" - ${fullDate.toLocaleDateString("vi-VN")}`,
-            type: record.status === "absent" ? "warning" : "info",
-          };
-
           try {
             // Notify student
-            api.post("/notifications", {
-              ...notificationPayload,
+            notificationService.send({
               userId: record.studentId,
+              title: "Điểm danh buổi học",
+              body: `${schedule.className}: "${statusText}" - ${fullDate.toLocaleDateString("vi-VN")}`,
             }).catch((err) => console.error("Error notifying student:", err));
 
             // Notify parent if found
             const parentId = record.email ? parentMap[record.email.toLowerCase().trim()] : null;
             if (parentId) {
-              api.post("/notifications", {
-                ...notificationPayload,
+              notificationService.send({
                 userId: parentId,
+                title: `Điểm danh ${record.name}`,
+                body: `${schedule.className}: "${statusText}" - ${fullDate.toLocaleDateString("vi-VN")}`,
+                type: (record.status === "absent" ? "warning" : "info") as "warning" | "info" | "success" | "error",
               }).catch((err) => console.error("Error notifying parent:", err));
             }
           } catch (notifError) {

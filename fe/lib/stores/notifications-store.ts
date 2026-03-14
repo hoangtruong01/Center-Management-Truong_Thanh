@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import api from "@/lib/api";
+import { notificationService } from "@/lib/services/notificationService.service";
 
 export interface Notification {
   _id: string;
@@ -114,7 +115,7 @@ export const useNotificationsStore = create<
 
   deleteNotification: async (id: string) => {
     try {
-      await api.delete(`/notifications/${id}`);
+      await notificationService.delete(id);
 
       set((state) => {
         const notification = state.notifications.find((n) => n._id === id);
@@ -135,7 +136,7 @@ export const useNotificationsStore = create<
 
   clearAll: async () => {
     try {
-      await api.delete("/notifications");
+      await notificationService.deleteAll();
       set({ notifications: [], unreadCount: 0 });
     } catch (error: any) {
       const message =
