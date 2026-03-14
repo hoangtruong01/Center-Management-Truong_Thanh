@@ -13,6 +13,7 @@ import {
   type Incident,
   type IncidentStatus,
 } from "@/lib/stores/incidents-store";
+import { notificationService } from "@/lib/services/notificationService.service";
 
 interface IncidentDetailModalProps {
   incident: Incident;
@@ -35,9 +36,57 @@ function IncidentDetailModal({
     setError(null);
     setSuccess(null);
 
+    if (status !== "pending" && !adminNote.trim()) {
+      setError("Vui lòng nhập ghi chú phản hồi cho người báo cáo.");
+      return;
+    }
+
     try {
       await updateIncident(incident._id, { status, adminNote });
-      setSuccess("Cập nhật thành công!");
+
+      if (status !== "pending") {
+        const reporterId =
+          typeof incident.reporterId === "object"
+            ? incident.reporterId._id
+            : incident.reporterId;
+
+        if (reporterId) {
+          let title = "[Phản hồi sự cố]";
+          let type: "info" | "success" | "error" = "info";
+          let body = "";
+
+          switch (status) {
+            case "resolved":
+              title = "[Phản hồi sự cố] Đã giải quyết";
+              body = `Sự cố '${incident.description.substring(0, 30)}...' của bạn đã được Admin xử lý thành công. Phản hồi: ${adminNote}`;
+              type = "success";
+              break;
+            case "rejected":
+              title = "[Phản hồi sự cố] Từ chối";
+              body = `Sự cố '${incident.description.substring(0, 30)}...' của bạn đã bị từ chối. Lý do: ${adminNote}`;
+              type = "error";
+              break;
+            case "in_progress":
+              title = "[Phản hồi sự cố] Đang xử lý";
+              body = `Sự cố '${incident.description.substring(0, 30)}...' của bạn hiện đang được xử lý. Ghi chú: ${adminNote}`;
+              type = "info";
+              break;
+          }
+
+          await notificationService
+            .send({
+              userId: reporterId,
+              title,
+              body,
+              type,
+            })
+            .catch((err) =>
+              console.error("Lỗi gửi thông báo cho người báo cáo:", err),
+            );
+        }
+      }
+
+      setSuccess("Cập nhật và gửi thông báo thành công!");
       onUpdate();
       setTimeout(() => {
         setSuccess(null);
@@ -401,9 +450,8 @@ export default function IncidentsManager() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          INCIDENT_STATUS_COLORS[incident.status]
-                        }`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${INCIDENT_STATUS_COLORS[incident.status]
+                          }`}
                       >
                         {INCIDENT_STATUS_LABELS[incident.status]}
                       </span>

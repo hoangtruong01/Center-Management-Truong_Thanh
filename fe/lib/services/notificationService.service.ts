@@ -43,5 +43,22 @@ export const notificationService = {
             console.error("Lỗi thông báo Admin:", error)
             throw error
         }
+    },
+    notifyMakeUpClass: async (dto: {
+        classId: string;
+        className: string;
+        subject: string;
+        date: string;
+        startTime: string;
+        endTime: string;
+        room: string;
+    }) => {
+        try {
+            const response = await api.post("/notifications/notify-makeup", dto);
+            return response.data;
+        } catch (error) {
+            console.error("Lỗi thông báo lịch học bù:", error);
+            throw error;
+        }
     }
 };

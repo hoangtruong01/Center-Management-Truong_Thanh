@@ -37,6 +37,12 @@ export class NotificationsController {
     return this.notificationsService.notifyAdmins(dto);
   }
 
+  @Post('notify-makeup')
+  @Roles(UserRole.Admin)
+  notifyMakeUpClass(@Body() dto: any) {
+    return this.notificationsService.notifyMakeUpClass(dto);
+  }
+
   @Get()
   list(@CurrentUser() user: UserDocument) {
     return this.notificationsService.listForUser(user);
