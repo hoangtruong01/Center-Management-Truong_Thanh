@@ -25,7 +25,7 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) { }
 
   @Post()
-  @Roles(UserRole.Admin, UserRole.Teacher)
+  @Roles(UserRole.Admin, UserRole.Teacher, UserRole.Parent, UserRole.Student)
   create(@Body() dto: CreateNotificationDto) {
     return this.notificationsService.create(dto);
   }
