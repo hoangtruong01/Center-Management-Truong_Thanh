@@ -108,7 +108,7 @@ export default function ClassesScreen() {
       startTime: string;
       endTime: string;
     }>
-  >([]); 
+  >([]);
   const [activeCreatePicker, setActiveCreatePicker] = useState<
     "subject" | "grade" | "branch" | "teacher" | null
   >(null);
@@ -250,7 +250,7 @@ export default function ClassesScreen() {
             dayOfWeek: day,
             startTime: sch.startTime,
             endTime: sch.endTime,
-          }))
+          })),
         ),
       });
       Alert.alert("Thành công", "Đã tạo lớp học mới");
@@ -1413,8 +1413,7 @@ export default function ClassesScreen() {
                 <TouchableOpacity
                   style={[
                     styles.formPicker,
-                    activeCreatePicker === "teacher" &&
-                      styles.formPickerActive,
+                    activeCreatePicker === "teacher" && styles.formPickerActive,
                   ]}
                   onPress={() =>
                     setActiveCreatePicker(
@@ -1637,7 +1636,6 @@ export default function ClassesScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
-
     </SafeAreaView>
   );
 }
