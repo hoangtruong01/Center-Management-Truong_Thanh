@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import api from "@/lib/api";
+import axios from "axios";
+import api, { getAuthData } from "@/lib/api";
 
 export interface ChildInfo {
   _id: string;
@@ -26,7 +27,15 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
   isLoading: false,
 
   fetchChildren: async (parentId: string) => {
-    if (get().isLoading) return;
+    if (!parentId || get().isLoading) return;
+
+    // Avoid making protected requests before auth token is ready.
+    const authData = await getAuthData();
+    if (!authData?.state?.accessToken) {
+      set({ children: [], selectedChild: null, isLoading: false });
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const response = await api.get(`/users/parent/${parentId}/children`);
@@ -60,7 +69,17 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
         }
       }
     } catch (error) {
-      console.error("[CHILDREN] Error fetching children:", error);
+      const status = axios.isAxiosError(error)
+        ? error.response?.status
+        : undefined;
+
+      if (status === 401) {
+        // Session may be expired; keep app stable and avoid noisy stack logs.
+        set({ children: [], selectedChild: null });
+        console.warn("[CHILDREN] Unauthorized while fetching children (401)");
+      } else {
+        console.error("[CHILDREN] Error fetching children:", error);
+      }
     } finally {
       set({ isLoading: false });
     }
