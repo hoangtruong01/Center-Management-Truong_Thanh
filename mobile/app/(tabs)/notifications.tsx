@@ -14,6 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useNotificationsStore, Notification } from "@/lib/stores";
+import { Swipeable } from "react-native-gesture-handler";
+import { Alert } from "react-native";
 
 const { width } = Dimensions.get("window");
 
@@ -85,6 +87,8 @@ export default function NotificationsScreen() {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
   } = useNotificationsStore();
 
   const [selectedNotification, setSelectedNotification] =
@@ -118,48 +122,83 @@ export default function NotificationsScreen() {
     setSelectedNotification(null);
   };
 
+  const handleDeleteAll = () => {
+    if (notifications.length === 0) return;
+    
+    Alert.alert(
+      "Xác nhận xóa",
+      "Bạn có chắc chắn muốn xóa tất cả thông báo không?",
+      [
+        { text: "Hủy", style: "cancel" },
+        { 
+          text: "Xóa hết", 
+          style: "destructive",
+          onPress: () => deleteAllNotifications()
+        }
+      ]
+    );
+  };
+
+  const renderRightActions = (id: string) => {
+    return (
+      <TouchableOpacity
+        style={styles.deleteAction}
+        onPress={() => deleteNotification(id)}
+      >
+        <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+        <Text style={styles.deleteActionText}>Xóa</Text>
+      </TouchableOpacity>
+    );
+  };
+
   const renderNotification = ({ item }: { item: Notification }) => {
     const config = getNotificationConfig(item.type);
     return (
-      <TouchableOpacity
-        style={[
-          styles.notificationCard,
-          !item.isRead && styles.unreadNotification,
-        ]}
-        onPress={() => handleNotificationPress(item)}
-        activeOpacity={0.7}
+      <Swipeable
+        renderRightActions={() => renderRightActions(item._id)}
+        friction={2}
+        rightThreshold={40}
       >
-        <LinearGradient
-          colors={config.colors as [string, string]}
-          style={styles.iconContainer}
+        <TouchableOpacity
+          style={[
+            styles.notificationCard,
+            !item.isRead && styles.unreadNotification,
+          ]}
+          onPress={() => handleNotificationPress(item)}
+          activeOpacity={0.7}
         >
-          <Ionicons name={config.icon} size={22} color="#FFFFFF" />
-        </LinearGradient>
-        <View style={styles.notificationContent}>
-          <View style={styles.notificationHeader}>
-            <Text
-              style={[
-                styles.notificationTitle,
-                !item.isRead && styles.unreadTitle,
-              ]}
-              numberOfLines={1}
-            >
-              {item.title}
+          <LinearGradient
+            colors={config.colors as [string, string]}
+            style={styles.iconContainer}
+          >
+            <Ionicons name={config.icon} size={22} color="#FFFFFF" />
+          </LinearGradient>
+          <View style={styles.notificationContent}>
+            <View style={styles.notificationHeader}>
+              <Text
+                style={[
+                  styles.notificationTitle,
+                  !item.isRead && styles.unreadTitle,
+                ]}
+                numberOfLines={1}
+              >
+                {item.title}
+              </Text>
+              {!item.isRead && <View style={styles.unreadDot} />}
+            </View>
+            <Text style={styles.notificationText} numberOfLines={2}>
+              {item.content}
             </Text>
-            {!item.isRead && <View style={styles.unreadDot} />}
+            <View style={styles.notificationFooter}>
+              <Ionicons name="time-outline" size={12} color="#9CA3AF" />
+              <Text style={styles.notificationTime}>
+                {formatDate(item.createdAt)}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.notificationText} numberOfLines={2}>
-            {item.content}
-          </Text>
-          <View style={styles.notificationFooter}>
-            <Ionicons name="time-outline" size={12} color="#9CA3AF" />
-            <Text style={styles.notificationTime}>
-              {formatDate(item.createdAt)}
-            </Text>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-      </TouchableOpacity>
+          <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+        </TouchableOpacity>
+      </Swipeable>
     );
   };
 
@@ -195,14 +234,24 @@ export default function NotificationsScreen() {
       </View>
 
       {/* Header Actions */}
-      {notifications.length > 0 && unreadCount > 0 && (
+      {notifications.length > 0 && (
         <View style={styles.headerActions}>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              onPress={markAllAsRead}
+              style={styles.markAllButton}
+            >
+              <Ionicons name="checkmark-done" size={18} color="#3B82F6" />
+              <Text style={styles.markAllRead}>Đánh dấu đã đọc</Text>
+            </TouchableOpacity>
+          )}
+          
           <TouchableOpacity
-            onPress={markAllAsRead}
-            style={styles.markAllButton}
+            onPress={handleDeleteAll}
+            style={[styles.markAllButton, { backgroundColor: "#FEE2E2", marginLeft: 8 }]}
           >
-            <Ionicons name="checkmark-done" size={18} color="#3B82F6" />
-            <Text style={styles.markAllRead}>Đánh dấu tất cả đã đọc</Text>
+            <Ionicons name="trash" size={18} color="#EF4444" />
+            <Text style={[styles.markAllRead, { color: "#EF4444" }]}>Xóa hết</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -666,5 +715,22 @@ const styles = StyleSheet.create({
   noMoreText: {
     fontSize: 14,
     color: "#9CA3AF",
+  },
+  deleteAction: {
+    backgroundColor: "#EF4444",
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+    height: "83%",
+    marginTop: 0,
+    marginBottom: 10,
+    borderRadius: 16,
+    marginLeft: 10,
+  },
+  deleteActionText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "bold",
+    marginTop: 4,
   },
 });

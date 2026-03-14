@@ -23,6 +23,7 @@ import {
   getIncidentStatusColor,
 } from "@/lib/stores";
 import type { IncidentType, IncidentStatus, Incident } from "@/lib/stores";
+import { notificationService } from "@/lib/services/notification.service";
 
 const safeGoBack = () => {
   router.replace("/(tabs)");
@@ -457,6 +458,18 @@ export default function IncidentsReportScreen() {
   ) => {
     try {
       await createIncident({ type, description, platform: "mobile" });
+      
+      // Notify admin
+      try {
+        await notificationService.notifyAdmin({
+          title: `Sự cố mới: ${getIncidentTypeLabel(type)}`,
+          body: `Có báo cáo sự cố mới từ di động: ${description.substring(0, 50)}${description.length > 50 ? "..." : ""}`,
+          type: "warning"
+        });
+      } catch (notifyErr) {
+        console.error("Failed to notify admin about incident:", notifyErr);
+      }
+
       setShowReportModal(false);
       Alert.alert(
         "Thành công",

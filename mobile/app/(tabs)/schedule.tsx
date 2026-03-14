@@ -32,6 +32,7 @@ import { Platform } from "react-native";
 import { subjects, getSubjectLabel } from "@/lib/constants/subjects";
 import api from "@/lib/api";
 import ChildSelector from "@/components/ChildSelector";
+import { notificationService } from "@/lib/services/notification.service";
 
 const { width } = Dimensions.get("window");
 
@@ -1005,6 +1006,22 @@ export default function ScheduleScreen() {
         note: attendanceNote || undefined,
       });
 
+      // Send notifications for each student
+      const className = selectedScheduleItem.className;
+      const dateStr = attendanceDate.toLocaleDateString("vi-VN");
+      
+      attendanceRecords.forEach(record => {
+        if (record.status) {
+          notificationService.notifyAttendance({
+            studentId: record.studentId,
+            studentName: record.name,
+            status: record.status,
+            className: className,
+            date: dateStr
+          }).catch(err => console.error(`Failed to notify attendance for ${record.name}:`, err));
+        }
+      });
+
       Alert.alert("Thành công", "Đã lưu điểm danh thành công");
       setShowAttendanceModal(false);
     } catch (error: any) {
@@ -1221,6 +1238,20 @@ export default function ScheduleScreen() {
         type: sessionForm.type,
         note: sessionForm.note || undefined,
       } as any);
+
+      // Notify if it's a makeup class
+      if (sessionForm.type === "makeup" && sessionForm.classId) {
+        const cls = classes.find(c => c._id === sessionForm.classId);
+        notificationService.notifyMakeUpClass({
+          classId: sessionForm.classId,
+          className: cls?.name || "Lớp học",
+          subject: getSubjectLabel(sessionForm.subject),
+          date: sessionForm.date.toLocaleDateString("vi-VN"),
+          startTime: sessionForm.startTime,
+          endTime: sessionForm.endTime,
+          room: sessionForm.room || "Chưa xác định"
+        }).catch(err => console.error("Failed to notify make-up class:", err));
+      }
 
       Alert.alert("Thành công", "Đã tạo buổi học bất thường");
       setShowCreateSessionModal(false);

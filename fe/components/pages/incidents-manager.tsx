@@ -58,17 +58,17 @@ function IncidentDetailModal({
           switch (status) {
             case "resolved":
               title = "[Phản hồi sự cố] Đã giải quyết";
-              body = `Sự cố '${incident.description.substring(0, 30)}...' của bạn đã được Admin xử lý thành công. Phản hồi: ${adminNote}`;
+              body = `Phản hồi: ${adminNote}`;
               type = "success";
               break;
             case "rejected":
               title = "[Phản hồi sự cố] Từ chối";
-              body = `Sự cố '${incident.description.substring(0, 30)}...' của bạn đã bị từ chối. Lý do: ${adminNote}`;
+              body = `Phản hồi: ${adminNote}`;
               type = "error";
               break;
             case "in_progress":
               title = "[Phản hồi sự cố] Đang xử lý";
-              body = `Sự cố '${incident.description.substring(0, 30)}...' của bạn hiện đang được xử lý. Ghi chú: ${adminNote}`;
+              body = `Phản hồi: ${adminNote}`;
               type = "info";
               break;
           }
