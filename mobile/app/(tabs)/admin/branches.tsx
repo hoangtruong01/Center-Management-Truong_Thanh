@@ -27,6 +27,144 @@ interface Branch {
   createdAt?: string;
 }
 
+interface BranchFormData {
+  name: string;
+  address: string;
+  phone: string;
+  description: string;
+}
+
+function BranchFormModal({
+  visible,
+  onClose,
+  onSubmit,
+  title,
+  submitText,
+  formData,
+  setFormData,
+  selectedBranch,
+  onToggleStatus,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  title: string;
+  submitText: string;
+  formData: BranchFormData;
+  setFormData: (data: BranchFormData) => void;
+  selectedBranch: Branch | null;
+  onToggleStatus: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <TouchableOpacity onPress={onSubmit}>
+            <Text style={styles.submitButtonText}>{submitText}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.modalContent}>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Tên cơ sở *</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.name}
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              placeholder="Nhập tên cơ sở"
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Địa chỉ</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.address}
+              onChangeText={(text) =>
+                setFormData({ ...formData, address: text })
+              }
+              placeholder="Nhập địa chỉ"
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Số điện thoại</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.phone}
+              onChangeText={(text) => setFormData({ ...formData, phone: text })}
+              placeholder="Nhập số điện thoại"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Mô tả</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={formData.description}
+              onChangeText={(text) =>
+                setFormData({ ...formData, description: text })
+              }
+              placeholder="Nhập mô tả"
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          {selectedBranch && (
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => {
+                onClose();
+                onToggleStatus();
+              }}
+            >
+              <Ionicons
+                name={
+                  selectedBranch.isActive !== false
+                    ? "close-circle-outline"
+                    : "checkmark-circle-outline"
+                }
+                size={20}
+                color={
+                  selectedBranch.isActive !== false ? "#DC2626" : "#059669"
+                }
+              />
+              <Text
+                style={[
+                  styles.toggleButtonText,
+                  {
+                    color:
+                      selectedBranch.isActive !== false ? "#DC2626" : "#059669",
+                  },
+                ]}
+              >
+                {selectedBranch.isActive !== false
+                  ? "Vô hiệu hóa cơ sở"
+                  : "Kích hoạt cơ sở"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
 export default function BranchesManagementScreen() {
   const { branches, fetchBranches, addBranch, updateBranch, isLoading } =
     useBranchesStore();
@@ -192,127 +330,6 @@ export default function BranchesManagementScreen() {
     </TouchableOpacity>
   );
 
-  const BranchFormModal = ({
-    visible,
-    onClose,
-    onSubmit,
-    title,
-    submitText,
-  }: {
-    visible: boolean;
-    onClose: () => void;
-    onSubmit: () => void;
-    title: string;
-    submitText: string;
-  }) => (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>{title}</Text>
-          <TouchableOpacity onPress={onSubmit}>
-            <Text style={styles.submitButtonText}>{submitText}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalContent}>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Tên cơ sở *</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Nhập tên cơ sở"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Địa chỉ</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.address}
-              onChangeText={(text) =>
-                setFormData({ ...formData, address: text })
-              }
-              placeholder="Nhập địa chỉ"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Số điện thoại</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: text })}
-              placeholder="Nhập số điện thoại"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="phone-pad"
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Mô tả</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.description}
-              onChangeText={(text) =>
-                setFormData({ ...formData, description: text })
-              }
-              placeholder="Nhập mô tả"
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={4}
-            />
-          </View>
-
-          {selectedBranch && (
-            <TouchableOpacity
-              style={styles.toggleButton}
-              onPress={() => {
-                onClose();
-                handleToggleStatus(selectedBranch);
-              }}
-            >
-              <Ionicons
-                name={
-                  selectedBranch.isActive !== false
-                    ? "close-circle-outline"
-                    : "checkmark-circle-outline"
-                }
-                size={20}
-                color={
-                  selectedBranch.isActive !== false ? "#DC2626" : "#059669"
-                }
-              />
-              <Text
-                style={[
-                  styles.toggleButtonText,
-                  {
-                    color:
-                      selectedBranch.isActive !== false ? "#DC2626" : "#059669",
-                  },
-                ]}
-              >
-                {selectedBranch.isActive !== false
-                  ? "Vô hiệu hóa cơ sở"
-                  : "Kích hoạt cơ sở"}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
       {/* Header */}
@@ -402,6 +419,10 @@ export default function BranchesManagementScreen() {
         onSubmit={handleAddBranch}
         title="Thêm cơ sở mới"
         submitText="Thêm"
+        formData={formData}
+        setFormData={setFormData}
+        selectedBranch={selectedBranch}
+        onToggleStatus={() => {}}
       />
 
       {/* Edit Modal */}
@@ -414,6 +435,12 @@ export default function BranchesManagementScreen() {
         onSubmit={handleUpdateBranch}
         title="Chỉnh sửa cơ sở"
         submitText="Lưu"
+        formData={formData}
+        setFormData={setFormData}
+        selectedBranch={selectedBranch}
+        onToggleStatus={() =>
+          selectedBranch && handleToggleStatus(selectedBranch)
+        }
       />
     </SafeAreaView>
   );
