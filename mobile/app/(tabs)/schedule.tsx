@@ -121,6 +121,11 @@ interface TimetableItem {
   teacherName?: string;
   branchName?: string;
   colorIndex?: number;
+  // Irregular session fields
+  sessionId?: string;
+  sessionTitle?: string;
+  sessionType?: "makeup" | "exam";
+  isIrregular?: boolean;
 }
 
 // Class colors for admin view
@@ -206,7 +211,12 @@ export default function ScheduleScreen() {
   const [teacherViewMode, setTeacherViewMode] = useState<"week" | "day">("day");
 
   // Admin: Add irregular session states
-  const { createSession: createNewSession } = useSessionsStore();
+  const {
+    createSession: createNewSession,
+    fetchSessions,
+    sessions: extraSessions,
+  } = useSessionsStore();
+  const [adminExtraSessions, setAdminExtraSessions] = useState<any[]>([]);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [sessionForm, setSessionForm] = useState({
     branchId: "",
@@ -226,12 +236,9 @@ export default function ScheduleScreen() {
     useState(false);
   const [showSessionEndTimePicker, setShowSessionEndTimePicker] =
     useState(false);
-  const [showSessionBranchPicker, setShowSessionBranchPicker] = useState(false);
-  const [showSessionClassPicker, setShowSessionClassPicker] = useState(false);
-  const [showSessionTeacherPicker, setShowSessionTeacherPicker] =
-    useState(false);
-  const [showSessionSubjectPicker, setShowSessionSubjectPicker] =
-    useState(false);
+  const [activeSessionPicker, setActiveSessionPicker] = useState<
+    "branch" | "class" | "teacher" | null
+  >(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const isAdmin = user?.role === "admin";
@@ -281,6 +288,25 @@ export default function ScheduleScreen() {
     if (user.role === "teacher" || user.role === "admin") {
       // Fetch classes for teacher/admin to build timetable
       await fetchClasses();
+      // For admin, also fetch irregular sessions for the current week
+      if (user.role === "admin") {
+        try {
+          const { startDate, endDate } = getWeekRange(currentWeekStart);
+          const res = await api.get("/sessions/schedule", {
+            params: { startDate, endDate },
+          });
+          const data = res.data;
+          setAdminExtraSessions(
+            Array.isArray(data)
+              ? data.filter(
+                  (s: any) => s.type === "makeup" || s.type === "exam",
+                )
+              : [],
+          );
+        } catch {
+          setAdminExtraSessions([]);
+        }
+      }
     } else if (user.role === "student") {
       // Fetch classes to get schedule for student
       await fetchClasses();
@@ -537,6 +563,59 @@ export default function ScheduleScreen() {
 
     // Sort by start time
     timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    // Add irregular sessions (makeup / exam) for the selected date
+    adminExtraSessions.forEach((session: any) => {
+      if (!session.startTime) return;
+      const sessionDate = new Date(session.startTime);
+      if (
+        sessionDate.getDate() === selectedDate.getDate() &&
+        sessionDate.getMonth() === selectedDate.getMonth() &&
+        sessionDate.getFullYear() === selectedDate.getFullYear()
+      ) {
+        const classId =
+          typeof session.classId === "object"
+            ? session.classId?._id || ""
+            : session.classId || "";
+        const classObj = classes.find((c) => c._id === classId);
+        const teacherName =
+          typeof session.teacherId === "object" && session.teacherId
+            ? session.teacherId.fullName || session.teacherId.name || ""
+            : users.find((u) => u._id === session.teacherId)?.name || "";
+        const branchName = classObj
+          ? typeof classObj.branchId === "object" &&
+            (classObj.branchId as any)?.name
+            ? (classObj.branchId as any).name
+            : branches.find((b) => b._id === classObj.branchId)?.name || ""
+          : "";
+        const toHHMM = (d: Date) =>
+          `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+        timetable.push({
+          classId,
+          className:
+            typeof session.classId === "object"
+              ? session.classId.name || "Buổi học bất thường"
+              : classObj?.name || "Buổi học bất thường",
+          subject:
+            typeof session.classId === "object"
+              ? session.classId.subject || session.subject || "Chưa xác định"
+              : classObj?.subject || session.subject || "Chưa xác định",
+          startTime: toHHMM(sessionDate),
+          endTime: toHHMM(new Date(session.endTime)),
+          room: session.room,
+          teacherName,
+          branchName,
+          colorIndex: timetable.length % CLASS_COLORS.length,
+          sessionId: session._id,
+          sessionTitle: session.title,
+          sessionType: session.type as "makeup" | "exam",
+          isIrregular: true,
+        });
+      }
+    });
+
+    // Re-sort after adding irregular sessions
+    timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
     return timetable;
   }, [
     classes,
@@ -547,6 +626,7 @@ export default function ScheduleScreen() {
     searchQuery,
     users,
     branches,
+    adminExtraSessions,
   ]);
 
   // Admin list view - all classes regardless of selected day
@@ -1084,8 +1164,13 @@ export default function ScheduleScreen() {
         key={`${item.classId}-${index}`}
         style={styles.scheduleCard}
         onPress={() => {
-          const cls = adminClassList.find((c) => c._id === item.classId);
-          if (cls) handleClassPress(cls);
+          setSelectedScheduleItem(item);
+          if (item.isIrregular) {
+            setShowClassDetailModal(true);
+          } else {
+            const cls = adminClassList.find((c) => c._id === item.classId);
+            if (cls) handleClassPress(cls);
+          }
         }}
         activeOpacity={0.7}
       >
@@ -1101,22 +1186,59 @@ export default function ScheduleScreen() {
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              {item.className}
+              {item.isIrregular && item.sessionTitle
+                ? item.sessionTitle
+                : item.className}
             </Text>
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: `${colors[0]}20` },
+                {
+                  backgroundColor: item.isIrregular
+                    ? item.sessionType === "exam"
+                      ? "#FEE2E2"
+                      : "#D1FAE5"
+                    : `${colors[0]}20`,
+                },
               ]}
             >
-              <Ionicons name="repeat" size={10} color={colors[0]} />
-              <Text style={[styles.statusText, { color: colors[0] }]}>
-                Cố định
+              {item.isIrregular ? (
+                <Ionicons
+                  name={
+                    item.sessionType === "exam" ? "document-text" : "refresh"
+                  }
+                  size={10}
+                  color={item.sessionType === "exam" ? "#EF4444" : "#10B981"}
+                />
+              ) : (
+                <Ionicons name="repeat" size={10} color={colors[0]} />
+              )}
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color: item.isIrregular
+                      ? item.sessionType === "exam"
+                        ? "#EF4444"
+                        : "#10B981"
+                      : colors[0],
+                  },
+                ]}
+              >
+                {item.isIrregular
+                  ? item.sessionType === "exam"
+                    ? "Kiểm tra"
+                    : "Học bù"
+                  : "Cố định"}
               </Text>
             </View>
           </View>
           <Text style={styles.subject} numberOfLines={1} ellipsizeMode="tail">
-            {item.subject}
+            {item.isIrregular && item.sessionTitle
+              ? item.className
+                ? `${item.className} – ${item.subject}`
+                : item.subject
+              : item.subject}
           </Text>
           <View style={styles.scheduleDetails}>
             <View style={styles.detailItem}>
@@ -1161,11 +1283,8 @@ export default function ScheduleScreen() {
         return branchId === sessionForm.branchId;
       });
     }
-    if (sessionForm.subject) {
-      result = result.filter((cls: any) => cls.subject === sessionForm.subject);
-    }
     return result;
-  }, [classes, sessionForm.branchId, sessionForm.subject]);
+  }, [classes, sessionForm.branchId]);
 
   // Teachers list for session form
   const sessionTeachers = useMemo(() => {
@@ -1187,16 +1306,13 @@ export default function ScheduleScreen() {
       type: "makeup",
       note: "",
     });
+    setActiveSessionPicker(null);
   };
 
   // Handle create session submit
   const handleCreateSession = async () => {
     if (!sessionForm.title.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập tiêu đề buổi học");
-      return;
-    }
-    if (!sessionForm.subject) {
-      Alert.alert("Lỗi", "Vui lòng chọn môn học");
       return;
     }
     if (sessionForm.startTime >= sessionForm.endTime) {
@@ -1213,7 +1329,9 @@ export default function ScheduleScreen() {
       await createNewSession({
         classId: sessionForm.classId || undefined,
         teacherId: sessionForm.teacherId || undefined,
-        subject: sessionForm.subject || undefined,
+        subject:
+          classes.find((c: any) => c._id === sessionForm.classId)?.subject ||
+          undefined,
         title: sessionForm.title || undefined,
         room: sessionForm.room || undefined,
         startTime: startDateTime.toISOString(),
@@ -1225,7 +1343,8 @@ export default function ScheduleScreen() {
       Alert.alert("Thành công", "Đã tạo buổi học bất thường");
       setShowCreateSessionModal(false);
       resetSessionForm();
-      loadSchedule();
+      // Refresh both classes and sessions so the new session appears in the calendar
+      await loadSchedule();
     } catch (error: any) {
       Alert.alert("Lỗi", error.message || "Không thể tạo buổi học");
     } finally {
@@ -1461,6 +1580,38 @@ export default function ScheduleScreen() {
                 <Text style={styles.emptyText}>
                   Không có lớp học nào trong ngày này
                 </Text>
+                <TouchableOpacity
+                  style={{
+                    marginTop: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    backgroundColor: "#EEF2FF",
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                  }}
+                  onPress={() => {
+                    resetSessionForm();
+                    fetchClasses();
+                    setShowCreateSessionModal(true);
+                  }}
+                >
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={18}
+                    color="#3B82F6"
+                  />
+                  <Text
+                    style={{
+                      color: "#3B82F6",
+                      fontWeight: "600",
+                      fontSize: 14,
+                    }}
+                  >
+                    Thêm buổi học bất thường
+                  </Text>
+                </TouchableOpacity>
               </View>
             ) : (
               adminTimetable.map((item, index) =>
@@ -1569,14 +1720,117 @@ export default function ScheduleScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.classDetailModal}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Chi tiết lớp học</Text>
+                <Text style={styles.modalTitle}>
+                  {selectedScheduleItem?.isIrregular
+                    ? "Chi tiết buổi học"
+                    : "Chi tiết lớp học"}
+                </Text>
                 <TouchableOpacity
                   onPress={() => setShowClassDetailModal(false)}
                 >
                   <Ionicons name="close" size={24} color="#6B7280" />
                 </TouchableOpacity>
               </View>
-              {selectedClassDetail && (
+              {selectedScheduleItem?.isIrregular ? (
+                <ScrollView style={styles.classDetailContent}>
+                  {/* Session type badge */}
+                  <View style={styles.classDetailSection}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 6,
+                      }}
+                    >
+                      <View
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 20,
+                          backgroundColor:
+                            selectedScheduleItem.sessionType === "exam"
+                              ? "#FEE2E2"
+                              : "#D1FAE5",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "600",
+                            color:
+                              selectedScheduleItem.sessionType === "exam"
+                                ? "#EF4444"
+                                : "#10B981",
+                          }}
+                        >
+                          {selectedScheduleItem.sessionType === "exam"
+                            ? "Kiểm tra"
+                            : "Học bù"}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.classDetailName}>
+                      {selectedScheduleItem.sessionTitle ||
+                        selectedScheduleItem.className}
+                    </Text>
+                    {selectedScheduleItem.className &&
+                      selectedScheduleItem.sessionTitle && (
+                        <Text style={styles.classDetailSubject}>
+                          Lớp: {selectedScheduleItem.className}
+                        </Text>
+                      )}
+                    {selectedScheduleItem.subject && (
+                      <Text
+                        style={[styles.classDetailSubject, { marginTop: 2 }]}
+                      >
+                        {selectedScheduleItem.subject}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={styles.classDetailSection}>
+                    <Text style={styles.sectionTitle}>Thời gian</Text>
+                    <View style={styles.infoRow}>
+                      <Ionicons name="time" size={16} color="#6B7280" />
+                      <Text style={styles.infoText}>
+                        {selectedScheduleItem.startTime} –{" "}
+                        {selectedScheduleItem.endTime}
+                      </Text>
+                    </View>
+                    {selectedScheduleItem.room && (
+                      <View style={styles.infoRow}>
+                        <Ionicons name="location" size={16} color="#6B7280" />
+                        <Text style={styles.infoText}>
+                          Phòng: {selectedScheduleItem.room}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.classDetailSection}>
+                    <Text style={styles.sectionTitle}>
+                      Giảng viên & Chi nhánh
+                    </Text>
+                    {selectedScheduleItem.teacherName ? (
+                      <View style={styles.infoRow}>
+                        <Ionicons name="person" size={16} color="#6B7280" />
+                        <Text style={styles.infoText}>
+                          GV: {selectedScheduleItem.teacherName}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {selectedScheduleItem.branchName ? (
+                      <View style={styles.infoRow}>
+                        <Ionicons name="business" size={16} color="#6B7280" />
+                        <Text style={styles.infoText}>
+                          Chi nhánh: {selectedScheduleItem.branchName}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </ScrollView>
+              ) : selectedClassDetail ? (
                 <ScrollView style={styles.classDetailContent}>
                   <View style={styles.classDetailSection}>
                     <Text style={styles.classDetailName}>
@@ -1642,7 +1896,7 @@ export default function ScheduleScreen() {
                     )}
                   </View>
                 </ScrollView>
-              )}
+              ) : null}
             </View>
           </View>
         </Modal>
@@ -1652,6 +1906,7 @@ export default function ScheduleScreen() {
           style={styles.fab}
           onPress={() => {
             resetSessionForm();
+            fetchClasses(); // ensure fresh class data before opening modal
             setShowCreateSessionModal(true);
           }}
           activeOpacity={0.8}
@@ -1669,10 +1924,15 @@ export default function ScheduleScreen() {
           visible={showCreateSessionModal}
           transparent
           animationType="slide"
-          onRequestClose={() => setShowCreateSessionModal(false)}
+          onRequestClose={() => {
+            setShowCreateSessionModal(false);
+            setActiveSessionPicker(null);
+          }}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.classDetailModal, { maxHeight: "90%" }]}>
+            <View
+              style={[styles.classDetailModal, { maxHeight: "90%", flex: 1 }]}
+            >
               <View style={styles.modalHeader}>
                 <View
                   style={{
@@ -1703,7 +1963,10 @@ export default function ScheduleScreen() {
                   </View>
                 </View>
                 <TouchableOpacity
-                  onPress={() => setShowCreateSessionModal(false)}
+                  onPress={() => {
+                    setShowCreateSessionModal(false);
+                    setActiveSessionPicker(null);
+                  }}
                 >
                   <Ionicons name="close" size={24} color="#6B7280" />
                 </TouchableOpacity>
@@ -1711,6 +1974,7 @@ export default function ScheduleScreen() {
 
               <ScrollView
                 style={{ flex: 1 }}
+                contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Session Type Toggle */}
@@ -1776,8 +2040,17 @@ export default function ScheduleScreen() {
                 <View style={{ marginBottom: 16 }}>
                   <Text style={styles.formLabel}>Cơ sở</Text>
                   <TouchableOpacity
-                    style={styles.formPicker}
-                    onPress={() => setShowSessionBranchPicker(true)}
+                    style={[
+                      styles.formPicker,
+                      activeSessionPicker === "branch" && {
+                        borderColor: "#3B82F6",
+                      },
+                    ]}
+                    onPress={() =>
+                      setActiveSessionPicker(
+                        activeSessionPicker === "branch" ? null : "branch",
+                      )
+                    }
                   >
                     <Ionicons
                       name="business-outline"
@@ -1796,39 +2069,108 @@ export default function ScheduleScreen() {
                             ?.name
                         : "Chọn cơ sở"}
                     </Text>
-                    <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                    <Ionicons
+                      name={
+                        activeSessionPicker === "branch"
+                          ? "chevron-up"
+                          : "chevron-down"
+                      }
+                      size={16}
+                      color="#6B7280"
+                    />
                   </TouchableOpacity>
-                </View>
-
-                {/* Subject Picker */}
-                <View style={{ marginBottom: 16 }}>
-                  <Text style={styles.formLabel}>Môn học *</Text>
-                  <TouchableOpacity
-                    style={styles.formPicker}
-                    onPress={() => setShowSessionSubjectPicker(true)}
-                  >
-                    <Ionicons name="book-outline" size={18} color="#6B7280" />
-                    <Text
-                      style={[
-                        styles.formPickerText,
-                        !sessionForm.subject && { color: "#9CA3AF" },
-                      ]}
-                      numberOfLines={1}
+                  {activeSessionPicker === "branch" && (
+                    <ScrollView
+                      style={styles.inlineDropdown}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
                     >
-                      {sessionForm.subject
-                        ? getSubjectLabel(sessionForm.subject)
-                        : "Chọn môn học"}
-                    </Text>
-                    <Ionicons name="chevron-down" size={16} color="#6B7280" />
-                  </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.inlineDropdownItem,
+                          !sessionForm.branchId &&
+                            styles.inlineDropdownItemActive,
+                        ]}
+                        onPress={() => {
+                          setSessionForm((prev) => ({
+                            ...prev,
+                            branchId: "",
+                            classId: "",
+                          }));
+                          setActiveSessionPicker(null);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.inlineDropdownText,
+                            !sessionForm.branchId &&
+                              styles.inlineDropdownTextActive,
+                          ]}
+                        >
+                          Tất cả
+                        </Text>
+                        {!sessionForm.branchId && (
+                          <Ionicons
+                            name="checkmark"
+                            size={16}
+                            color="#3B82F6"
+                          />
+                        )}
+                      </TouchableOpacity>
+                      {branches.map((branch) => (
+                        <TouchableOpacity
+                          key={branch._id}
+                          style={[
+                            styles.inlineDropdownItem,
+                            sessionForm.branchId === branch._id &&
+                              styles.inlineDropdownItemActive,
+                          ]}
+                          onPress={() => {
+                            setSessionForm((prev) => ({
+                              ...prev,
+                              branchId: branch._id,
+                              classId: "",
+                            }));
+                            setActiveSessionPicker(null);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.inlineDropdownText,
+                              sessionForm.branchId === branch._id &&
+                                styles.inlineDropdownTextActive,
+                            ]}
+                          >
+                            {branch.name}
+                          </Text>
+                          {sessionForm.branchId === branch._id && (
+                            <Ionicons
+                              name="checkmark"
+                              size={16}
+                              color="#3B82F6"
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
                 </View>
 
                 {/* Class Picker */}
                 <View style={{ marginBottom: 16 }}>
                   <Text style={styles.formLabel}>Lớp học</Text>
                   <TouchableOpacity
-                    style={styles.formPicker}
-                    onPress={() => setShowSessionClassPicker(true)}
+                    style={[
+                      styles.formPicker,
+                      activeSessionPicker === "class" && {
+                        borderColor: "#3B82F6",
+                      },
+                    ]}
+                    onPress={() =>
+                      setActiveSessionPicker(
+                        activeSessionPicker === "class" ? null : "class",
+                      )
+                    }
                   >
                     <Ionicons name="school-outline" size={18} color="#6B7280" />
                     <Text
@@ -1844,16 +2186,102 @@ export default function ScheduleScreen() {
                           )?.name
                         : "Chọn lớp học"}
                     </Text>
-                    <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                    <Ionicons
+                      name={
+                        activeSessionPicker === "class"
+                          ? "chevron-up"
+                          : "chevron-down"
+                      }
+                      size={16}
+                      color="#6B7280"
+                    />
                   </TouchableOpacity>
+                  {activeSessionPicker === "class" && (
+                    <ScrollView
+                      style={styles.inlineDropdown}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {sessionFormClasses.length === 0 ? (
+                        <Text
+                          style={{
+                            padding: 12,
+                            color: "#9CA3AF",
+                            textAlign: "center",
+                            fontSize: 13,
+                          }}
+                        >
+                          Không có lớp học phù hợp
+                        </Text>
+                      ) : (
+                        sessionFormClasses.map((cls: any) => (
+                          <TouchableOpacity
+                            key={cls._id}
+                            style={[
+                              styles.inlineDropdownItem,
+                              sessionForm.classId === cls._id &&
+                                styles.inlineDropdownItemActive,
+                            ]}
+                            onPress={() => {
+                              const teacherId =
+                                typeof cls.teacherId === "object"
+                                  ? cls.teacherId?._id
+                                  : cls.teacherId;
+                              setSessionForm((prev) => ({
+                                ...prev,
+                                classId: cls._id,
+                                teacherId: teacherId || prev.teacherId,
+                              }));
+                              setActiveSessionPicker(null);
+                            }}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text
+                                style={[
+                                  styles.inlineDropdownText,
+                                  sessionForm.classId === cls._id &&
+                                    styles.inlineDropdownTextActive,
+                                ]}
+                              >
+                                {cls.name}
+                              </Text>
+                              {cls.subject ? (
+                                <Text
+                                  style={{ fontSize: 11, color: "#9CA3AF" }}
+                                >
+                                  {getSubjectLabel(cls.subject)}
+                                </Text>
+                              ) : null}
+                            </View>
+                            {sessionForm.classId === cls._id && (
+                              <Ionicons
+                                name="checkmark"
+                                size={16}
+                                color="#3B82F6"
+                              />
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
+                  )}
                 </View>
 
                 {/* Teacher Picker */}
                 <View style={{ marginBottom: 16 }}>
                   <Text style={styles.formLabel}>Giáo viên</Text>
                   <TouchableOpacity
-                    style={styles.formPicker}
-                    onPress={() => setShowSessionTeacherPicker(true)}
+                    style={[
+                      styles.formPicker,
+                      activeSessionPicker === "teacher" && {
+                        borderColor: "#3B82F6",
+                      },
+                    ]}
+                    onPress={() =>
+                      setActiveSessionPicker(
+                        activeSessionPicker === "teacher" ? null : "teacher",
+                      )
+                    }
                   >
                     <Ionicons name="person-outline" size={18} color="#6B7280" />
                     <Text
@@ -1864,13 +2292,84 @@ export default function ScheduleScreen() {
                       numberOfLines={1}
                     >
                       {sessionForm.teacherId
-                        ? users.find(
-                            (u: any) => u._id === sessionForm.teacherId,
-                          )?.name
+                        ? (() => {
+                            const t = users.find(
+                              (u: any) => u._id === sessionForm.teacherId,
+                            );
+                            return t ? t.fullName || t.name : "Chọn giáo viên";
+                          })()
                         : "Chọn giáo viên"}
                     </Text>
-                    <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                    <Ionicons
+                      name={
+                        activeSessionPicker === "teacher"
+                          ? "chevron-up"
+                          : "chevron-down"
+                      }
+                      size={16}
+                      color="#6B7280"
+                    />
                   </TouchableOpacity>
+                  {activeSessionPicker === "teacher" && (
+                    <ScrollView
+                      style={styles.inlineDropdown}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {sessionTeachers.length === 0 ? (
+                        <Text
+                          style={{
+                            padding: 12,
+                            color: "#9CA3AF",
+                            textAlign: "center",
+                            fontSize: 13,
+                          }}
+                        >
+                          Không có giáo viên
+                        </Text>
+                      ) : (
+                        sessionTeachers.map((teacher: any) => (
+                          <TouchableOpacity
+                            key={teacher._id}
+                            style={[
+                              styles.inlineDropdownItem,
+                              sessionForm.teacherId === teacher._id &&
+                                styles.inlineDropdownItemActive,
+                            ]}
+                            onPress={() => {
+                              setSessionForm((prev) => ({
+                                ...prev,
+                                teacherId: teacher._id,
+                              }));
+                              setActiveSessionPicker(null);
+                            }}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text
+                                style={[
+                                  styles.inlineDropdownText,
+                                  sessionForm.teacherId === teacher._id &&
+                                    styles.inlineDropdownTextActive,
+                                ]}
+                              >
+                                {teacher.fullName || teacher.name}
+                              </Text>
+                              <Text style={{ fontSize: 11, color: "#9CA3AF" }}>
+                                {teacher.email}
+                              </Text>
+                            </View>
+                            {sessionForm.teacherId === teacher._id && (
+                              <Ionicons
+                                name="checkmark"
+                                size={16}
+                                color="#3B82F6"
+                              />
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
+                  )}
                 </View>
 
                 {/* Room */}
@@ -2032,6 +2531,7 @@ export default function ScheduleScreen() {
                 style={{
                   flexDirection: "row",
                   gap: 10,
+                  padding: 16,
                   paddingTop: 12,
                   borderTopWidth: 1,
                   borderTopColor: "#F3F4F6",
@@ -2042,7 +2542,10 @@ export default function ScheduleScreen() {
                     styles.formButton,
                     { flex: 1, backgroundColor: "#F3F4F6" },
                   ]}
-                  onPress={() => setShowCreateSessionModal(false)}
+                  onPress={() => {
+                    setShowCreateSessionModal(false);
+                    setActiveSessionPicker(null);
+                  }}
                 >
                   <Text style={[styles.formButtonText, { color: "#6B7280" }]}>
                     Hủy
@@ -2069,288 +2572,6 @@ export default function ScheduleScreen() {
               </View>
             </View>
           </View>
-        </Modal>
-
-        {/* Session Branch Picker Modal */}
-        <Modal
-          visible={showSessionBranchPicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowSessionBranchPicker(false)}
-        >
-          <TouchableOpacity
-            style={styles.pickerOverlay}
-            activeOpacity={1}
-            onPress={() => setShowSessionBranchPicker(false)}
-          >
-            <View style={styles.pickerContainer}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Chọn cơ sở</Text>
-                <TouchableOpacity
-                  onPress={() => setShowSessionBranchPicker(false)}
-                >
-                  <Ionicons name="close" size={24} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.pickerList}>
-                <TouchableOpacity
-                  style={[
-                    styles.pickerItem,
-                    !sessionForm.branchId && styles.pickerItemActive,
-                  ]}
-                  onPress={() => {
-                    setSessionForm((prev) => ({
-                      ...prev,
-                      branchId: "",
-                      classId: "",
-                    }));
-                    setShowSessionBranchPicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerItemText,
-                      !sessionForm.branchId && styles.pickerItemTextActive,
-                    ]}
-                  >
-                    Tất cả
-                  </Text>
-                  {!sessionForm.branchId && (
-                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                  )}
-                </TouchableOpacity>
-                {branches.map((branch) => (
-                  <TouchableOpacity
-                    key={branch._id}
-                    style={[
-                      styles.pickerItem,
-                      sessionForm.branchId === branch._id &&
-                        styles.pickerItemActive,
-                    ]}
-                    onPress={() => {
-                      setSessionForm((prev) => ({
-                        ...prev,
-                        branchId: branch._id,
-                        classId: "",
-                      }));
-                      setShowSessionBranchPicker(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.pickerItemText,
-                        sessionForm.branchId === branch._id &&
-                          styles.pickerItemTextActive,
-                      ]}
-                    >
-                      {branch.name}
-                    </Text>
-                    {sessionForm.branchId === branch._id && (
-                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Session Subject Picker Modal */}
-        <Modal
-          visible={showSessionSubjectPicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowSessionSubjectPicker(false)}
-        >
-          <TouchableOpacity
-            style={styles.pickerOverlay}
-            activeOpacity={1}
-            onPress={() => setShowSessionSubjectPicker(false)}
-          >
-            <View style={styles.pickerContainer}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Chọn môn học</Text>
-                <TouchableOpacity
-                  onPress={() => setShowSessionSubjectPicker(false)}
-                >
-                  <Ionicons name="close" size={24} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.pickerList}>
-                {subjects.map((subj) => (
-                  <TouchableOpacity
-                    key={subj.value}
-                    style={[
-                      styles.pickerItem,
-                      sessionForm.subject === subj.value &&
-                        styles.pickerItemActive,
-                    ]}
-                    onPress={() => {
-                      setSessionForm((prev) => ({
-                        ...prev,
-                        subject: subj.value,
-                        classId: "",
-                      }));
-                      setShowSessionSubjectPicker(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.pickerItemText,
-                        sessionForm.subject === subj.value &&
-                          styles.pickerItemTextActive,
-                      ]}
-                    >
-                      {subj.label}
-                    </Text>
-                    {sessionForm.subject === subj.value && (
-                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Session Class Picker Modal */}
-        <Modal
-          visible={showSessionClassPicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowSessionClassPicker(false)}
-        >
-          <TouchableOpacity
-            style={styles.pickerOverlay}
-            activeOpacity={1}
-            onPress={() => setShowSessionClassPicker(false)}
-          >
-            <View style={styles.pickerContainer}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Chọn lớp học</Text>
-                <TouchableOpacity
-                  onPress={() => setShowSessionClassPicker(false)}
-                >
-                  <Ionicons name="close" size={24} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.pickerList}>
-                {sessionFormClasses.map((cls: any) => (
-                  <TouchableOpacity
-                    key={cls._id}
-                    style={[
-                      styles.pickerItem,
-                      sessionForm.classId === cls._id &&
-                        styles.pickerItemActive,
-                    ]}
-                    onPress={() => {
-                      const teacherId =
-                        typeof cls.teacherId === "object"
-                          ? cls.teacherId?._id
-                          : cls.teacherId;
-                      setSessionForm((prev) => ({
-                        ...prev,
-                        classId: cls._id,
-                        teacherId: teacherId || prev.teacherId,
-                      }));
-                      setShowSessionClassPicker(false);
-                    }}
-                  >
-                    <View>
-                      <Text
-                        style={[
-                          styles.pickerItemText,
-                          sessionForm.classId === cls._id &&
-                            styles.pickerItemTextActive,
-                        ]}
-                      >
-                        {cls.name}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
-                        {cls.subject ? getSubjectLabel(cls.subject) : ""}
-                      </Text>
-                    </View>
-                    {sessionForm.classId === cls._id && (
-                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-                {sessionFormClasses.length === 0 && (
-                  <Text
-                    style={{
-                      padding: 16,
-                      color: "#9CA3AF",
-                      textAlign: "center",
-                    }}
-                  >
-                    Không có lớp học phù hợp
-                  </Text>
-                )}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Session Teacher Picker Modal */}
-        <Modal
-          visible={showSessionTeacherPicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowSessionTeacherPicker(false)}
-        >
-          <TouchableOpacity
-            style={styles.pickerOverlay}
-            activeOpacity={1}
-            onPress={() => setShowSessionTeacherPicker(false)}
-          >
-            <View style={styles.pickerContainer}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Chọn giáo viên</Text>
-                <TouchableOpacity
-                  onPress={() => setShowSessionTeacherPicker(false)}
-                >
-                  <Ionicons name="close" size={24} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.pickerList}>
-                {sessionTeachers.map((teacher: any) => (
-                  <TouchableOpacity
-                    key={teacher._id}
-                    style={[
-                      styles.pickerItem,
-                      sessionForm.teacherId === teacher._id &&
-                        styles.pickerItemActive,
-                    ]}
-                    onPress={() => {
-                      setSessionForm((prev) => ({
-                        ...prev,
-                        teacherId: teacher._id,
-                      }));
-                      setShowSessionTeacherPicker(false);
-                    }}
-                  >
-                    <View>
-                      <Text
-                        style={[
-                          styles.pickerItemText,
-                          sessionForm.teacherId === teacher._id &&
-                            styles.pickerItemTextActive,
-                        ]}
-                      >
-                        {teacher.name}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
-                        {teacher.email}
-                      </Text>
-                    </View>
-                    {sessionForm.teacherId === teacher._id && (
-                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
         </Modal>
       </SafeAreaView>
     );
@@ -4184,5 +4405,34 @@ const styles = StyleSheet.create({
   },
   typeChipTextActive: {
     color: "#3B82F6",
+  },
+  inlineDropdown: {
+    marginTop: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+    borderRadius: 10,
+    maxHeight: 200,
+    overflow: "hidden",
+  },
+  inlineDropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  inlineDropdownItemActive: {
+    backgroundColor: "#EEF2FF",
+  },
+  inlineDropdownText: {
+    fontSize: 14,
+    color: "#374151",
+  },
+  inlineDropdownTextActive: {
+    color: "#3B82F6",
+    fontWeight: "600",
   },
 });
