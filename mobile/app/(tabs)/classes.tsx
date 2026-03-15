@@ -697,13 +697,18 @@ export default function ClassesScreen() {
                           if (!addStudentSearch.trim()) return true;
                           const q = addStudentSearch.toLowerCase();
                           return (
-                            (u.fullName || u.name || "").toLowerCase().includes(q) ||
+                            (u.fullName || u.name || "")
+                              .toLowerCase()
+                              .includes(q) ||
                             (u.email || "").toLowerCase().includes(q)
                           );
                         })
                 }
                 keyExtractor={(item) => item._id}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  paddingBottom: 40,
+                }}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => (
                   <TouchableOpacity
@@ -753,7 +758,9 @@ export default function ClassesScreen() {
                           color: "#059669",
                         }}
                       >
-                        {(item.fullName || item.name || "?").charAt(0).toUpperCase()}
+                        {(item.fullName || item.name || "?")
+                          .charAt(0)
+                          .toUpperCase()}
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
@@ -766,24 +773,40 @@ export default function ClassesScreen() {
                       >
                         {item.fullName || item.name || "Chưa cập nhật"}
                       </Text>
-                      <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}>
+                      <Text
+                        style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}
+                      >
                         {item.email}
                       </Text>
                     </View>
-                    <Ionicons name="add-circle-outline" size={24} color="#10B981" />
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={24}
+                      color="#10B981"
+                    />
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={
                   isLoadingAllStudents ? (
                     <View style={{ alignItems: "center", paddingVertical: 48 }}>
                       <ActivityIndicator size="large" color="#10B981" />
-                      <Text style={{ fontSize: 14, color: "#6B7280", marginTop: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          marginTop: 12,
+                        }}
+                      >
                         Đang tải danh sách học sinh...
                       </Text>
                     </View>
                   ) : (
                     <View style={{ alignItems: "center", paddingVertical: 48 }}>
-                      <Ionicons name="people-outline" size={56} color="#D1D5DB" />
+                      <Ionicons
+                        name="people-outline"
+                        size={56}
+                        color="#D1D5DB"
+                      />
                       <Text
                         style={{
                           fontSize: 16,
@@ -792,10 +815,16 @@ export default function ClassesScreen() {
                           marginTop: 12,
                         }}
                       >
-                        {addStudentSearch ? "Không tìm thấy học sinh" : "Không còn học sinh để thêm"}
+                        {addStudentSearch
+                          ? "Không tìm thấy học sinh"
+                          : "Không còn học sinh để thêm"}
                       </Text>
-                      <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 4 }}>
-                        {addStudentSearch ? "Thử tìm với từ khóa khác" : "Tất cả học sinh đã trong lớp"}
+                      <Text
+                        style={{ fontSize: 14, color: "#9CA3AF", marginTop: 4 }}
+                      >
+                        {addStudentSearch
+                          ? "Thử tìm với từ khóa khác"
+                          : "Tất cả học sinh đã trong lớp"}
                       </Text>
                     </View>
                   )
@@ -879,7 +908,11 @@ export default function ClassesScreen() {
                 >
                   <Ionicons name="person-add" size={18} color="#FFFFFF" />
                   <Text
-                    style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}
+                    style={{
+                      color: "#FFFFFF",
+                      fontWeight: "700",
+                      fontSize: 15,
+                    }}
                   >
                     Thêm học sinh
                   </Text>
@@ -1977,9 +2010,6 @@ export default function ClassesScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
-
-
-
     </SafeAreaView>
   );
 }

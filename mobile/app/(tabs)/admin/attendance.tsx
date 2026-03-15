@@ -209,7 +209,9 @@ export default function AdminAttendanceScreen() {
         // Merge real records + auto-absent only for students not yet recorded
         const recordedIds = new Set(
           attendanceRecords.map((r) =>
-            String(typeof r.studentId === "object" ? r.studentId._id : r.studentId),
+            String(
+              typeof r.studentId === "object" ? r.studentId._id : r.studentId,
+            ),
           ),
         );
         const autoAbsentRecords = (classData.students || [])
@@ -224,9 +226,10 @@ export default function AdminAttendanceScreen() {
             sessionId: "",
             notes: "Chưa điểm danh - Tự động ghi vắng",
           }));
-        setClassAttendanceData(
-          [...attendanceRecords, ...autoAbsentRecords] as unknown as StoreAttendanceRecord[],
-        );
+        setClassAttendanceData([
+          ...attendanceRecords,
+          ...autoAbsentRecords,
+        ] as unknown as StoreAttendanceRecord[]);
       } else {
         // Auto-absent: if teacher hasn't taken attendance, default all students to absent
         const studentAttendance = (classData.students || []).map((student) => ({
@@ -289,7 +292,9 @@ export default function AdminAttendanceScreen() {
           // Build set of student IDs already recorded (normalize to string for reliable comparison)
           const recordedIds = new Set(
             (attendance || []).map((r) =>
-              String(typeof r.studentId === "object" ? r.studentId._id : r.studentId),
+              String(
+                typeof r.studentId === "object" ? r.studentId._id : r.studentId,
+              ),
             ),
           );
 
@@ -425,7 +430,12 @@ export default function AdminAttendanceScreen() {
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statItemLabel}>Điểm danh</Text>
-              <Text style={[styles.statItemValue, { color: "#9CA3AF", fontSize: 11 }]}>
+              <Text
+                style={[
+                  styles.statItemValue,
+                  { color: "#9CA3AF", fontSize: 11 },
+                ]}
+              >
                 Chọn để xem
               </Text>
             </View>

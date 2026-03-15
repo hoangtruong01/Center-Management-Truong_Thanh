@@ -567,7 +567,8 @@ export default function ScheduleScreen() {
             startTime: toHHMM2(sessDate),
             endTime: toHHMM2(new Date(session.endTime)),
             room: session.room,
-            studentCount: classObj?.students?.length || classObj?.studentIds?.length || 0,
+            studentCount:
+              classObj?.students?.length || classObj?.studentIds?.length || 0,
             sessionId: session._id,
             sessionTitle: session.title,
             sessionType: session.type as "makeup" | "exam",
@@ -1186,16 +1187,23 @@ export default function ScheduleScreen() {
       // Send notifications for each student
       const className = selectedScheduleItem.className;
       const dateStr = attendanceDate.toLocaleDateString("vi-VN");
-      
-      attendanceRecords.forEach(record => {
+
+      attendanceRecords.forEach((record) => {
         if (record.status) {
-          notificationService.notifyAttendance({
-            studentId: record.studentId,
-            studentName: record.name,
-            status: record.status,
-            className: className,
-            date: dateStr
-          }).catch(err => console.error(`Failed to notify attendance for ${record.name}:`, err));
+          notificationService
+            .notifyAttendance({
+              studentId: record.studentId,
+              studentName: record.name,
+              status: record.status,
+              className: className,
+              date: dateStr,
+            })
+            .catch((err) =>
+              console.error(
+                `Failed to notify attendance for ${record.name}:`,
+                err,
+              ),
+            );
         }
       });
 
@@ -1456,16 +1464,20 @@ export default function ScheduleScreen() {
 
       // Notify if it's a makeup class
       if (sessionForm.type === "makeup" && sessionForm.classId) {
-        const cls = classes.find(c => c._id === sessionForm.classId);
-        notificationService.notifyMakeUpClass({
-          classId: sessionForm.classId,
-          className: cls?.name || "Lớp học",
-          subject: getSubjectLabel(sessionForm.subject),
-          date: sessionForm.date.toLocaleDateString("vi-VN"),
-          startTime: sessionForm.startTime,
-          endTime: sessionForm.endTime,
-          room: sessionForm.room || "Chưa xác định"
-        }).catch(err => console.error("Failed to notify make-up class:", err));
+        const cls = classes.find((c) => c._id === sessionForm.classId);
+        notificationService
+          .notifyMakeUpClass({
+            classId: sessionForm.classId,
+            className: cls?.name || "Lớp học",
+            subject: getSubjectLabel(sessionForm.subject),
+            date: sessionForm.date.toLocaleDateString("vi-VN"),
+            startTime: sessionForm.startTime,
+            endTime: sessionForm.endTime,
+            room: sessionForm.room || "Chưa xác định",
+          })
+          .catch((err) =>
+            console.error("Failed to notify make-up class:", err),
+          );
       }
 
       Alert.alert("Thành công", "Đã tạo buổi học bất thường");
