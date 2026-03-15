@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
+import api from "@/lib/api";
 import {
   useClassesStore,
   useAttendanceStore,
@@ -68,9 +69,10 @@ export default function AdminAttendanceScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("classes");
 
@@ -165,18 +167,9 @@ export default function AdminAttendanceScreen() {
   const getClassAttendanceStats = (classData: StoreClass) => {
     const totalStudents =
       classData.students?.length || classData.studentIds?.length || 0;
-    // TODO: Replace with real attendance data from API when available
-    const present = totalStudents;
-    const absent = 0;
-    const attendanceRate = totalStudents > 0 ? 100 : 0;
-    const hasConsecutiveAbsent = false;
-
     return {
       totalStudents,
-      present,
-      absent,
-      attendanceRate,
-      hasConsecutiveAbsent,
+      hasConsecutiveAbsent: false,
     };
   };
 
@@ -187,35 +180,43 @@ export default function AdminAttendanceScreen() {
     setIsLoadingAttendance(true);
 
     try {
-      // Try to fetch real attendance data for the selected date
-      await fetchSessions({ classId: classData._id, date: selectedDate });
-      const classSessions = sessions.filter(
-        (s) =>
-          (typeof s.classId === "object" ? s.classId?._id : s.classId) ===
-          classData._id,
-      );
+      // Use the dedicated endpoint that finds sessions + attendance for the class on the given day
+      const attendanceRes = await api.get("/attendance/by-class-date", {
+        params: { classId: classData._id, date: selectedDate },
+      });
+      const attendanceRecords: StoreAttendanceRecord[] = Array.isArray(
+        attendanceRes.data,
+      )
+        ? attendanceRes.data
+        : [];
 
-      let hasAttendanceData = false;
-      let attendanceRecords: StoreAttendanceRecord[] = [];
-
-      // Check if any session has attendance for this date
-      for (const session of classSessions) {
-        try {
-          const records = await fetchSessionAttendance(session._id);
-          if (records && records.length > 0) {
-            hasAttendanceData = true;
-            attendanceRecords = records;
-            break;
-          }
-        } catch {
-          // No attendance for this session
-        }
-      }
-
-      if (hasAttendanceData) {
-        setClassAttendanceData(attendanceRecords);
+      if (attendanceRecords.length > 0) {
+        // Merge real records + auto-absent for unrecorded students
+        const recordedIds = new Set(
+          attendanceRecords.map((r) =>
+            String(
+              typeof r.studentId === "object" ? r.studentId._id : r.studentId,
+            ),
+          ),
+        );
+        const autoAbsentRecords = (classData.students || [])
+          .filter((student) => !recordedIds.has(String(student._id)))
+          .map((student) => ({
+            _id: `auto-absent-${student._id}`,
+            studentId: {
+              _id: student._id,
+              fullName: student.fullName || student.name || "Học sinh",
+            },
+            status: "absent" as const,
+            sessionId: "",
+            notes: "Chưa điểm danh - Tự động ghi vắng",
+          }));
+        setClassAttendanceData([
+          ...attendanceRecords,
+          ...autoAbsentRecords,
+        ] as unknown as StoreAttendanceRecord[]);
       } else {
-        // Auto-absent: if teacher hasn't taken attendance, default all students to absent
+        // No attendance recorded yet — default all students to absent
         const studentAttendance = (classData.students || []).map((student) => ({
           _id: student._id,
           studentId: {
@@ -258,7 +259,54 @@ export default function AdminAttendanceScreen() {
 
     try {
       const attendance = await fetchSessionAttendance(session._id);
-      setSessionAttendance(attendance || []);
+
+      // Auto-absent: fill absent for students not recorded after session ends
+      const classId =
+        typeof session.classId === "object"
+          ? session.classId?._id
+          : session.classId;
+      const sessionClass = classes.find((c) => c._id === classId);
+
+      if (sessionClass?.students && sessionClass.students.length > 0) {
+        // Check if session has already ended
+        const now = new Date();
+        const sessionEnd = session.endTime ? new Date(session.endTime) : null;
+        const isPastSession = sessionEnd ? now > sessionEnd : true;
+
+        if (isPastSession) {
+          // Build set of student IDs already recorded (normalize to string for reliable comparison)
+          const recordedIds = new Set(
+            (attendance || []).map((r) =>
+              String(
+                typeof r.studentId === "object" ? r.studentId._id : r.studentId,
+              ),
+            ),
+          );
+
+          // Add absent only for students NOT already recorded by the teacher
+          const autoAbsentRecords = sessionClass.students
+            .filter((student) => !recordedIds.has(String(student._id)))
+            .map((student) => ({
+              _id: `auto-absent-${student._id}`,
+              studentId: {
+                _id: student._id,
+                fullName: student.fullName || student.name || "Học sinh",
+              },
+              status: "absent" as const,
+              sessionId: session._id,
+              notes: "Chưa điểm danh - Tự động ghi vắng",
+            }));
+
+          setSessionAttendance([
+            ...(attendance || []),
+            ...autoAbsentRecords,
+          ] as unknown as StoreAttendanceRecord[]);
+        } else {
+          setSessionAttendance(attendance || []);
+        }
+      } else {
+        setSessionAttendance(attendance || []);
+      }
     } catch (error) {
       console.error("Error fetching attendance:", error);
       setSessionAttendance([]);
@@ -345,38 +393,14 @@ export default function AdminAttendanceScreen() {
         <View style={styles.classCardContent}>
           <View style={styles.classCardLeft}>
             <LinearGradient
-              colors={
-                stats.attendanceRate >= 90
-                  ? ["#10B981", "#059669"]
-                  : stats.attendanceRate >= 70
-                    ? ["#F59E0B", "#D97706"]
-                    : ["#EF4444", "#DC2626"]
-              }
+              colors={["#14B8A6", "#0D9488"]}
               style={styles.classCardIcon}
             >
-              <Ionicons
-                name={
-                  stats.attendanceRate >= 90
-                    ? "checkmark"
-                    : stats.attendanceRate >= 70
-                      ? "warning"
-                      : "alert"
-                }
-                size={20}
-                color="#FFFFFF"
-              />
+              <Ionicons name="people" size={20} color="#FFFFFF" />
             </LinearGradient>
 
             <View style={styles.classCardInfo}>
-              <View style={styles.classCardHeader}>
-                <Text style={styles.classCardName}>{classData.name}</Text>
-                {stats.hasConsecutiveAbsent && (
-                  <View style={styles.alertBadge}>
-                    <Ionicons name="notifications" size={10} color="#FFFFFF" />
-                    <Text style={styles.alertBadgeText}>3+ buổi</Text>
-                  </View>
-                )}
-              </View>
+              <Text style={styles.classCardName}>{classData.name}</Text>
               <Text style={styles.classCardTeacher}>
                 GV: {getClassTeacherName(classData)} •{" "}
                 {getBranchName(classData)}
@@ -390,33 +414,14 @@ export default function AdminAttendanceScreen() {
               <Text style={styles.statItemValue}>{stats.totalStudents}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statItemLabel}>Có mặt</Text>
-              <Text style={[styles.statItemValue, { color: "#10B981" }]}>
-                {stats.present}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statItemLabel}>Vắng</Text>
-              <Text style={[styles.statItemValue, { color: "#EF4444" }]}>
-                {stats.absent}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statItemLabel}>Tỷ lệ</Text>
+              <Text style={styles.statItemLabel}>Điểm danh</Text>
               <Text
                 style={[
                   styles.statItemValue,
-                  {
-                    color:
-                      stats.attendanceRate >= 90
-                        ? "#10B981"
-                        : stats.attendanceRate >= 70
-                          ? "#F59E0B"
-                          : "#EF4444",
-                  },
+                  { color: "#9CA3AF", fontSize: 11 },
                 ]}
               >
-                {stats.attendanceRate}%
+                Chọn để xem
               </Text>
             </View>
           </View>
@@ -664,18 +669,101 @@ export default function AdminAttendanceScreen() {
           <Ionicons name="chevron-down" size={16} color="#6B7280" />
         </TouchableOpacity>
       </View>
-      {showDatePicker && (
-        <DateTimePicker
-          value={new Date(selectedDate)}
-          mode="date"
-          onChange={(event: DateTimePickerEvent, date?: Date) => {
-            setShowDatePicker(Platform.OS === "ios");
-            if (date) {
-              setSelectedDate(date.toISOString().split("T")[0]);
-            }
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showDatePicker}
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            justifyContent: "center",
+            alignItems: "center",
           }}
-        />
-      )}
+          activeOpacity={1}
+          onPress={() => setShowDatePicker(false)}
+        >
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: 20,
+              overflow: "hidden",
+              marginHorizontal: 16,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              elevation: 8,
+            }}
+            onStartShouldSetResponder={() => true}
+          >
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingTop: 14,
+                paddingBottom: 4,
+                borderBottomWidth: 1,
+                borderBottomColor: "#F3F4F6",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text
+                style={{ fontSize: 16, fontWeight: "700", color: "#111827" }}
+              >
+                Chọn ngày
+              </Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Ionicons name="close" size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={(() => {
+                const [y, mo, d] = selectedDate.split("-").map(Number);
+                return new Date(y, mo - 1, d);
+              })()}
+              mode="date"
+              display={Platform.OS === "ios" ? "inline" : "calendar"}
+              themeVariant="light"
+              onChange={(event: DateTimePickerEvent, date?: Date) => {
+                if (date) {
+                  const localDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                  setSelectedDate(localDate);
+                }
+                if (event.type === "set") {
+                  setShowDatePicker(false);
+                }
+              }}
+              style={{ backgroundColor: "#FFFFFF" }}
+            />
+            {false && (
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(false)}
+                style={{
+                  margin: 12,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  backgroundColor: "#14B8A6",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#FFFFFF",
+                    fontWeight: "700",
+                    fontSize: 16,
+                  }}
+                >
+                  Xác nhận
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Search and Filter */}
       <View style={styles.searchContainer}>

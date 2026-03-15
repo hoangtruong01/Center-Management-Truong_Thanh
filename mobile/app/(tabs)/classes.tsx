@@ -32,6 +32,9 @@ import {
 } from "@/lib/constants/subjects";
 import api from "@/lib/api";
 import ChildSelector from "@/components/ChildSelector";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 
 const { width } = Dimensions.get("window");
 
@@ -101,7 +104,18 @@ export default function ClassesScreen() {
     teacherId: "",
     description: "",
     maxStudents: "30",
+    startDate: "",
+    endDate: "",
   });
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [addStudentSearch, setAddStudentSearch] = useState("");
+  const [isAddingStudent, setIsAddingStudent] = useState(false);
+  const [allStudents, setAllStudents] = useState<
+    Array<{ _id: string; fullName?: string; name?: string; email: string }>
+  >([]);
+  const [isLoadingAllStudents, setIsLoadingAllStudents] = useState(false);
   const [schedules, setSchedules] = useState<
     Array<{
       daysOfWeek: number[];
@@ -192,6 +206,8 @@ export default function ClassesScreen() {
     setSelectedClass(null);
     setIsEditing(false);
     setShowStudentsList(false);
+    setShowAddStudentModal(false);
+    setAddStudentSearch("");
     setStudentsList([]);
     setStudentSearchQuery("");
   };
@@ -205,6 +221,8 @@ export default function ClassesScreen() {
       teacherId: "",
       description: "",
       maxStudents: "30",
+      startDate: "",
+      endDate: "",
     });
     setSchedules([]);
     setActiveCreatePicker(null);
@@ -252,6 +270,8 @@ export default function ClassesScreen() {
             endTime: sch.endTime,
           })),
         ),
+        ...(createForm.startDate && { startDate: createForm.startDate }),
+        ...(createForm.endDate && { endDate: createForm.endDate }),
       });
       Alert.alert("Thành công", "Đã tạo lớp học mới");
       closeCreateModal();
@@ -260,6 +280,38 @@ export default function ClassesScreen() {
       Alert.alert("Lỗi", error.message || "Không thể tạo lớp học");
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleAddStudent = async (studentId: string) => {
+    if (!selectedClass) return;
+    setIsAddingStudent(true);
+    try {
+      await api.post(`/classes/${selectedClass._id}/students`, { studentId });
+      Alert.alert("Thành công", "Đã thêm học sinh vào lớp");
+      // Refresh student list
+      const response = await api.get(`/classes/${selectedClass._id}`);
+      const classData = response.data;
+      if (
+        classData.studentIds &&
+        Array.isArray(classData.studentIds) &&
+        classData.studentIds.length > 0 &&
+        typeof classData.studentIds[0] === "object"
+      ) {
+        setStudentsList(classData.studentIds);
+      } else if (classData.students && Array.isArray(classData.students)) {
+        setStudentsList(classData.students);
+      }
+      setShowAddStudentModal(false);
+      setAddStudentSearch("");
+      fetchClasses();
+    } catch (error: any) {
+      Alert.alert(
+        "Lỗi",
+        error.response?.data?.message || "Không thể thêm học sinh",
+      );
+    } finally {
+      setIsAddingStudent(false);
     }
   };
 
@@ -556,7 +608,9 @@ export default function ClassesScreen() {
           <View style={styles.modalHeader}>
             <TouchableOpacity
               onPress={() => {
-                if (showStudentsList) {
+                if (showAddStudentModal) {
+                  setShowAddStudentModal(false);
+                } else if (showStudentsList) {
                   setShowStudentsList(false);
                 } else {
                   closeDetail();
@@ -567,33 +621,217 @@ export default function ClassesScreen() {
               <Ionicons name="arrow-back" size={24} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {showStudentsList
-                ? "Danh sách học sinh"
-                : isEditing
-                  ? "Chỉnh sửa lớp học"
-                  : "Chi tiết lớp học"}
+              {showAddStudentModal
+                ? "Thêm học sinh"
+                : showStudentsList
+                  ? "Danh sách học sinh"
+                  : isEditing
+                    ? "Chỉnh sửa lớp học"
+                    : "Chi tiết lớp học"}
             </Text>
-            {isAdmin && !isEditing && (
+            {showAddStudentModal ? (
+              <View style={{ width: 40 }} />
+            ) : isAdmin && !isEditing ? (
               <TouchableOpacity
                 onPress={() => setIsEditing(true)}
                 style={styles.editButton}
               >
                 <Ionicons name="create-outline" size={22} color="#3B82F6" />
               </TouchableOpacity>
-            )}
-            {isEditing && (
+            ) : isEditing ? (
               <TouchableOpacity
                 onPress={() => setIsEditing(false)}
                 style={styles.editButton}
               >
                 <Ionicons name="close" size={22} color="#6B7280" />
               </TouchableOpacity>
+            ) : (
+              <View style={{ width: 40 }} />
             )}
-            {!isAdmin && !showStudentsList && <View style={{ width: 40 }} />}
-            {showStudentsList && <View style={{ width: 40 }} />}
           </View>
 
-          {selectedClass && showStudentsList ? (
+          {selectedClass && showAddStudentModal ? (
+            /* ===== ADD STUDENT VIEW (inside detail modal) ===== */
+            <View style={{ flex: 1 }}>
+              {/* Search */}
+              <View
+                style={{
+                  marginHorizontal: 16,
+                  marginVertical: 12,
+                  backgroundColor: "#F3F4F6",
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 12,
+                }}
+              >
+                <Ionicons name="search" size={20} color="#9CA3AF" />
+                <TextInput
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    fontSize: 15,
+                    color: "#111827",
+                  }}
+                  placeholder="Tìm theo tên hoặc email..."
+                  placeholderTextColor="#9CA3AF"
+                  value={addStudentSearch}
+                  onChangeText={setAddStudentSearch}
+                />
+                {addStudentSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setAddStudentSearch("")}>
+                    <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <FlatList
+                data={
+                  isLoadingAllStudents
+                    ? []
+                    : allStudents
+                        .filter(
+                          (u) => !studentsList.some((s) => s._id === u._id),
+                        )
+                        .filter((u) => {
+                          if (!addStudentSearch.trim()) return true;
+                          const q = addStudentSearch.toLowerCase();
+                          return (
+                            (u.fullName || u.name || "")
+                              .toLowerCase()
+                              .includes(q) ||
+                            (u.email || "").toLowerCase().includes(q)
+                          );
+                        })
+                }
+                keyExtractor={(item) => item._id}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  paddingBottom: 40,
+                }}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: 14,
+                      padding: 14,
+                      marginBottom: 8,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      elevation: 1,
+                    }}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      Alert.alert(
+                        "Xác nhận",
+                        `Thêm ${item.fullName || item.name || item.email} vào lớp ${selectedClass?.name}?`,
+                        [
+                          { text: "Hủy", style: "cancel" },
+                          {
+                            text: "Thêm",
+                            onPress: () => handleAddStudent(item._id),
+                          },
+                        ],
+                      );
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: "#D1FAE5",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginRight: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "bold",
+                          color: "#059669",
+                        }}
+                      >
+                        {(item.fullName || item.name || "?")
+                          .charAt(0)
+                          .toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: "600",
+                          color: "#111827",
+                        }}
+                      >
+                        {item.fullName || item.name || "Chưa cập nhật"}
+                      </Text>
+                      <Text
+                        style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}
+                      >
+                        {item.email}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={24}
+                      color="#10B981"
+                    />
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  isLoadingAllStudents ? (
+                    <View style={{ alignItems: "center", paddingVertical: 48 }}>
+                      <ActivityIndicator size="large" color="#10B981" />
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          marginTop: 12,
+                        }}
+                      >
+                        Đang tải danh sách học sinh...
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={{ alignItems: "center", paddingVertical: 48 }}>
+                      <Ionicons
+                        name="people-outline"
+                        size={56}
+                        color="#D1D5DB"
+                      />
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "600",
+                          color: "#6B7280",
+                          marginTop: 12,
+                        }}
+                      >
+                        {addStudentSearch
+                          ? "Không tìm thấy học sinh"
+                          : "Không còn học sinh để thêm"}
+                      </Text>
+                      <Text
+                        style={{ fontSize: 14, color: "#9CA3AF", marginTop: 4 }}
+                      >
+                        {addStudentSearch
+                          ? "Thử tìm với từ khóa khác"
+                          : "Tất cả học sinh đã trong lớp"}
+                      </Text>
+                    </View>
+                  )
+                }
+              />
+            </View>
+          ) : selectedClass && showStudentsList ? (
             /* ===== STUDENT LIST VIEW (inside detail modal) ===== */
             <View style={{ flex: 1 }}>
               {/* Class info header */}
@@ -632,6 +870,54 @@ export default function ClassesScreen() {
                   </Text>
                 </View>
               </LinearGradient>
+
+              {/* Add student button - admin only */}
+              {isAdmin && (
+                <TouchableOpacity
+                  style={{
+                    marginHorizontal: 16,
+                    marginTop: 12,
+                    backgroundColor: "#10B981",
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                  onPress={async () => {
+                    setAddStudentSearch("");
+                    setShowAddStudentModal(true);
+                    setIsLoadingAllStudents(true);
+                    try {
+                      const response = await api.get("/users", {
+                        params: { role: "student" },
+                      });
+                      const data = Array.isArray(response.data)
+                        ? response.data
+                        : response.data.users || [];
+                      setAllStudents(data);
+                    } catch {
+                      setAllStudents([]);
+                    } finally {
+                      setIsLoadingAllStudents(false);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="person-add" size={18} color="#FFFFFF" />
+                  <Text
+                    style={{
+                      color: "#FFFFFF",
+                      fontWeight: "700",
+                      fontSize: 15,
+                    }}
+                  >
+                    Thêm học sinh
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {/* Search bar */}
               <View
@@ -1594,6 +1880,94 @@ export default function ClassesScreen() {
                   </View>
                 ))}
               </View>
+
+              {/* Start Date */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Ngày bắt đầu</Text>
+                <TouchableOpacity
+                  style={styles.formPicker}
+                  onPress={() => setShowStartDatePicker(true)}
+                >
+                  <Text
+                    style={
+                      createForm.startDate
+                        ? styles.formPickerText
+                        : styles.formPickerPlaceholder
+                    }
+                  >
+                    {createForm.startDate
+                      ? new Date(createForm.startDate).toLocaleDateString(
+                          "vi-VN",
+                          { day: "2-digit", month: "2-digit", year: "numeric" },
+                        )
+                      : "Chọn ngày bắt đầu"}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              {showStartDatePicker && (
+                <DateTimePicker
+                  value={
+                    createForm.startDate
+                      ? new Date(createForm.startDate)
+                      : new Date()
+                  }
+                  mode="date"
+                  display={Platform.OS === "ios" ? "inline" : "calendar"}
+                  onChange={(event: DateTimePickerEvent, date?: Date) => {
+                    setShowStartDatePicker(Platform.OS === "ios");
+                    if (date)
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        startDate: date.toISOString().split("T")[0],
+                      }));
+                  }}
+                />
+              )}
+
+              {/* End Date */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Ngày kết thúc</Text>
+                <TouchableOpacity
+                  style={styles.formPicker}
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Text
+                    style={
+                      createForm.endDate
+                        ? styles.formPickerText
+                        : styles.formPickerPlaceholder
+                    }
+                  >
+                    {createForm.endDate
+                      ? new Date(createForm.endDate).toLocaleDateString(
+                          "vi-VN",
+                          { day: "2-digit", month: "2-digit", year: "numeric" },
+                        )
+                      : "Chọn ngày kết thúc"}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              {showEndDatePicker && (
+                <DateTimePicker
+                  value={
+                    createForm.endDate
+                      ? new Date(createForm.endDate)
+                      : new Date()
+                  }
+                  mode="date"
+                  display={Platform.OS === "ios" ? "inline" : "calendar"}
+                  onChange={(event: DateTimePickerEvent, date?: Date) => {
+                    setShowEndDatePicker(Platform.OS === "ios");
+                    if (date)
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        endDate: date.toISOString().split("T")[0],
+                      }));
+                  }}
+                />
+              )}
 
               {/* Description */}
               <View style={styles.formGroup}>

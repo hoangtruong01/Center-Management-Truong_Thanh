@@ -218,6 +218,7 @@ export default function ScheduleScreen() {
     sessions: extraSessions,
   } = useSessionsStore();
   const [adminExtraSessions, setAdminExtraSessions] = useState<any[]>([]);
+  const [teacherExtraSessions, setTeacherExtraSessions] = useState<any[]>([]);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [sessionForm, setSessionForm] = useState({
     branchId: "",
@@ -306,6 +307,25 @@ export default function ScheduleScreen() {
           );
         } catch {
           setAdminExtraSessions([]);
+        }
+      }
+      // For teacher, fetch irregular sessions assigned to them
+      if (user.role === "teacher") {
+        try {
+          const { startDate, endDate } = getWeekRange(currentWeekStart);
+          const res = await api.get("/sessions/schedule", {
+            params: { startDate, endDate, teacherId: user._id },
+          });
+          const data = res.data;
+          setTeacherExtraSessions(
+            Array.isArray(data)
+              ? data.filter(
+                  (s: any) => s.type === "makeup" || s.type === "exam",
+                )
+              : [],
+          );
+        } catch {
+          setTeacherExtraSessions([]);
         }
       }
     } else if (user.role === "student") {
@@ -416,8 +436,47 @@ export default function ScheduleScreen() {
 
     // Sort by start time
     timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    // Add irregular sessions assigned to this teacher for selected date
+    const toHHMM = (d: Date) =>
+      `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    teacherExtraSessions.forEach((session: any) => {
+      if (!session.startTime) return;
+      const sessDate = new Date(session.startTime);
+      if (
+        sessDate.getDate() === selectedDate.getDate() &&
+        sessDate.getMonth() === selectedDate.getMonth() &&
+        sessDate.getFullYear() === selectedDate.getFullYear()
+      ) {
+        const classId =
+          typeof session.classId === "object"
+            ? session.classId?._id || ""
+            : session.classId || "";
+        const classObj = classes.find((c) => c._id === classId);
+        timetable.push({
+          classId,
+          className:
+            typeof session.classId === "object"
+              ? session.classId?.name || "Buổi học bất thường"
+              : classObj?.name || "Buổi học bất thường",
+          subject:
+            typeof session.classId === "object"
+              ? session.classId?.subject || "Chưa xác định"
+              : classObj?.subject || "Chưa xác định",
+          startTime: toHHMM(sessDate),
+          endTime: toHHMM(new Date(session.endTime)),
+          room: session.room,
+          sessionId: session._id,
+          sessionTitle: session.title,
+          sessionType: session.type as "makeup" | "exam",
+          isIrregular: true,
+        });
+      }
+    });
+    timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
     return timetable;
-  }, [classes, selectedDate, user]);
+  }, [classes, selectedDate, user, teacherExtraSessions]);
 
   // Build timetable by week for teacher (giống web)
   interface DaySchedule {
@@ -479,6 +538,45 @@ export default function ScheduleScreen() {
         }
       });
 
+      // Add irregular sessions for this day
+      const toHHMM2 = (d: Date) =>
+        `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+      teacherExtraSessions.forEach((session: any) => {
+        if (!session.startTime) return;
+        const sessDate = new Date(session.startTime);
+        if (
+          sessDate.getDate() === date.getDate() &&
+          sessDate.getMonth() === date.getMonth() &&
+          sessDate.getFullYear() === date.getFullYear()
+        ) {
+          const classId =
+            typeof session.classId === "object"
+              ? session.classId?._id || ""
+              : session.classId || "";
+          const classObj = classes.find((c) => c._id === classId);
+          daySchedules.push({
+            classId,
+            className:
+              typeof session.classId === "object"
+                ? session.classId?.name || "Buổi học bất thường"
+                : classObj?.name || "Buổi học bất thường",
+            subject:
+              typeof session.classId === "object"
+                ? session.classId?.subject || "Chưa xác định"
+                : classObj?.subject || "Chưa xác định",
+            startTime: toHHMM2(sessDate),
+            endTime: toHHMM2(new Date(session.endTime)),
+            room: session.room,
+            studentCount:
+              classObj?.students?.length || classObj?.studentIds?.length || 0,
+            sessionId: session._id,
+            sessionTitle: session.title,
+            sessionType: session.type as "makeup" | "exam",
+            isIrregular: true,
+          });
+        }
+      });
+
       // Sort by start time
       daySchedules.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -496,7 +594,7 @@ export default function ScheduleScreen() {
     // Reorder so Monday is first
     const mondayIndex = days.findIndex((d) => d.day === "THỨ HAI");
     return [...days.slice(mondayIndex), ...days.slice(0, mondayIndex)];
-  }, [classes, currentWeekStart, user]);
+  }, [classes, currentWeekStart, user, teacherExtraSessions]);
 
   // Build timetable for admin - all classes with filters
   const adminTimetable = useMemo((): TimetableItem[] => {
@@ -824,6 +922,54 @@ export default function ScheduleScreen() {
       }
     });
 
+    // Merge irregular sessions (makeup/exam) for the selected date
+    const toHHMM = (d: Date) =>
+      `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    filteredSessions.forEach((session) => {
+      if (session.type !== "makeup" && session.type !== "exam") return;
+      const sessStart = new Date(session.startTime);
+      const sessEnd = new Date(session.endTime);
+      const classId =
+        typeof session.classId === "object"
+          ? session.classId._id
+          : session.classId;
+      const cls = classes.find((c) => c._id === classId);
+      const teacherName = cls
+        ? typeof cls.teacherId === "object"
+          ? (cls.teacherId as any).fullName ||
+            (cls.teacherId as any).name ||
+            "Giáo viên"
+          : "Giáo viên"
+        : "Giáo viên";
+      // Find attendance status for this session if available
+      const attRecord = studentAttendanceRecords.find(
+        (r) =>
+          String(
+            typeof r.sessionId === "object" ? r.sessionId?._id : r.sessionId,
+          ) === String(session._id),
+      );
+      timetable.push({
+        classId: classId || "",
+        className:
+          (typeof session.classId === "object"
+            ? (session.classId as any).name
+            : cls?.name) || "Buổi học bất thường",
+        subject:
+          (typeof session.classId === "object"
+            ? (session.classId as any).subject
+            : cls?.subject) || "",
+        startTime: toHHMM(sessStart),
+        endTime: toHHMM(sessEnd),
+        room: session.room,
+        teacherName,
+        isIrregular: true,
+        sessionId: session._id,
+        sessionType: session.type as "makeup" | "exam",
+        colorIndex: timetable.length % CLASS_COLORS.length,
+        attendanceStatus: attRecord?.status,
+      });
+    });
+
     // Sort by start time
     timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
     return timetable;
@@ -832,6 +978,7 @@ export default function ScheduleScreen() {
     selectedDate,
     user,
     sessions,
+    filteredSessions,
     selectedChild?._id,
     studentAttendanceRecords,
   ]);
@@ -1089,16 +1236,23 @@ export default function ScheduleScreen() {
       // Send notifications for each student
       const className = selectedScheduleItem.className;
       const dateStr = attendanceDate.toLocaleDateString("vi-VN");
-      
-      attendanceRecords.forEach(record => {
+
+      attendanceRecords.forEach((record) => {
         if (record.status) {
-          notificationService.notifyAttendance({
-            studentId: record.studentId,
-            studentName: record.name,
-            status: record.status,
-            className: className,
-            date: dateStr
-          }).catch(err => console.error(`Failed to notify attendance for ${record.name}:`, err));
+          notificationService
+            .notifyAttendance({
+              studentId: record.studentId,
+              studentName: record.name,
+              status: record.status,
+              className: className,
+              date: dateStr,
+            })
+            .catch((err) =>
+              console.error(
+                `Failed to notify attendance for ${record.name}:`,
+                err,
+              ),
+            );
         }
       });
 
@@ -1359,16 +1513,20 @@ export default function ScheduleScreen() {
 
       // Notify if it's a makeup class
       if (sessionForm.type === "makeup" && sessionForm.classId) {
-        const cls = classes.find(c => c._id === sessionForm.classId);
-        notificationService.notifyMakeUpClass({
-          classId: sessionForm.classId,
-          className: cls?.name || "Lớp học",
-          subject: getSubjectLabel(sessionForm.subject),
-          date: sessionForm.date.toLocaleDateString("vi-VN"),
-          startTime: sessionForm.startTime,
-          endTime: sessionForm.endTime,
-          room: sessionForm.room || "Chưa xác định"
-        }).catch(err => console.error("Failed to notify make-up class:", err));
+        const cls = classes.find((c) => c._id === sessionForm.classId);
+        notificationService
+          .notifyMakeUpClass({
+            classId: sessionForm.classId,
+            className: cls?.name || "Lớp học",
+            subject: getSubjectLabel(sessionForm.subject),
+            date: sessionForm.date.toLocaleDateString("vi-VN"),
+            startTime: sessionForm.startTime,
+            endTime: sessionForm.endTime,
+            room: sessionForm.room || "Chưa xác định",
+          })
+          .catch((err) =>
+            console.error("Failed to notify make-up class:", err),
+          );
       }
 
       Alert.alert("Thành công", "Đã tạo buổi học bất thường");
