@@ -922,6 +922,54 @@ export default function ScheduleScreen() {
       }
     });
 
+    // Merge irregular sessions (makeup/exam) for the selected date
+    const toHHMM = (d: Date) =>
+      `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    filteredSessions.forEach((session) => {
+      if (session.type !== "makeup" && session.type !== "exam") return;
+      const sessStart = new Date(session.startTime);
+      const sessEnd = new Date(session.endTime);
+      const classId =
+        typeof session.classId === "object"
+          ? session.classId._id
+          : session.classId;
+      const cls = classes.find((c) => c._id === classId);
+      const teacherName = cls
+        ? typeof cls.teacherId === "object"
+          ? (cls.teacherId as any).fullName ||
+            (cls.teacherId as any).name ||
+            "Giáo viên"
+          : "Giáo viên"
+        : "Giáo viên";
+      // Find attendance status for this session if available
+      const attRecord = studentAttendanceRecords.find(
+        (r) =>
+          String(
+            typeof r.sessionId === "object" ? r.sessionId?._id : r.sessionId,
+          ) === String(session._id),
+      );
+      timetable.push({
+        classId: classId || "",
+        className:
+          (typeof session.classId === "object"
+            ? (session.classId as any).name
+            : cls?.name) || "Buổi học bất thường",
+        subject:
+          (typeof session.classId === "object"
+            ? (session.classId as any).subject
+            : cls?.subject) || "",
+        startTime: toHHMM(sessStart),
+        endTime: toHHMM(sessEnd),
+        room: session.room,
+        teacherName,
+        isIrregular: true,
+        sessionId: session._id,
+        sessionType: session.type as "makeup" | "exam",
+        colorIndex: timetable.length % CLASS_COLORS.length,
+        attendanceStatus: attRecord?.status,
+      });
+    });
+
     // Sort by start time
     timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
     return timetable;
@@ -930,6 +978,7 @@ export default function ScheduleScreen() {
     selectedDate,
     user,
     sessions,
+    filteredSessions,
     selectedChild?._id,
     studentAttendanceRecords,
   ]);

@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
+import api from "@/lib/api";
 import {
   useClassesStore,
   useAttendanceStore,
@@ -68,9 +69,10 @@ export default function AdminAttendanceScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("classes");
 
@@ -178,35 +180,18 @@ export default function AdminAttendanceScreen() {
     setIsLoadingAttendance(true);
 
     try {
-      // Try to fetch real attendance data for the selected date
-      await fetchSessions({ classId: classData._id, date: selectedDate });
-      // Read fresh sessions directly from store state (avoids stale closure)
-      const freshSessions = useSessionsStore.getState().sessions;
-      const classSessions = freshSessions.filter(
-        (s) =>
-          (typeof s.classId === "object" ? s.classId?._id : s.classId) ===
-          classData._id,
-      );
+      // Use the dedicated endpoint that finds sessions + attendance for the class on the given day
+      const attendanceRes = await api.get("/attendance/by-class-date", {
+        params: { classId: classData._id, date: selectedDate },
+      });
+      const attendanceRecords: StoreAttendanceRecord[] = Array.isArray(
+        attendanceRes.data,
+      )
+        ? attendanceRes.data
+        : [];
 
-      let hasAttendanceData = false;
-      let attendanceRecords: StoreAttendanceRecord[] = [];
-
-      // Check if any session has attendance for this date
-      for (const session of classSessions) {
-        try {
-          const records = await fetchSessionAttendance(session._id);
-          if (records && records.length > 0) {
-            hasAttendanceData = true;
-            attendanceRecords = records;
-            break;
-          }
-        } catch {
-          // No attendance for this session
-        }
-      }
-
-      if (hasAttendanceData) {
-        // Merge real records + auto-absent only for students not yet recorded
+      if (attendanceRecords.length > 0) {
+        // Merge real records + auto-absent for unrecorded students
         const recordedIds = new Set(
           attendanceRecords.map((r) =>
             String(
@@ -231,7 +216,7 @@ export default function AdminAttendanceScreen() {
           ...autoAbsentRecords,
         ] as unknown as StoreAttendanceRecord[]);
       } else {
-        // Auto-absent: if teacher hasn't taken attendance, default all students to absent
+        // No attendance recorded yet — default all students to absent
         const studentAttendance = (classData.students || []).map((student) => ({
           _id: student._id,
           studentId: {
@@ -736,21 +721,25 @@ export default function AdminAttendanceScreen() {
               </TouchableOpacity>
             </View>
             <DateTimePicker
-              value={new Date(selectedDate)}
+              value={(() => {
+                const [y, mo, d] = selectedDate.split("-").map(Number);
+                return new Date(y, mo - 1, d);
+              })()}
               mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "calendar"}
-              textColor="#111827"
+              display={Platform.OS === "ios" ? "inline" : "calendar"}
+              themeVariant="light"
               onChange={(event: DateTimePickerEvent, date?: Date) => {
                 if (date) {
-                  setSelectedDate(date.toISOString().split("T")[0]);
+                  const localDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                  setSelectedDate(localDate);
                 }
-                if (event.type === "set" && Platform.OS !== "ios") {
+                if (event.type === "set") {
                   setShowDatePicker(false);
                 }
               }}
               style={{ backgroundColor: "#FFFFFF" }}
             />
-            {Platform.OS === "ios" && (
+            {false && (
               <TouchableOpacity
                 onPress={() => setShowDatePicker(false)}
                 style={{
