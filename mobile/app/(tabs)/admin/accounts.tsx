@@ -179,8 +179,8 @@ export default function AccountsManagementScreen() {
 
     setIsCreating(true);
     try {
-      await api.post("/auth/register", {
-        fullName: newUserForm.fullName.trim(),
+      await api.post("/users", {
+        name: newUserForm.fullName.trim(),
         email: newUserForm.email.trim().toLowerCase(),
         phone: newUserForm.phone.trim() || undefined,
         password: newUserForm.password,
@@ -192,8 +192,11 @@ export default function AccountsManagementScreen() {
       resetCreateForm();
       fetchUsers();
     } catch (error: any) {
-      const message =
+      const rawMessage =
         error.response?.data?.message || "Không thể tạo tài khoản";
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.join("\n")
+        : String(rawMessage);
       Alert.alert("Lỗi", message);
     } finally {
       setIsCreating(false);

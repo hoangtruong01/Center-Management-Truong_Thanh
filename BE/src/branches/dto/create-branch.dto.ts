@@ -4,10 +4,15 @@ export class CreateBranchDto {
   @IsString()
   name: string;
 
+  @IsOptional()
   @IsString()
-  address: string;
+  address?: string;
 
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

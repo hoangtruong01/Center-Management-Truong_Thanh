@@ -164,8 +164,8 @@ export default function ScheduleManager({
   // Fetch schedule when date range or filters change
   useEffect(() => {
     const query: ScheduleQuery = {
-      startDate: formatDate(dateRange.start),
-      endDate: formatDate(dateRange.end),
+      startDate: dateRange.start.toISOString(),
+      endDate: dateRange.end.toISOString(),
     };
     if (selectedClassFilter) query.classId = selectedClassFilter;
     if (selectedTeacherFilter) query.teacherId = selectedTeacherFilter;
@@ -173,8 +173,8 @@ export default function ScheduleManager({
 
     fetchSchedule(query).catch(console.error);
     fetchStatistics(
-      formatDate(dateRange.start),
-      formatDate(dateRange.end),
+      dateRange.start.toISOString(),
+      dateRange.end.toISOString(),
       selectedBranchFilter || undefined,
     ).catch(console.error);
   }, [

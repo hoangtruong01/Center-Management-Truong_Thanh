@@ -49,8 +49,10 @@ export class SessionsService {
     const { startDate, endDate, teacherId, classId, branchId, status } = query;
 
     const filter: any = {
-      startTime: { $gte: new Date(startDate) },
-      endTime: { $lte: new Date(endDate) },
+      startTime: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      },
     };
 
     if (classId) {
@@ -79,7 +81,19 @@ export class SessionsService {
           return []; // classId không thuộc teacher/branch này
         }
       } else {
-        filter.classId = { $in: classIds };
+        // Include sessions from teacher's classes OR directly assigned to the teacher
+        const orConditions: any[] = [{ classId: { $in: classIds } }];
+        if (teacherId) {
+          orConditions.push({
+            teacherId: new Types.ObjectId(teacherId),
+            classId: { $exists: false },
+          });
+          orConditions.push({
+            teacherId: new Types.ObjectId(teacherId),
+            classId: null,
+          });
+        }
+        filter.$or = orConditions;
       }
     }
 
@@ -302,9 +316,17 @@ export class SessionsService {
     const role = user.role;
 
     if (role === 'teacher') {
-      return this.getTeacherSchedule(userId, startDate.toISOString(), endDate.toISOString());
+      return this.getTeacherSchedule(
+        userId,
+        startDate.toISOString(),
+        endDate.toISOString(),
+      );
     } else if (role === 'student') {
-      return this.getStudentSchedule(userId, startDate.toISOString(), endDate.toISOString());
+      return this.getStudentSchedule(
+        userId,
+        startDate.toISOString(),
+        endDate.toISOString(),
+      );
     }
 
     // For parents, get sessions of their children
@@ -321,10 +343,12 @@ export class SessionsService {
       // Loại bỏ sessions trùng lặp dựa trên _id
       const uniqueSessions = allSessions.filter(
         (session, index, self) =>
-          index === self.findIndex((s) => s._id.toString() === session._id.toString()),
+          index ===
+          self.findIndex((s) => s._id.toString() === session._id.toString()),
       );
       return uniqueSessions.sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
       );
     }
 

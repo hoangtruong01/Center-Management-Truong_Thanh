@@ -8,14 +8,20 @@ export class Branch {
   @Prop({ required: true, unique: true, trim: true })
   name: string;
 
-  @Prop({ required: true, trim: true })
-  address: string;
+  @Prop({ required: false, trim: true })
+  address?: string;
 
   @Prop({ required: false, trim: true })
   phone?: string;
 
+  @Prop({ required: false, trim: true })
+  description?: string;
+
   @Prop({ default: 'active', enum: ['active', 'inactive'], type: String })
   status: 'active' | 'inactive';
+
+  @Prop({ default: true, type: Boolean })
+  isActive: boolean;
 }
 
 export const BranchSchema = SchemaFactory.createForClass(Branch);
