@@ -36,15 +36,15 @@ const incidentTypeOptions: {
   label: string;
   icon: string;
 }[] = [
-  { value: "bug_error", label: "Lỗi hệ thống", icon: "bug" },
-  { value: "ui_issue", label: "Vấn đề giao diện", icon: "phone-portrait" },
-  { value: "performance_issue", label: "Hiệu suất chậm", icon: "speedometer" },
-  { value: "login_issue", label: "Lỗi đăng nhập", icon: "log-in" },
-  { value: "data_issue", label: "Vấn đề dữ liệu", icon: "server" },
-  { value: "payment_issue", label: "Vấn đề thanh toán", icon: "card" },
-  { value: "feature_request", label: "Yêu cầu tính năng", icon: "bulb" },
-  { value: "other", label: "Khác", icon: "ellipsis-horizontal" },
-];
+    { value: "bug_error", label: "Lỗi hệ thống", icon: "bug" },
+    { value: "ui_issue", label: "Vấn đề giao diện", icon: "phone-portrait" },
+    { value: "performance_issue", label: "Hiệu suất chậm", icon: "speedometer" },
+    { value: "login_issue", label: "Lỗi đăng nhập", icon: "log-in" },
+    { value: "data_issue", label: "Vấn đề dữ liệu", icon: "server" },
+    { value: "payment_issue", label: "Vấn đề thanh toán", icon: "card" },
+    { value: "feature_request", label: "Yêu cầu tính năng", icon: "bulb" },
+    { value: "other", label: "Khác", icon: "ellipsis-horizontal" },
+  ];
 
 const getIncidentTypeIcon = (type: IncidentType): string => {
   const option = incidentTypeOptions.find((o) => o.value === type);
@@ -137,7 +137,7 @@ function ReportIncidentModal({
                       style={[
                         styles.typeOption,
                         selectedType === option.value &&
-                          styles.typeOptionSelected,
+                        styles.typeOptionSelected,
                       ]}
                       onPress={() => setSelectedType(option.value)}
                       activeOpacity={0.7}
@@ -164,7 +164,7 @@ function ReportIncidentModal({
                         style={[
                           styles.typeOptionLabel,
                           selectedType === option.value &&
-                            styles.typeOptionLabelSelected,
+                          styles.typeOptionLabelSelected,
                         ]}
                       >
                         {option.label}
@@ -237,7 +237,7 @@ function ReportIncidentModal({
                   style={[
                     styles.submitButton,
                     (description.trim().length < 10 || isLoading) &&
-                      styles.submitButtonDisabled,
+                    styles.submitButtonDisabled,
                   ]}
                   onPress={handleSubmit}
                   disabled={description.trim().length < 10 || isLoading}
@@ -458,7 +458,7 @@ export default function IncidentsReportScreen() {
   ) => {
     try {
       await createIncident({ type, description, platform: "mobile" });
-      
+
       // Notify admin
       try {
         await notificationService.notifyAdmin({
@@ -606,7 +606,7 @@ export default function IncidentsReportScreen() {
                     style={[
                       styles.filterBadgeText,
                       activeFilter === filter.key &&
-                        styles.filterBadgeTextActive,
+                      styles.filterBadgeTextActive,
                     ]}
                   >
                     {filter.count}
@@ -631,8 +631,8 @@ export default function IncidentsReportScreen() {
                 {activeFilter === "all"
                   ? "Chưa có báo cáo sự cố nào"
                   : `Không có sự cố ${filters
-                      .find((f) => f.key === activeFilter)
-                      ?.label.toLowerCase()}`}
+                    .find((f) => f.key === activeFilter)
+                    ?.label.toLowerCase()}`}
               </Text>
               <Text style={styles.emptyStateSubtitle}>
                 Nếu gặp vấn đề, hãy nhấn nút + để báo cáo
