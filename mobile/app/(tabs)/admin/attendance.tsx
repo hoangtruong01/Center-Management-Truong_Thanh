@@ -165,18 +165,9 @@ export default function AdminAttendanceScreen() {
   const getClassAttendanceStats = (classData: StoreClass) => {
     const totalStudents =
       classData.students?.length || classData.studentIds?.length || 0;
-    // TODO: Replace with real attendance data from API when available
-    const present = totalStudents;
-    const absent = 0;
-    const attendanceRate = totalStudents > 0 ? 100 : 0;
-    const hasConsecutiveAbsent = false;
-
     return {
       totalStudents,
-      present,
-      absent,
-      attendanceRate,
-      hasConsecutiveAbsent,
+      hasConsecutiveAbsent: false,
     };
   };
 
@@ -189,7 +180,9 @@ export default function AdminAttendanceScreen() {
     try {
       // Try to fetch real attendance data for the selected date
       await fetchSessions({ classId: classData._id, date: selectedDate });
-      const classSessions = sessions.filter(
+      // Read fresh sessions directly from store state (avoids stale closure)
+      const freshSessions = useSessionsStore.getState().sessions;
+      const classSessions = freshSessions.filter(
         (s) =>
           (typeof s.classId === "object" ? s.classId?._id : s.classId) ===
           classData._id,
@@ -213,7 +206,27 @@ export default function AdminAttendanceScreen() {
       }
 
       if (hasAttendanceData) {
-        setClassAttendanceData(attendanceRecords);
+        // Merge real records + auto-absent only for students not yet recorded
+        const recordedIds = new Set(
+          attendanceRecords.map((r) =>
+            String(typeof r.studentId === "object" ? r.studentId._id : r.studentId),
+          ),
+        );
+        const autoAbsentRecords = (classData.students || [])
+          .filter((student) => !recordedIds.has(String(student._id)))
+          .map((student) => ({
+            _id: `auto-absent-${student._id}`,
+            studentId: {
+              _id: student._id,
+              fullName: student.fullName || student.name || "Học sinh",
+            },
+            status: "absent" as const,
+            sessionId: "",
+            notes: "Chưa điểm danh - Tự động ghi vắng",
+          }));
+        setClassAttendanceData(
+          [...attendanceRecords, ...autoAbsentRecords] as unknown as StoreAttendanceRecord[],
+        );
       } else {
         // Auto-absent: if teacher hasn't taken attendance, default all students to absent
         const studentAttendance = (classData.students || []).map((student) => ({
@@ -258,7 +271,52 @@ export default function AdminAttendanceScreen() {
 
     try {
       const attendance = await fetchSessionAttendance(session._id);
-      setSessionAttendance(attendance || []);
+
+      // Auto-absent: fill absent for students not recorded after session ends
+      const classId =
+        typeof session.classId === "object"
+          ? session.classId?._id
+          : session.classId;
+      const sessionClass = classes.find((c) => c._id === classId);
+
+      if (sessionClass?.students && sessionClass.students.length > 0) {
+        // Check if session has already ended
+        const now = new Date();
+        const sessionEnd = session.endTime ? new Date(session.endTime) : null;
+        const isPastSession = sessionEnd ? now > sessionEnd : true;
+
+        if (isPastSession) {
+          // Build set of student IDs already recorded (normalize to string for reliable comparison)
+          const recordedIds = new Set(
+            (attendance || []).map((r) =>
+              String(typeof r.studentId === "object" ? r.studentId._id : r.studentId),
+            ),
+          );
+
+          // Add absent only for students NOT already recorded by the teacher
+          const autoAbsentRecords = sessionClass.students
+            .filter((student) => !recordedIds.has(String(student._id)))
+            .map((student) => ({
+              _id: `auto-absent-${student._id}`,
+              studentId: {
+                _id: student._id,
+                fullName: student.fullName || student.name || "Học sinh",
+              },
+              status: "absent" as const,
+              sessionId: session._id,
+              notes: "Chưa điểm danh - Tự động ghi vắng",
+            }));
+
+          setSessionAttendance([
+            ...(attendance || []),
+            ...autoAbsentRecords,
+          ] as unknown as StoreAttendanceRecord[]);
+        } else {
+          setSessionAttendance(attendance || []);
+        }
+      } else {
+        setSessionAttendance(attendance || []);
+      }
     } catch (error) {
       console.error("Error fetching attendance:", error);
       setSessionAttendance([]);
@@ -345,38 +403,14 @@ export default function AdminAttendanceScreen() {
         <View style={styles.classCardContent}>
           <View style={styles.classCardLeft}>
             <LinearGradient
-              colors={
-                stats.attendanceRate >= 90
-                  ? ["#10B981", "#059669"]
-                  : stats.attendanceRate >= 70
-                    ? ["#F59E0B", "#D97706"]
-                    : ["#EF4444", "#DC2626"]
-              }
+              colors={["#14B8A6", "#0D9488"]}
               style={styles.classCardIcon}
             >
-              <Ionicons
-                name={
-                  stats.attendanceRate >= 90
-                    ? "checkmark"
-                    : stats.attendanceRate >= 70
-                      ? "warning"
-                      : "alert"
-                }
-                size={20}
-                color="#FFFFFF"
-              />
+              <Ionicons name="people" size={20} color="#FFFFFF" />
             </LinearGradient>
 
             <View style={styles.classCardInfo}>
-              <View style={styles.classCardHeader}>
-                <Text style={styles.classCardName}>{classData.name}</Text>
-                {stats.hasConsecutiveAbsent && (
-                  <View style={styles.alertBadge}>
-                    <Ionicons name="notifications" size={10} color="#FFFFFF" />
-                    <Text style={styles.alertBadgeText}>3+ buổi</Text>
-                  </View>
-                )}
-              </View>
+              <Text style={styles.classCardName}>{classData.name}</Text>
               <Text style={styles.classCardTeacher}>
                 GV: {getClassTeacherName(classData)} •{" "}
                 {getBranchName(classData)}
@@ -390,33 +424,9 @@ export default function AdminAttendanceScreen() {
               <Text style={styles.statItemValue}>{stats.totalStudents}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statItemLabel}>Có mặt</Text>
-              <Text style={[styles.statItemValue, { color: "#10B981" }]}>
-                {stats.present}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statItemLabel}>Vắng</Text>
-              <Text style={[styles.statItemValue, { color: "#EF4444" }]}>
-                {stats.absent}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statItemLabel}>Tỷ lệ</Text>
-              <Text
-                style={[
-                  styles.statItemValue,
-                  {
-                    color:
-                      stats.attendanceRate >= 90
-                        ? "#10B981"
-                        : stats.attendanceRate >= 70
-                          ? "#F59E0B"
-                          : "#EF4444",
-                  },
-                ]}
-              >
-                {stats.attendanceRate}%
+              <Text style={styles.statItemLabel}>Điểm danh</Text>
+              <Text style={[styles.statItemValue, { color: "#9CA3AF", fontSize: 11 }]}>
+                Chọn để xem
               </Text>
             </View>
           </View>
@@ -664,18 +674,97 @@ export default function AdminAttendanceScreen() {
           <Ionicons name="chevron-down" size={16} color="#6B7280" />
         </TouchableOpacity>
       </View>
-      {showDatePicker && (
-        <DateTimePicker
-          value={new Date(selectedDate)}
-          mode="date"
-          onChange={(event: DateTimePickerEvent, date?: Date) => {
-            setShowDatePicker(Platform.OS === "ios");
-            if (date) {
-              setSelectedDate(date.toISOString().split("T")[0]);
-            }
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showDatePicker}
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            justifyContent: "center",
+            alignItems: "center",
           }}
-        />
-      )}
+          activeOpacity={1}
+          onPress={() => setShowDatePicker(false)}
+        >
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: 20,
+              overflow: "hidden",
+              marginHorizontal: 16,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              elevation: 8,
+            }}
+            onStartShouldSetResponder={() => true}
+          >
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingTop: 14,
+                paddingBottom: 4,
+                borderBottomWidth: 1,
+                borderBottomColor: "#F3F4F6",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text
+                style={{ fontSize: 16, fontWeight: "700", color: "#111827" }}
+              >
+                Chọn ngày
+              </Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Ionicons name="close" size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={new Date(selectedDate)}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "calendar"}
+              textColor="#111827"
+              onChange={(event: DateTimePickerEvent, date?: Date) => {
+                if (date) {
+                  setSelectedDate(date.toISOString().split("T")[0]);
+                }
+                if (event.type === "set" && Platform.OS !== "ios") {
+                  setShowDatePicker(false);
+                }
+              }}
+              style={{ backgroundColor: "#FFFFFF" }}
+            />
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(false)}
+                style={{
+                  margin: 12,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  backgroundColor: "#14B8A6",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#FFFFFF",
+                    fontWeight: "700",
+                    fontSize: 16,
+                  }}
+                >
+                  Xác nhận
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Search and Filter */}
       <View style={styles.searchContainer}>

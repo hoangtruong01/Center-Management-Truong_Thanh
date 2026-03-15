@@ -218,6 +218,7 @@ export default function ScheduleScreen() {
     sessions: extraSessions,
   } = useSessionsStore();
   const [adminExtraSessions, setAdminExtraSessions] = useState<any[]>([]);
+  const [teacherExtraSessions, setTeacherExtraSessions] = useState<any[]>([]);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [sessionForm, setSessionForm] = useState({
     branchId: "",
@@ -306,6 +307,25 @@ export default function ScheduleScreen() {
           );
         } catch {
           setAdminExtraSessions([]);
+        }
+      }
+      // For teacher, fetch irregular sessions assigned to them
+      if (user.role === "teacher") {
+        try {
+          const { startDate, endDate } = getWeekRange(currentWeekStart);
+          const res = await api.get("/sessions/schedule", {
+            params: { startDate, endDate, teacherId: user._id },
+          });
+          const data = res.data;
+          setTeacherExtraSessions(
+            Array.isArray(data)
+              ? data.filter(
+                  (s: any) => s.type === "makeup" || s.type === "exam",
+                )
+              : [],
+          );
+        } catch {
+          setTeacherExtraSessions([]);
         }
       }
     } else if (user.role === "student") {
@@ -416,8 +436,47 @@ export default function ScheduleScreen() {
 
     // Sort by start time
     timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    // Add irregular sessions assigned to this teacher for selected date
+    const toHHMM = (d: Date) =>
+      `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    teacherExtraSessions.forEach((session: any) => {
+      if (!session.startTime) return;
+      const sessDate = new Date(session.startTime);
+      if (
+        sessDate.getDate() === selectedDate.getDate() &&
+        sessDate.getMonth() === selectedDate.getMonth() &&
+        sessDate.getFullYear() === selectedDate.getFullYear()
+      ) {
+        const classId =
+          typeof session.classId === "object"
+            ? session.classId?._id || ""
+            : session.classId || "";
+        const classObj = classes.find((c) => c._id === classId);
+        timetable.push({
+          classId,
+          className:
+            typeof session.classId === "object"
+              ? session.classId?.name || "Buổi học bất thường"
+              : classObj?.name || "Buổi học bất thường",
+          subject:
+            typeof session.classId === "object"
+              ? session.classId?.subject || "Chưa xác định"
+              : classObj?.subject || "Chưa xác định",
+          startTime: toHHMM(sessDate),
+          endTime: toHHMM(new Date(session.endTime)),
+          room: session.room,
+          sessionId: session._id,
+          sessionTitle: session.title,
+          sessionType: session.type as "makeup" | "exam",
+          isIrregular: true,
+        });
+      }
+    });
+    timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
     return timetable;
-  }, [classes, selectedDate, user]);
+  }, [classes, selectedDate, user, teacherExtraSessions]);
 
   // Build timetable by week for teacher (giống web)
   interface DaySchedule {
@@ -479,6 +538,44 @@ export default function ScheduleScreen() {
         }
       });
 
+      // Add irregular sessions for this day
+      const toHHMM2 = (d: Date) =>
+        `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+      teacherExtraSessions.forEach((session: any) => {
+        if (!session.startTime) return;
+        const sessDate = new Date(session.startTime);
+        if (
+          sessDate.getDate() === date.getDate() &&
+          sessDate.getMonth() === date.getMonth() &&
+          sessDate.getFullYear() === date.getFullYear()
+        ) {
+          const classId =
+            typeof session.classId === "object"
+              ? session.classId?._id || ""
+              : session.classId || "";
+          const classObj = classes.find((c) => c._id === classId);
+          daySchedules.push({
+            classId,
+            className:
+              typeof session.classId === "object"
+                ? session.classId?.name || "Buổi học bất thường"
+                : classObj?.name || "Buổi học bất thường",
+            subject:
+              typeof session.classId === "object"
+                ? session.classId?.subject || "Chưa xác định"
+                : classObj?.subject || "Chưa xác định",
+            startTime: toHHMM2(sessDate),
+            endTime: toHHMM2(new Date(session.endTime)),
+            room: session.room,
+            studentCount: classObj?.students?.length || classObj?.studentIds?.length || 0,
+            sessionId: session._id,
+            sessionTitle: session.title,
+            sessionType: session.type as "makeup" | "exam",
+            isIrregular: true,
+          });
+        }
+      });
+
       // Sort by start time
       daySchedules.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -496,7 +593,7 @@ export default function ScheduleScreen() {
     // Reorder so Monday is first
     const mondayIndex = days.findIndex((d) => d.day === "THỨ HAI");
     return [...days.slice(mondayIndex), ...days.slice(0, mondayIndex)];
-  }, [classes, currentWeekStart, user]);
+  }, [classes, currentWeekStart, user, teacherExtraSessions]);
 
   // Build timetable for admin - all classes with filters
   const adminTimetable = useMemo((): TimetableItem[] => {

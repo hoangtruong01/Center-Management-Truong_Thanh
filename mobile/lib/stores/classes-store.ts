@@ -91,6 +91,9 @@ interface ClassesState {
 const normalizeClass = (c: any): Class => {
   const normalized: any = { ...c };
 
+  // Compute isActive from the status field returned by the backend
+  normalized.isActive = c.status === "active";
+
   if (c.teacherId && typeof c.teacherId === "object" && c.teacherId._id) {
     normalized.teacher = c.teacherId;
   }
