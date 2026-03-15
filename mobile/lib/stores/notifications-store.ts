@@ -21,6 +21,8 @@ interface NotificationsState {
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  deleteAllNotifications: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -84,6 +86,27 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       set({ notifications: updated, unreadCount: 0 });
     } catch (error: any) {
       console.error("Error marking all notifications as read:", error);
+    }
+  },
+
+  deleteNotification: async (id: string) => {
+    try {
+      await api.delete(`/notifications/${id}`);
+      const { notifications } = get();
+      const updated = notifications.filter((n) => n._id !== id);
+      const unreadCount = updated.filter((n) => !n.isRead).length;
+      set({ notifications: updated, unreadCount });
+    } catch (error: any) {
+      console.error("Error deleting notification:", error);
+    }
+  },
+
+  deleteAllNotifications: async () => {
+    try {
+      await api.delete("/notifications");
+      set({ notifications: [], unreadCount: 0 });
+    } catch (error: any) {
+      console.error("Error deleting all notifications:", error);
     }
   },
 

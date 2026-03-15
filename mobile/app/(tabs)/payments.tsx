@@ -18,6 +18,7 @@ import {
   ChildPaymentRequests,
 } from "@/lib/stores";
 import PaymentModal from "@/components/PaymentModal";
+import { notificationService } from "@/lib/services/notification.service";
 
 const { width } = Dimensions.get("window");
 
@@ -313,6 +314,15 @@ export default function PaymentsScreen() {
     setSelectedRequest(null);
     // Reload data to reflect new payment status
     loadData();
+
+    // Send notification
+    if (selectedRequest) {
+      notificationService.send({
+        title: "Thanh toán thành công",
+        body: `Bạn đã thanh toán thành công số tiền ${formatCurrency(selectedRequest.finalAmount)} cho ${selectedRequest.title}`,
+        type: "success"
+      }).catch(err => console.error("Failed to send payment notification:", err));
+    }
   };
 
   // Calculate summary stats

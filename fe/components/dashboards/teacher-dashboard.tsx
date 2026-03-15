@@ -38,6 +38,7 @@ import {
   teacherGradingService,
   GRADE_CATEGORY_LABELS,
 } from "@/lib/services/teacher-grading.service";
+import { notificationService } from "@/lib/services/notificationService.service";
 
 // Leaderboard types
 // Grade item returned from API
@@ -390,8 +391,8 @@ function StudentDetailModal({
                       <p className="text-[10px] text-gray-500">
                         {
                           GRADE_CATEGORY_LABELS[
-                            grade.gradingSheetId
-                              ?.category as keyof typeof GRADE_CATEGORY_LABELS
+                          grade.gradingSheetId
+                            ?.category as keyof typeof GRADE_CATEGORY_LABELS
                           ]
                         }{" "}
                         • {new Date(grade.gradedAt).toLocaleDateString()}
@@ -692,7 +693,7 @@ function TimetableAttendanceModal({
                 (r: Record<string, unknown>) =>
                   r.studentId === row.studentId ||
                   (r.studentId as Record<string, unknown>)?._id ===
-                    row.studentId,
+                  row.studentId,
               );
               if (existingRecord) {
                 return { ...row, status: existingRecord.status };
@@ -815,9 +816,8 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
-                  !canEdit ? "opacity-60" : ""
-                }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
+                  }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -1205,11 +1205,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -1218,11 +1217,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -1255,11 +1253,10 @@ function SettingsModal({
               Trình độ chuyên môn
             </label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-              }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
               value={
                 isEditing
                   ? formData.qualification
@@ -1276,11 +1273,10 @@ function SettingsModal({
             <label className="text-gray-700 font-medium">Ghi chú</label>
             <textarea
               rows={3}
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-              }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
               value={
                 isEditing
                   ? formData.teacherNote
@@ -1757,6 +1753,22 @@ export default function TeacherDashboard({
 
     const { session, classData } = attendanceSession;
 
+    // Fetch parents for notification mapping
+    let parentMap: Record<string, string> = {};
+    try {
+      const parentsRes = await api.get("/users?role=parent");
+      const parents = parentsRes.data;
+      if (Array.isArray(parents)) {
+        parents.forEach((p: any) => {
+          if (p.childEmail) {
+            parentMap[p.childEmail.toLowerCase().trim()] = p._id || p.id;
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching parents for notifications:", error);
+    }
+
     // Save attendance for each student
     for (const record of records) {
       if (record.status) {
@@ -1770,7 +1782,7 @@ export default function TeacherDashboard({
       }
     }
 
-    // Send notifications to students
+    // Send notifications to students and parents
     for (const record of records) {
       if (record.status) {
         const statusText =
@@ -1782,13 +1794,24 @@ export default function TeacherDashboard({
                 ? "Đi muộn"
                 : "Được phép nghỉ";
 
-        await api.post("/notifications", {
+        // Notify student
+        notificationService.send({
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `${statusText} buổi học ${classData.name} ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
-          type: record.status === "absent" ? "warning" : "info",
-          category: "attendance",
-        });
+          body: `${statusText} buổi học ${classData.name} ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          type: (record.status === "absent" ? "warning" : "info") as "warning" | "info" | "success" | "error",
+        }).catch((err) => console.error("Error notifying student:", err));
+
+        // Notify parent if found
+        const parentId = record.email ? parentMap[record.email.toLowerCase().trim()] : null;
+        if (parentId) {
+          notificationService.send({
+            userId: parentId,
+            title: "Thông báo điểm danh",
+            body: `Điểm danh: ${record.name} ${statusText.toLowerCase()} buổi học ${classData.name} ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+            type: (record.status === "absent" ? "warning" : "info") as "warning" | "info" | "success" | "error",
+          }).catch((err) => console.error("Error notifying parent:", err));
+        }
       }
     }
   };
@@ -1834,7 +1857,23 @@ export default function TeacherDashboard({
         note: note || undefined,
       });
 
-      // Send notifications to students
+      // Fetch parents for notification mapping
+      let parentMap: Record<string, string> = {};
+      try {
+        const parentsRes = await api.get("/users?role=parent");
+        const parents = parentsRes.data;
+        if (Array.isArray(parents)) {
+          parents.forEach((p: any) => {
+            if (p.childEmail) {
+              parentMap[p.childEmail.toLowerCase().trim()] = p._id || p.id;
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching parents for notifications:", error);
+      }
+
+      // Send notifications to students and parents
       for (const record of records) {
         if (record.status) {
           const statusText =
@@ -1847,14 +1886,23 @@ export default function TeacherDashboard({
                   : "được phép nghỉ";
 
           try {
-            await api.post("/notifications", {
+            // Notify student
+            notificationService.send({
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-                schedule.className
-              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
-              type: record.status === "absent" ? "warning" : "info",
-            });
+              body: `${schedule.className}: "${statusText}" - ${fullDate.toLocaleDateString("vi-VN")}`,
+            }).catch((err) => console.error("Error notifying student:", err));
+
+            // Notify parent if found
+            const parentId = record.email ? parentMap[record.email.toLowerCase().trim()] : null;
+            if (parentId) {
+              notificationService.send({
+                userId: parentId,
+                title: `Điểm danh ${record.name}`,
+                body: `${schedule.className}: "${statusText}" - ${fullDate.toLocaleDateString("vi-VN")}`,
+                type: (record.status === "absent" ? "warning" : "info") as "warning" | "info" | "success" | "error",
+              }).catch((err) => console.error("Error notifying parent:", err));
+            }
           } catch (notifError) {
             console.error("Error sending notification:", notifError);
           }
@@ -2222,7 +2270,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                      selectedClass.students.length === 0 ? (
+                        selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -2357,9 +2405,8 @@ export default function TeacherDashboard({
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-linear-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
-                                  canAttend ? "ring-2 ring-green-400" : ""
-                                }`}
+                                className={`rounded-lg border border-gray-200 bg-linear-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
+                                  }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -2487,30 +2534,28 @@ export default function TeacherDashboard({
                         >
                           <div className="flex items-center gap-4">
                             <div
-                              className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                                fileType === "PDF"
-                                  ? "bg-red-100"
-                                  : fileType === "DOCX"
-                                    ? "bg-blue-100"
-                                    : fileType === "PPTX"
-                                      ? "bg-orange-100"
-                                      : fileType === "XLSX"
-                                        ? "bg-green-100"
-                                        : "bg-gray-100"
-                              }`}
+                              className={`h-12 w-12 rounded-lg flex items-center justify-center ${fileType === "PDF"
+                                ? "bg-red-100"
+                                : fileType === "DOCX"
+                                  ? "bg-blue-100"
+                                  : fileType === "PPTX"
+                                    ? "bg-orange-100"
+                                    : fileType === "XLSX"
+                                      ? "bg-green-100"
+                                      : "bg-gray-100"
+                                }`}
                             >
                               <FileIcon
-                                className={`h-6 w-6 ${
-                                  fileType === "PDF"
-                                    ? "text-red-600"
-                                    : fileType === "DOCX"
-                                      ? "text-blue-600"
-                                      : fileType === "PPTX"
-                                        ? "text-orange-600"
-                                        : fileType === "XLSX"
-                                          ? "text-green-600"
-                                          : "text-gray-600"
-                                }`}
+                                className={`h-6 w-6 ${fileType === "PDF"
+                                  ? "text-red-600"
+                                  : fileType === "DOCX"
+                                    ? "text-blue-600"
+                                    : fileType === "PPTX"
+                                      ? "text-orange-600"
+                                      : fileType === "XLSX"
+                                        ? "text-green-600"
+                                        : "text-gray-600"
+                                  }`}
                               />
                             </div>
                             <div>
@@ -2677,7 +2722,7 @@ export default function TeacherDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2705,11 +2750,10 @@ export default function TeacherDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                      rankingView === key
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-gray-600 hover:bg-white/50"
-                    }`}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${rankingView === key
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-600 hover:bg-white/50"
+                      }`}
                   >
                     <span className="text-base leading-none">
                       {leaderboardTabIcons[key as RankingCategory]}
@@ -2736,27 +2780,25 @@ export default function TeacherDashboard({
                     leaderboard?.score?.map((row) => (
                       <div
                         key={`score-${row.rank}-${row.studentId}`}
-                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                          row.rank === 1
-                            ? "border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 shadow-md"
-                            : row.rank === 2
-                              ? "border-gray-200 bg-linear-to-r from-gray-50 to-slate-50"
-                              : row.rank === 3
-                                ? "border-orange-200 bg-linear-to-r from-orange-50 to-amber-50"
-                                : "border-gray-100 bg-white hover:border-blue-200"
-                        }`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
+                          ? "border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 shadow-md"
+                          : row.rank === 2
+                            ? "border-gray-200 bg-linear-to-r from-gray-50 to-slate-50"
+                            : row.rank === 3
+                              ? "border-orange-200 bg-linear-to-r from-orange-50 to-amber-50"
+                              : "border-gray-100 bg-white hover:border-blue-200"
+                          }`}
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                              row.rank === 1
-                                ? "bg-linear-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                                : row.rank === 2
-                                  ? "bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                                  : row.rank === 3
-                                    ? "bg-linear-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                    : "bg-gray-100 text-gray-600"
-                            }`}
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
+                              ? "bg-linear-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                              : row.rank === 2
+                                ? "bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                : row.rank === 3
+                                  ? "bg-linear-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
                           >
                             {row.rank === 1 && "🏆"}
                             {row.rank === 2 && "🥈"}
@@ -2790,27 +2832,25 @@ export default function TeacherDashboard({
                     leaderboard?.attendance?.map((row) => (
                       <div
                         key={`attendance-${row.rank}-${row.studentId}`}
-                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                          row.rank === 1
-                            ? "border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 shadow-md"
-                            : row.rank === 2
-                              ? "border-gray-200 bg-linear-to-r from-gray-50 to-slate-50"
-                              : row.rank === 3
-                                ? "border-orange-200 bg-linear-to-r from-orange-50 to-amber-50"
-                                : "border-gray-100 bg-white hover:border-blue-200"
-                        }`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
+                          ? "border-amber-200 bg-linear-to-r from-amber-50 to-yellow-50 shadow-md"
+                          : row.rank === 2
+                            ? "border-gray-200 bg-linear-to-r from-gray-50 to-slate-50"
+                            : row.rank === 3
+                              ? "border-orange-200 bg-linear-to-r from-orange-50 to-amber-50"
+                              : "border-gray-100 bg-white hover:border-blue-200"
+                          }`}
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                              row.rank === 1
-                                ? "bg-linear-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                                : row.rank === 2
-                                  ? "bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                                  : row.rank === 3
-                                    ? "bg-linear-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                    : "bg-gray-100 text-gray-600"
-                            }`}
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
+                              ? "bg-linear-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                              : row.rank === 2
+                                ? "bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                : row.rank === 3
+                                  ? "bg-linear-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
                           >
                             {row.rank === 1 && "🏆"}
                             {row.rank === 2 && "🥈"}
@@ -3091,13 +3131,12 @@ function UploadDocumentModal({
         <div className="space-y-4">
           {/* Drag & Drop Zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
-              isDragging
-                ? "border-blue-500 bg-blue-50"
-                : selectedFile
-                  ? "border-green-500 bg-green-50"
-                  : "border-gray-300 hover:border-gray-400"
-            }`}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${isDragging
+              ? "border-blue-500 bg-blue-50"
+              : selectedFile
+                ? "border-green-500 bg-green-50"
+                : "border-gray-300 hover:border-gray-400"
+              }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -3187,11 +3226,10 @@ function UploadDocumentModal({
                     key={cls._id}
                     type="button"
                     onClick={() => toggleClass(cls._id)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      selectedClassIds.includes(cls._id)
-                        ? "bg-blue-600 text-white"
-                        : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
-                    }`}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedClassIds.includes(cls._id)
+                      ? "bg-blue-600 text-white"
+                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                      }`}
                   >
                     {cls.name}
                   </button>

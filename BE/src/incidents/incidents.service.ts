@@ -9,6 +9,7 @@ import {
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { UserDocument } from '../users/schemas/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface FindAllFilters {
   status?: IncidentStatus;
@@ -21,7 +22,8 @@ export class IncidentsService {
   constructor(
     @InjectModel(Incident.name)
     private readonly incidentModel: Model<IncidentDocument>,
-  ) {}
+    private readonly notificationsService: NotificationsService,
+  ) { }
 
   async create(dto: CreateIncidentDto, user: UserDocument): Promise<Incident> {
     const incident = new this.incidentModel({

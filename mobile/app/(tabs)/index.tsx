@@ -683,25 +683,25 @@ export default function HomeScreen() {
   const pendingPayments =
     role === "student"
       ? myRequests.filter(
-          (r) => r.status === "pending" || r.status === "overdue",
-        ).length
+        (r) => r.status === "pending" || r.status === "overdue",
+      ).length
       : role === "parent"
         ? childrenRequests
-            .flatMap((c) => c.requests)
-            .filter((r) => r.status === "pending" || r.status === "overdue")
-            .length
+          .flatMap((c) => c.requests)
+          .filter((r) => r.status === "pending" || r.status === "overdue")
+          .length
         : 0;
 
   const pendingPaymentAmount =
     role === "student"
       ? myRequests
-          .filter((r) => r.status === "pending" || r.status === "overdue")
-          .reduce((sum, r) => sum + r.finalAmount, 0)
+        .filter((r) => r.status === "pending" || r.status === "overdue")
+        .reduce((sum, r) => sum + r.finalAmount, 0)
       : role === "parent"
         ? childrenRequests
-            .flatMap((c) => c.requests)
-            .filter((r) => r.status === "pending" || r.status === "overdue")
-            .reduce((sum, r) => sum + r.finalAmount, 0)
+          .flatMap((c) => c.requests)
+          .filter((r) => r.status === "pending" || r.status === "overdue")
+          .reduce((sum, r) => sum + r.finalAmount, 0)
         : 0;
 
   const pendingIncidents = myIncidents.filter(
@@ -846,8 +846,8 @@ export default function HomeScreen() {
               styles.quickActionsGrid,
               role === "student" && styles.quickActionsGridFour,
               role !== "student" &&
-                quickActions.length === 5 &&
-                styles.quickActionsGridFive,
+              quickActions.length === 5 &&
+              styles.quickActionsGridFive,
             ]}
           >
             {/* Student: 2 rows x 4 items */}

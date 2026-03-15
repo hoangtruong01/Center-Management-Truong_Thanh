@@ -20,6 +20,7 @@ import {
   type Incident as StoreIncident,
   type IncidentStatus,
 } from "@/lib/stores";
+import { notificationService } from "@/lib/services/notification.service";
 
 type IncidentType =
   | "bug_error"
@@ -137,6 +138,45 @@ export default function AdminIncidentsScreen() {
   ) => {
     try {
       await updateIncident(incident._id, { status: newStatus });
+
+      // Gửi thông báo cho người báo cáo
+      const reporterId =
+        typeof incident.reporterId === "object"
+          ? incident.reporterId._id
+          : incident.reporterId;
+
+      if (reporterId) {
+        let title = "[Phản hồi sự cố]";
+        let type: "info" | "success" | "error" | "warning" = "info";
+        let body = "";
+
+        switch (newStatus) {
+          case "in_progress":
+            title = "[Phản hồi sự cố] Đang xử lý";
+            body = `Báo cáo sự cố của bạn đang được chúng tôi xử lý.`;
+            type = "info";
+            break;
+          case "rejected":
+            title = "[Phản hồi sự cố] Từ chối";
+            body = `Rất tiếc, báo cáo sự cố của bạn đã bị từ chối.`;
+            type = "error";
+            break;
+        }
+
+        if (body) {
+          await notificationService
+            .send({
+              userId: reporterId,
+              title,
+              body,
+              type,
+            })
+            .catch((err) =>
+              console.error("Lỗi gửi thông báo cho người báo cáo:", err),
+            );
+        }
+      }
+
       Alert.alert("Thành công", "Đã cập nhật trạng thái sự cố");
       setIsDetailVisible(false);
     } catch (error) {
@@ -157,6 +197,26 @@ export default function AdminIncidentsScreen() {
         status: "resolved",
         adminNote: resolution,
       });
+
+      // Gửi thông báo cho người báo cáo
+      const reporterId =
+        typeof selectedIncident.reporterId === "object"
+          ? selectedIncident.reporterId._id
+          : selectedIncident.reporterId;
+
+      if (reporterId) {
+        await notificationService
+          .send({
+            userId: reporterId,
+            title: "[Phản hồi sự cố] Đã giải quyết",
+            body: `Sự cố đã được giải quyết: ${resolution}`,
+            type: "success",
+          })
+          .catch((err) =>
+            console.error("Lỗi gửi thông báo giải quyết sự cố:", err),
+          );
+      }
+
       Alert.alert("Thành công", "Đã giải quyết sự cố");
       setIsDetailVisible(false);
       setResolution("");

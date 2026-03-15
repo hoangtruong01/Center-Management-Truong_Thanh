@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -25,9 +26,21 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) { }
 
   @Post()
-  @Roles(UserRole.Admin, UserRole.Teacher)
+  @Roles(UserRole.Admin, UserRole.Teacher, UserRole.Parent, UserRole.Student)
   create(@Body() dto: CreateNotificationDto) {
     return this.notificationsService.create(dto);
+  }
+
+  @Post('notify-admin')
+  @Roles(UserRole.Admin, UserRole.Teacher, UserRole.Parent, UserRole.Student)
+  notifyAdmin(@Body() dto: CreateNotificationDto) {
+    return this.notificationsService.notifyAdmins(dto);
+  }
+
+  @Post('notify-makeup')
+  @Roles(UserRole.Admin)
+  notifyMakeUpClass(@Body() dto: any) {
+    return this.notificationsService.notifyMakeUpClass(dto);
   }
 
   @Get()
@@ -43,5 +56,15 @@ export class NotificationsController {
   @Patch('read-all')
   markAllRead(@CurrentUser() user: UserDocument) {
     return this.notificationsService.markAllRead(user);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.notificationsService.remove(id);
+  }
+
+  @Delete()
+  removeAll(@CurrentUser() user: UserDocument) {
+    return this.notificationsService.removeAll(user);
   }
 }

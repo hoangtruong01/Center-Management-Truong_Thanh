@@ -15,6 +15,7 @@ export default function NotificationCenter({ userRole }: { userRole: string }) {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    clearAll,
     isLoading
   } = useNotificationsStore();
 
@@ -62,6 +63,16 @@ export default function NotificationCenter({ userRole }: { userRole: string }) {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa tất cả thông báo?")) {
+      try {
+        await clearAll();
+      } catch (error) {
+        console.error("Failed to delete all notifications", error);
+      }
+    }
+  };
+
   return (
     <div className="relative">
       <button
@@ -86,14 +97,24 @@ export default function NotificationCenter({ userRole }: { userRole: string }) {
               <p className="font-semibold text-gray-900">Thông báo</p>
               <p className="text-xs text-gray-500">Vai trò: {userRole}</p>
             </div>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAll}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
-              >
-                Đánh dấu đã đọc
-              </button>
-            )}
+            <div className="flex gap-2 divide-x">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAll}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                >
+                  Đọc hết
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  onClick={handleDeleteAll}
+                  className="text-xs text-red-600 hover:text-red-800 font-medium transition-colors pl-2"
+                >
+                  Xóa tất cả
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-80 overflow-y-auto divide-y bg-white">

@@ -13,6 +13,8 @@ import {
 import { Class, useClassesStore } from "@/lib/stores/classes-store";
 import { Branch, useBranchesStore } from "@/lib/stores/branches-store";
 import { SUBJECT_LIST } from "@/lib/constants/subjects";
+import { notificationService } from "@/lib/services/notificationService.service";
+import { toast } from "react-toastify";
 
 interface SessionFormModalProps {
   session: Session | null;
@@ -389,6 +391,26 @@ export default function SessionFormModal({
         };
         await createSession(createData as CreateSessionData);
       }
+
+      // Tự động bắn thông báo nếu là lịch học bù
+      if (formData.type === SessionType.Makeup && formData.classId) {
+        notificationService.notifyMakeUpClass({
+          classId: formData.classId,
+          className: selectedClass?.name || "Lớp học",
+          subject: formData.subject,
+          date: formData.date,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          room: formData.room || "Chưa xác định"
+        }).then(() => {
+          toast.success("Đã gửi thông báo lịch học bù cho GV, HS và PH");
+        }).catch(err => {
+          console.error("Lỗi gửi thông báo học bù:", err);
+          toast.error("Không thể gửi thông báo tự động");
+        });
+      }
+
+      toast.success(session ? "Cập nhật thành công" : "Tạo buổi học thành công");
       onClose();
     } catch (error) {
       console.error("Error saving session:", error);

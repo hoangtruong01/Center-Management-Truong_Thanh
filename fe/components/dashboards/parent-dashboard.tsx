@@ -31,7 +31,6 @@ import {
   StudentRankInfo,
 } from "@/lib/services/student-grading.service";
 import { Bounce, ToastContainer, toast } from "react-toastify";
-// @ts-expect-error - CSS import for react-toastify
 import "react-toastify/dist/ReactToastify.css";
 
 // Day names for schedule
@@ -558,11 +557,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
                     ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     : "border-gray-300"
-                }`}
+                  }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -571,11 +569,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
                     ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     : "border-gray-300"
-                }`}
+                  }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -765,9 +762,9 @@ function DetailModal({
               <p className="text-xl font-bold text-blue-700">
                 {courses.length > 0
                   ? (
-                      courses.reduce((acc, c) => acc + parseFloat(c.score), 0) /
-                      courses.length
-                    ).toFixed(1)
+                    courses.reduce((acc, c) => acc + parseFloat(c.score), 0) /
+                    courses.length
+                  ).toFixed(1)
                   : "N/A"}
               </p>
             </Card>
@@ -1220,12 +1217,12 @@ export default function ParentDashboard({
   const childData = dashboardData?.child || child;
   const classesData = dashboardData?.classes?.length
     ? dashboardData.classes.map((c) => ({
-        subject: c.name,
-        total: 12,
-        attended: 10,
-        score: 8.0,
-        teacher: c.teacherName,
-      }))
+      subject: c.name,
+      total: 12,
+      attended: 10,
+      score: 8.0,
+      teacher: c.teacherName,
+    }))
     : courses;
 
   const attendanceStats = dashboardData?.attendanceStats || {
@@ -1239,45 +1236,45 @@ export default function ParentDashboard({
   // Dynamic overview stats
   const dynamicOverviewStats = dashboardData
     ? [
-        {
-          label: "Khóa học",
-          value: dashboardData.classes.length,
-          note: "Đang theo học",
-          icon: "📚",
-          color: "from-blue-500 to-blue-600",
-        },
-        {
-          label: "Điểm TB",
-          value:
-            dashboardData.recentGrades.length > 0
-              ? (
-                  dashboardData.recentGrades.reduce(
-                    (acc, g) => acc + (g.percentage ?? 0),
-                    0,
-                  ) /
-                  dashboardData.recentGrades.length /
-                  10
-                ).toFixed(1)
-              : "N/A",
-          note: "Kết quả học tập",
-          icon: "⭐",
-          color: "from-emerald-500 to-emerald-600",
-        },
-        {
-          label: "Buổi học",
-          value: attendanceStats.total,
-          note: `${attendanceStats.present} buổi tham dự`,
-          icon: "📅",
-          color: "from-amber-500 to-orange-500",
-        },
-        {
-          label: "Chuyên cần",
-          value: `${attendanceStats.rate}%`,
-          note: "Tỉ lệ tham gia",
-          icon: "🏆",
-          color: "from-purple-500 to-purple-600",
-        },
-      ]
+      {
+        label: "Khóa học",
+        value: dashboardData.classes.length,
+        note: "Đang theo học",
+        icon: "📚",
+        color: "from-blue-500 to-blue-600",
+      },
+      {
+        label: "Điểm TB",
+        value:
+          dashboardData.recentGrades.length > 0
+            ? (
+              dashboardData.recentGrades.reduce(
+                (acc, g) => acc + (g.percentage ?? 0),
+                0,
+              ) /
+              dashboardData.recentGrades.length /
+              10
+            ).toFixed(1)
+            : "N/A",
+        note: "Kết quả học tập",
+        icon: "⭐",
+        color: "from-emerald-500 to-emerald-600",
+      },
+      {
+        label: "Buổi học",
+        value: attendanceStats.total,
+        note: `${attendanceStats.present} buổi tham dự`,
+        icon: "📅",
+        color: "from-amber-500 to-orange-500",
+      },
+      {
+        label: "Chuyên cần",
+        value: `${attendanceStats.rate}%`,
+        note: "Tỉ lệ tham gia",
+        icon: "🏆",
+        color: "from-purple-500 to-purple-600",
+      },
+    ]
     : overviewStats;
 
   // Build timetable from classes (child's enrolled classes)
@@ -1527,28 +1524,28 @@ export default function ParentDashboard({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const scheduleWithAttendance = dashboardData?.upcomingSessions?.length
     ? dashboardData.upcomingSessions.slice(0, 7).map((s) => {
-        const sessionDate = new Date(s.date);
-        const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        return {
-          day: days[sessionDate.getDay()],
-          date: sessionDate.toLocaleDateString("vi-VN", {
-            day: "2-digit",
-            month: "2-digit",
-          }),
-          code: s.className.substring(0, 7).toUpperCase(),
-          time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}`,
-          room: "Phòng học",
-          teacher: "Giáo viên",
-          status: s.status === "completed" ? "confirmed" : "pending",
-          attendanceStatus: s.attendanceStatus,
-        };
-      })
+      const sessionDate = new Date(s.date);
+      const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+      return {
+        day: days[sessionDate.getDay()],
+        date: sessionDate.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        code: s.className.substring(0, 7).toUpperCase(),
+        time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`,
+        room: "Phòng học",
+        teacher: "Giáo viên",
+        status: s.status === "completed" ? "confirmed" : "pending",
+        attendanceStatus: s.attendanceStatus,
+      };
+    })
     : weeklySchedule;
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1959,22 +1956,20 @@ export default function ParentDashboard({
                     return (
                       <div
                         key={dayData.day}
-                        className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${
-                          isToday
+                        className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${isToday
                             ? "border-amber-400 ring-2 ring-amber-100"
                             : isPast
                               ? "border-gray-200 opacity-80"
                               : "border-gray-100"
-                        }`}
+                          }`}
                       >
                         <div
-                          className={`px-3 py-3 text-center ${
-                            isToday
+                          className={`px-3 py-3 text-center ${isToday
                               ? "bg-linear-to-r from-amber-500 to-orange-500 text-white"
                               : isPast
                                 ? "bg-linear-to-r from-gray-500 to-gray-600 text-white"
                                 : "bg-linear-to-r from-gray-700 to-gray-800 text-white"
-                          }`}
+                            }`}
                         >
                           <p className="text-xs font-bold leading-tight">
                             {DAY_NAMES_VN[dayIndex]}
@@ -2027,15 +2022,14 @@ export default function ParentDashboard({
                                   </div>
                                 ) : item.attendanceStatus ? (
                                   <div
-                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${
-                                      item.attendanceStatus === "present"
+                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${item.attendanceStatus === "present"
                                         ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
                                         : item.attendanceStatus === "absent"
                                           ? "bg-red-100 text-red-700 border border-red-200"
                                           : item.attendanceStatus === "late"
                                             ? "bg-amber-100 text-amber-700 border border-amber-200"
                                             : "bg-blue-100 text-blue-700 border border-blue-200"
-                                    }`}
+                                      }`}
                                   >
                                     {item.attendanceStatus === "present" &&
                                       "✅ Có mặt"}
@@ -2234,15 +2228,14 @@ export default function ParentDashboard({
                         {subject.data.map((item, i) => (
                           <div
                             key={i}
-                            className={`px-3 py-2 rounded-lg text-sm ${
-                              item.score >= 8
+                            className={`px-3 py-2 rounded-lg text-sm ${item.score >= 8
                                 ? "bg-green-100 text-green-700"
                                 : item.score >= 6.5
                                   ? "bg-blue-100 text-blue-700"
                                   : item.score >= 5
                                     ? "bg-yellow-100 text-yellow-700"
                                     : "bg-red-100 text-red-700"
-                            }`}
+                              }`}
                             title={`${item.label} - ${item.date}`}
                           >
                             <span className="font-bold">{item.score}</span>
@@ -2358,7 +2351,7 @@ export default function ParentDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
