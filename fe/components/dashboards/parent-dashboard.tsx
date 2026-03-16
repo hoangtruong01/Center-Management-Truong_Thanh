@@ -21,7 +21,13 @@ import {
   type ChildInfo,
 } from "@/lib/stores/parent-dashboard-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
-import { AlertTriangle, ChevronRight, ChevronDown, Camera } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronRight,
+  ChevronDown,
+  Camera,
+  History,
+} from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import api from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -2305,7 +2311,7 @@ export default function ParentDashboard({
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-white shadow flex items-center justify-center text-xl">
-                      history
+                      <History className="w-5 h-5 text-orange-600" />
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-900">
