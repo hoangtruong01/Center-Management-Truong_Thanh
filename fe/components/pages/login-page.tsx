@@ -22,9 +22,9 @@ interface LoginPageProps {
     role: "student" | "teacher" | "parent" | "admin";
     branchId?: string;
     branchName?: string;
-    studentCode: string;
-    dateOfBirth: Date;
-    gender: string;
+    studentCode?: string;
+    dateOfBirth?: string;
+    gender?: string;
   }) => void;
 }
 

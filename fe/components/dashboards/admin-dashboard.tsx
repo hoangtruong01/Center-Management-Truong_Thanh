@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Bounce, ToastContainer, toast } from "react-toastify";
-// @ts-expect-error - CSS import for react-toastify
 import "react-toastify/dist/ReactToastify.css";
 import api from "@/lib/api";
 import {

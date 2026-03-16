@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
@@ -12,7 +12,7 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { notificationService } from "@/lib/services/notificationService.service";
 
-export default function PaymentResultPage() {
+function PaymentResultContent() {
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const { fetchMyRequests, fetchChildrenRequests } = usePaymentRequestsStore();
@@ -138,5 +138,25 @@ export default function PaymentResultPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function PaymentResultFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <Card className="max-w-md w-full p-8 text-center">
+        <Loader2 className="w-16 h-16 mx-auto mb-4 animate-spin text-blue-600" />
+        <h2 className="text-xl font-semibold mb-2">Đang tải kết quả...</h2>
+        <p className="text-gray-600">Vui lòng đợi trong giây lát</p>
+      </Card>
+    </div>
+  );
+}
+
+export default function PaymentResultPage() {
+  return (
+    <Suspense fallback={<PaymentResultFallback />}>
+      <PaymentResultContent />
+    </Suspense>
   );
 }

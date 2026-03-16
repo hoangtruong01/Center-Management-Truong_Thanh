@@ -188,7 +188,7 @@ export default function SessionFormModal({
           branchId =
             typeof classInfo.branchId === "string"
               ? classInfo.branchId
-              : classInfo.branchId?._id || classInfo.branchId?.id || "";
+              : classInfo.branchId?._id || "";
         }
         if (!branchId && classInfo.branch) {
           branchId = classInfo.branch._id;

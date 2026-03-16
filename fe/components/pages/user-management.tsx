@@ -9,11 +9,11 @@ import ParentDetailModal from "@/components/pages/parent-detail-modal";
 import { useUsersStore, ImportResponse } from "@/lib/stores/users-store";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { getSubjectColor } from "@/lib/constants/subjects";
-import type { User } from "@/lib/stores/auth-store";
+import type { User as AuthUser } from "@/lib/stores/auth-store";
 
 type UserType = "student" | "parent" | "teacher";
 
-interface User {
+interface UserListItem {
   id: string;
   fullName: string;
   email: string;
@@ -46,7 +46,7 @@ export default function UserManagement() {
   const [modalOpen, setModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState<UserType>("student");
-  const [selectedParent, setSelectedParent] = useState<User | null>(null);
+  const [selectedParent, setSelectedParent] = useState<AuthUser | null>(null);
   const [parentDetailOpen, setParentDetailOpen] = useState(false);
 
   // Fetch data on mount
@@ -60,7 +60,7 @@ export default function UserManagement() {
   const parents = users.filter((u) => u.role === "parent");
   const teachers = users.filter((u) => u.role === "teacher");
 
-  const handleAddUser = (user: User) => {
+  const handleAddUser = (user: UserListItem) => {
     // This will be handled by the modal through API
     fetchUsers(); // Refresh list
   };

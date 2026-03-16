@@ -209,7 +209,12 @@ export class AttendanceService {
   }
 
   private async ensureAutoAbsentForSessions(
-    sessions: Array<Pick<Session, '_id' | 'classId' | 'endTime' | 'status'>>,
+    sessions: Array<{
+      _id: Types.ObjectId | string;
+      classId?: Types.ObjectId | string | null;
+      endTime: Date;
+      status?: string;
+    }>,
     onlyStudentId?: Types.ObjectId,
   ) {
     const now = new Date();

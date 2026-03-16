@@ -13,7 +13,6 @@ import {
 } from "recharts";
 import { ChevronDown, Camera, ChevronRight } from "lucide-react";
 import { Bounce, ToastContainer, toast } from "react-toastify";
-// @ts-expect-error - CSS import for react-toastify
 import "react-toastify/dist/ReactToastify.css";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
