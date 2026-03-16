@@ -599,62 +599,6 @@ export default function LoginScreen() {
                 <Text style={styles.helpLinkText}>Liên hệ admin</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Demo Login Section */}
-            {__DEV__ && (
-              <View style={styles.demoSection}>
-                <Text style={styles.demoTitle}>🚀 Demo Login (Dev Mode)</Text>
-                <View style={styles.demoButtons}>
-                  <TouchableOpacity
-                    style={[styles.demoButton, { backgroundColor: "#EF4444" }]}
-                    onPress={() => {
-                      setEmail("admin@truongthanh.edu.vn");
-                      setPassword("123456");
-                      setSelectedRole("admin");
-                    }}
-                  >
-                    <Ionicons name="settings" size={14} color="#FFF" />
-                    <Text style={styles.demoButtonText}>Admin</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.demoButton, { backgroundColor: "#10B981" }]}
-                    onPress={() => {
-                      setEmail("teacher.binh@truongthanh.edu.vn");
-                      setPassword("123456");
-                      setSelectedRole("teacher");
-                      if (branches.length > 0) selectBranch(branches[0]);
-                    }}
-                  >
-                    <Ionicons name="person" size={14} color="#FFF" />
-                    <Text style={styles.demoButtonText}>GV</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.demoButton, { backgroundColor: "#3B82F6" }]}
-                    onPress={() => {
-                      setEmail("student.an@truongthanh.edu.vn");
-                      setPassword("123456");
-                      setSelectedRole("student");
-                      if (branches.length > 0) selectBranch(branches[0]);
-                    }}
-                  >
-                    <Ionicons name="school" size={14} color="#FFF" />
-                    <Text style={styles.demoButtonText}>HS</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.demoButton, { backgroundColor: "#F59E0B" }]}
-                    onPress={() => {
-                      setEmail("parent.hung@truongthanh.edu.vn");
-                      setPassword("123456");
-                      setSelectedRole("parent");
-                      if (branches.length > 0) selectBranch(branches[0]);
-                    }}
-                  >
-                    <Ionicons name="people" size={14} color="#FFF" />
-                    <Text style={styles.demoButtonText}>PH</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
           </View>
 
           {/* Footer */}
@@ -1032,39 +976,5 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     lineHeight: 20,
-  },
-  // Demo login styles
-  demoSection: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F59E0B",
-  },
-  demoTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#92400E",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  demoButtons: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    gap: 8,
-  },
-  demoButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 4,
-  },
-  demoButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "600",
   },
 });

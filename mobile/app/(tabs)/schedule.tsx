@@ -242,6 +242,7 @@ export default function ScheduleScreen() {
     "branch" | "class" | "teacher" | null
   >(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
 
   const isAdmin = user?.role === "admin";
   const isTeacher = user?.role === "teacher";
@@ -1541,6 +1542,43 @@ export default function ScheduleScreen() {
     }
   };
 
+  const handleDeleteIrregularSession = async () => {
+    if (!selectedScheduleItem?.isIrregular || !selectedScheduleItem.sessionId) {
+      return;
+    }
+
+    Alert.alert(
+      "Xóa buổi học",
+      "Bạn có chắc muốn xóa buổi học bất thường này không?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsDeletingSession(true);
+              await api.delete(`/sessions/${selectedScheduleItem.sessionId}`);
+              setShowClassDetailModal(false);
+              setSelectedScheduleItem(null);
+              Alert.alert("Thành công", "Đã xóa buổi học bất thường");
+              await loadSchedule();
+            } catch (error: any) {
+              Alert.alert(
+                "Lỗi",
+                error?.response?.data?.message ||
+                  error?.message ||
+                  "Không thể xóa buổi học",
+              );
+            } finally {
+              setIsDeletingSession(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // Admin View
   if (isAdmin) {
     return (
@@ -2018,6 +2056,29 @@ export default function ScheduleScreen() {
                       </View>
                     ) : null}
                   </View>
+
+                  {isAdmin && selectedScheduleItem?.sessionId ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.deleteSessionButton,
+                        isDeletingSession && styles.deleteSessionButtonDisabled,
+                      ]}
+                      onPress={handleDeleteIrregularSession}
+                      disabled={isDeletingSession}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.deleteSessionButtonText}>
+                        {isDeletingSession
+                          ? "Đang xóa..."
+                          : "Xóa buổi học bất thường"}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </ScrollView>
               ) : selectedClassDetail ? (
                 <ScrollView style={styles.classDetailContent}>
@@ -4574,6 +4635,25 @@ const styles = StyleSheet.create({
   formButtonText: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  deleteSessionButton: {
+    marginTop: 8,
+    backgroundColor: "#EF4444",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  deleteSessionButtonDisabled: {
+    opacity: 0.7,
+  },
+  deleteSessionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
   },
   typeChip: {
     paddingHorizontal: 16,

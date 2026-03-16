@@ -28,34 +28,6 @@ interface LoginPageProps {
   }) => void;
 }
 
-// Demo users để test nhanh - Tài khoản demo thật từ database
-const DEMO_USERS = {
-  student: {
-    email: "student.an@truongthanh.edu.vn",
-    password: "123456",
-    name: "Nguyễn Văn An",
-    code: "HS0001",
-  },
-  teacher: {
-    email: "teacher.binh@truongthanh.edu.vn",
-    password: "123456",
-    name: "Trần Thị Bình",
-    code: "GV0001",
-  },
-  parent: {
-    email: "parent.hung@truongthanh.edu.vn",
-    password: "123456",
-    name: "Nguyễn Văn Hùng",
-    code: "PH0001",
-  },
-  admin: {
-    email: "admin@truongthanh.edu.vn",
-    password: "123456",
-    name: "Admin Trường Thành",
-    code: "ADMIN",
-  },
-};
-
 const BRANCHES = [
   { id: "cs1", name: "Cơ sở 1 - Quận 1" },
   { id: "cs2", name: "Cơ sở 2 - Quận 3" },
@@ -151,7 +123,9 @@ function GlassSelect({
         <span className={!selected ? "text-blue-200/70" : ""}>
           {selected?.label || placeholder}
         </span>
-        <span className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""} opacity-70`}>
+        <span
+          className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""} opacity-70`}
+        >
           ▼
         </span>
       </button>
@@ -167,9 +141,10 @@ function GlassSelect({
                 setIsOpen(false);
               }}
               className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-2
-                ${value === opt.value
-                  ? "bg-blue-600/50 text-white font-medium"
-                  : "text-gray-300 hover:bg-white/10 hover:text-white"
+                ${
+                  value === opt.value
+                    ? "bg-blue-600/50 text-white font-medium"
+                    : "text-gray-300 hover:bg-white/10 hover:text-white"
                 }
               `}
             >
@@ -239,7 +214,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const handleLogin = async (
     loginEmail: string,
     loginPassword: string,
-    loginRole?: Role
+    loginRole?: Role,
   ) => {
     setIsLoading(true);
     setError(null);
@@ -271,7 +246,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         typeof userData.branchId === "string"
           ? userData.branchId
           : (userData.branchId as { _id?: string; id?: string } | undefined)
-            ?._id ||
+              ?._id ||
             (userData.branchId as { _id?: string; id?: string } | undefined)
               ?.id ||
             "";
@@ -279,8 +254,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       // Verify role matches if selected
       if (loginRole && userData.role !== loginRole) {
         setError(
-          `Vai trò không đúng. Tài khoản này có vai trò "${ROLE_CONFIG[userData.role as Role]?.label || userData.role
-          }".`
+          `Vai trò không đúng. Tài khoản này có vai trò "${
+            ROLE_CONFIG[userData.role as Role]?.label || userData.role
+          }".`,
         );
         toast.error("Vai trò không đúng!", {
           position: "top-right",
@@ -356,11 +332,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDemoLogin = async (role: Role) => {
-    const demoUser = DEMO_USERS[role];
-    await handleLogin(demoUser.email, demoUser.password, role);
   };
 
   const handleCustomLogin = async () => {
@@ -453,7 +424,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       <div className="lg:hidden relative px-6 py-8 text-white text-center overflow-hidden z-10">
         <div className="relative z-10">
           <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <img src="/logo.png" alt="Trường Thành" className="w-10 h-10 object-contain" />
+            <img
+              src="/logo.png"
+              alt="Trường Thành"
+              className="w-10 h-10 object-contain"
+            />
           </div>
           <h1 className="text-xl font-bold">Trường Thành Education</h1>
           <p className="text-sm text-blue-100 mt-1">
@@ -465,12 +440,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       {/* Left side - Decorative (Desktop only) */}
       {/* Left side - Content (Desktop only) */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-center overflow-hidden z-10">
-
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center px-12 text-white">
           <div className="mb-8">
             <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-6 shadow-xl">
-              <img src="/logo.png" alt="Trường Thành" className="w-14 h-14 object-contain" />
+              <img
+                src="/logo.png"
+                alt="Trường Thành"
+                className="w-14 h-14 object-contain"
+              />
             </div>
             <h1 className="text-4xl font-bold mb-4">Trường Thành Education</h1>
             <p className="text-xl text-blue-100 leading-relaxed">
@@ -545,62 +523,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               </div>
             )}
 
-            {/* Demo Login Buttons */}
-            <div className="mb-5 sm:mb-6">
-              <p className="text-xs sm:text-sm font-medium text-blue-100 mb-2 sm:mb-3 flex items-center gap-2">
-                <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs">
-                  ⚡
-                </span>
-                Đăng nhập nhanh (Demo) - Mật khẩu: 123456
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-3">
-                {(["student", "teacher", "parent", "admin"] as const).map(
-                  (role) => {
-                    const config = ROLE_CONFIG[role];
-                    const demoInfo = DEMO_USERS[role];
-                    return (
-                      <button
-                        key={role}
-                        onClick={() => handleDemoLogin(role)}
-                        disabled={isLoading}
-                        title={`${demoInfo.name}\n${demoInfo.email}\nMã: ${demoInfo.code}`}
-                        className={`
-                          relative group p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-linear-to-r ${config.color} ${config.hoverColor}
-                          text-white font-medium transition-all duration-300
-                          hover:shadow-lg hover:shadow-blue-200/50 hover:-translate-y-0.5
-                          disabled:opacity-50 disabled:cursor-not-allowed
-                          active:scale-95
-                        `}
-                      >
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <span className="text-xl sm:text-2xl">
-                            {config.icon}
-                          </span>
-                          <div className="text-left flex-1 min-w-0">
-                            <span className="text-xs sm:text-sm font-semibold block">
-                              {config.label}
-                            </span>
-                            <span className="text-[9px] sm:text-[10px] opacity-80 block truncate">
-                              {demoInfo.code}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="relative my-4 sm:my-6 flex items-center gap-3">
-              <div className="flex-1 border-t border-white/20" />
-              <span className="text-xs sm:text-sm text-blue-200">
-                hoặc đăng nhập bằng email
-              </span>
-              <div className="flex-1 border-t border-white/20" />
-            </div>
-
             {/* Login Form */}
             <div className="space-y-3 sm:space-y-4">
               {/* Branch & Role in one row on mobile */}
@@ -610,7 +532,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   label={
                     <>
                       <span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-house-fill" viewBox="0 0 16 16">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                          className="bi bi-house-fill"
+                          viewBox="0 0 16 16"
+                        >
                           <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L8 2.207l6.646 6.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293z" />
                           <path d="m8 3.293 6 6V13.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5V9.293z" />
                         </svg>
@@ -632,7 +561,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   label={
                     <>
                       <span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-person-fill" viewBox="0 0 16 16">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                          className="bi bi-person-fill"
+                          viewBox="0 0 16 16"
+                        >
                           <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6" />
                         </svg>
                       </span>
@@ -655,7 +591,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               <div className="space-y-1 sm:space-y-2">
                 <label className="text-xs sm:text-sm font-medium text-blue-100 flex items-center gap-1 sm:gap-2">
                   <span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-envelope-fill" viewBox="0 0 16 16">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      className="bi bi-envelope-fill"
+                      viewBox="0 0 16 16"
+                    >
                       <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414zM0 4.697v7.104l5.803-3.558zM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586zm3.436-.586L16 11.801V4.697z" />
                     </svg>
                   </span>
@@ -675,8 +618,18 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               <div className="space-y-1 sm:space-y-2">
                 <label className="text-xs sm:text-sm font-medium text-blue-100 flex items-center gap-1 sm:gap-2">
                   <span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-lock-fill" viewBox="0 0 16 16">
-                      <path fillRule="evenodd" d="M8 0a4 4 0 0 1 4 4v2.05a2.5 2.5 0 0 1 2 2.45v5a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 2 13.5v-5a2.5 2.5 0 0 1 2-2.45V4a4 4 0 0 1 4-4m0 1a3 3 0 0 0-3 3v2h6V4a3 3 0 0 0-3-3" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      className="bi bi-lock-fill"
+                      viewBox="0 0 16 16"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8 0a4 4 0 0 1 4 4v2.05a2.5 2.5 0 0 1 2 2.45v5a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 2 13.5v-5a2.5 2.5 0 0 1 2-2.45V4a4 4 0 0 1 4-4m0 1a3 3 0 0 0-3 3v2h6V4a3 3 0 0 0-3-3"
+                      />
                     </svg>
                   </span>
                   Mật khẩu
@@ -695,17 +648,32 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white text-sm sm:text-base"
                   >
-                    {showPassword ?
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-eye-slash" viewBox="0 0 16 16">
+                    {showPassword ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        className="bi bi-eye-slash"
+                        viewBox="0 0 16 16"
+                      >
                         <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z" />
                         <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829" />
                         <path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z" />
                       </svg>
-                      :
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-eye" viewBox="0 0 16 16">
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        className="bi bi-eye"
+                        viewBox="0 0 16 16"
+                      >
                         <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z" />
                         <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0" />
-                      </svg>}
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
