@@ -267,6 +267,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
       const userData = await login(loginEmail, loginPassword);
 
+      const userBranchId =
+        typeof userData.branchId === "string"
+          ? userData.branchId
+          : (userData.branchId as { _id?: string; id?: string } | undefined)
+            ?._id ||
+            (userData.branchId as { _id?: string; id?: string } | undefined)
+              ?.id ||
+            "";
+
       // Verify role matches if selected
       if (loginRole && userData.role !== loginRole) {
         setError(
@@ -292,8 +301,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       if (
         userData.role !== "admin" &&
         branchId &&
-        userData.branchId &&
-        userData.branchId !== branchId
+        userBranchId &&
+        userBranchId !== branchId
       ) {
         setError("Cơ sở không đúng. Vui lòng chọn đúng cơ sở của bạn.");
         toast.error("Cơ sở không đúng!", {
@@ -326,14 +335,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
       // If onLogin callback exists (for backward compatibility)
       if (onLogin && userData) {
-        const branch = displayBranches.find((b) => b.id === userData.branchId);
+        const branch = displayBranches.find((b) => b.id === userBranchId);
         onLogin({
           id: userData._id || userData.id || "",
           name: userData.name,
           email: userData.email,
           phone: userData.phone,
           role: userData.role as Role,
-          branchId: userData.branchId,
+          branchId: userBranchId,
           branchName: branch?.name,
           studentCode: userData.studentCode,
           dateOfBirth: userData.dateOfBirth,

@@ -184,10 +184,11 @@ export class AuthService {
     }
 
     // Kiểm tra chi nhánh (admin không cần kiểm tra chi nhánh)
+    const userBranchId = (user as any).branchId?.toString?.() || '';
     if (
       (user as any).role !== 'admin' &&
-      (user as any).branchId &&
-      (user as any).branchId !== dto.branchId
+      userBranchId &&
+      userBranchId !== dto.branchId
     ) {
       errors.push('Cơ sở không đúng. Vui lòng chọn đúng cơ sở của bạn.');
     }
