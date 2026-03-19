@@ -14,6 +14,21 @@ import { UserRole } from '../common/enums/role.enum';
 import { UserDocument } from '../users/schemas/user.schema';
 import { Session, SessionDocument } from '../sessions/schemas/session.schema';
 
+type ScheduleConflictDetail = {
+  classId: string;
+  className: string;
+  subject?: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+};
+
+type ScheduleConflictResult = {
+  hasConflict: boolean;
+  conflictingClasses: string[];
+  conflicts: ScheduleConflictDetail[];
+};
+
 @Injectable()
 export class ClassesService {
   private readonly logger = new Logger(ClassesService.name);
@@ -175,7 +190,8 @@ export class ClassesService {
   async checkStudentScheduleConflict(
     studentId: string,
     classId: string,
-  ): Promise<{ hasConflict: boolean; conflictingClasses: string[] }> {
+    excludeClassId?: string,
+  ): Promise<ScheduleConflictResult> {
     // Lấy lớp đang muốn thêm học sinh vào
     const targetClass = await this.classModel.findById(classId).exec();
     if (
@@ -183,7 +199,7 @@ export class ClassesService {
       !targetClass.schedule ||
       targetClass.schedule.length === 0
     ) {
-      return { hasConflict: false, conflictingClasses: [] };
+      return { hasConflict: false, conflictingClasses: [], conflicts: [] };
     }
 
     // Lấy tất cả các lớp mà học sinh này đang học
@@ -192,9 +208,16 @@ export class ClassesService {
       .exec();
 
     const conflictingClasses: string[] = [];
+    const conflicts: ScheduleConflictDetail[] = [];
+
+    const excludedId = excludeClassId?.toString();
+    const targetClassId = targetClass._id.toString();
 
     // Kiểm tra xung đột lịch
     for (const existingClass of studentClasses) {
+      const existingClassId = existingClass._id.toString();
+      if (existingClassId === targetClassId) continue;
+      if (excludedId && existingClassId === excludedId) continue;
       if (!existingClass.schedule) continue;
 
       for (const targetSchedule of targetClass.schedule) {
@@ -210,16 +233,34 @@ export class ClassesService {
             // Check overlap
             if (targetStart < existingEnd && targetEnd > existingStart) {
               conflictingClasses.push(existingClass.name);
-              break;
+              conflicts.push({
+                classId: existingClassId,
+                className: existingClass.name,
+                subject: existingClass.subject,
+                dayOfWeek: existingSchedule.dayOfWeek,
+                startTime: existingSchedule.startTime,
+                endTime: existingSchedule.endTime,
+              });
             }
           }
         }
       }
     }
 
+    const uniqueClassNames = [...new Set(conflictingClasses)];
+    const uniqueConflicts = Array.from(
+      new Map(
+        conflicts.map((item) => [
+          `${item.classId}-${item.dayOfWeek}-${item.startTime}-${item.endTime}`,
+          item,
+        ]),
+      ).values(),
+    );
+
     return {
-      hasConflict: conflictingClasses.length > 0,
-      conflictingClasses: [...new Set(conflictingClasses)], // Remove duplicates
+      hasConflict: uniqueConflicts.length > 0,
+      conflictingClasses: uniqueClassNames,
+      conflicts: uniqueConflicts,
     };
   }
 
@@ -253,8 +294,25 @@ export class ClassesService {
       classId,
     );
     if (conflictCheck.hasConflict) {
+      const dayNames = [
+        'Chủ nhật',
+        'Thứ 2',
+        'Thứ 3',
+        'Thứ 4',
+        'Thứ 5',
+        'Thứ 6',
+        'Thứ 7',
+      ];
+      const conflictDetails = conflictCheck.conflicts
+        .map((item) => {
+          const dayLabel = dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+          const subjectPart = item.subject ? ` - ${item.subject}` : '';
+          return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
+        })
+        .join('; ');
+
       throw new BadRequestException(
-        `Học sinh bị trùng lịch với lớp: ${conflictCheck.conflictingClasses.join(', ')}`,
+        `Học sinh bị trùng lịch, vui lòng kiểm tra lại: ${conflictDetails}`,
       );
     }
 
@@ -307,6 +365,75 @@ export class ClassesService {
       .exec();
 
     return this.findOne(classId);
+  }
+
+  async getStudentScheduleConflicts(classId: string, studentId: string) {
+    return this.checkStudentScheduleConflict(studentId, classId);
+  }
+
+  async transferStudentBetweenClasses(
+    fromClassId: string,
+    toClassId: string,
+    studentId: string,
+  ): Promise<ClassEntity> {
+    const fromClass = await this.classModel.findById(fromClassId).exec();
+    if (!fromClass) throw new NotFoundException('Lớp hiện tại không tồn tại');
+
+    const toClass = await this.classModel.findById(toClassId).exec();
+    if (!toClass) throw new NotFoundException('Lớp chuyển đến không tồn tại');
+
+    const inFromClass = fromClass.studentIds?.some(
+      (id) => id.toString() === studentId,
+    );
+    if (!inFromClass) {
+      throw new BadRequestException('Học sinh không thuộc lớp hiện tại');
+    }
+
+    const conflictCheck = await this.checkStudentScheduleConflict(
+      studentId,
+      toClassId,
+      fromClassId,
+    );
+    if (conflictCheck.hasConflict) {
+      const dayNames = [
+        'Chủ nhật',
+        'Thứ 2',
+        'Thứ 3',
+        'Thứ 4',
+        'Thứ 5',
+        'Thứ 6',
+        'Thứ 7',
+      ];
+      const conflictDetails = conflictCheck.conflicts
+        .map((item) => {
+          const dayLabel = dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+          const subjectPart = item.subject ? ` - ${item.subject}` : '';
+          return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
+        })
+        .join('; ');
+
+      throw new BadRequestException(
+        `Học sinh bị trùng lịch, vui lòng kiểm tra lại: ${conflictDetails}`,
+      );
+    }
+
+    await this.classModel
+      .findByIdAndUpdate(
+        fromClassId,
+        { $pull: { studentIds: new Types.ObjectId(studentId) } },
+        { new: true },
+      )
+      .exec();
+
+    await this.classModel
+      .findByIdAndUpdate(
+        toClassId,
+        { $addToSet: { studentIds: new Types.ObjectId(studentId) } },
+        { new: true },
+      )
+      .exec();
+
+    return this.findOne(toClassId);
   }
 
   // Lấy danh sách lớp của một học sinh (dùng cho parent xem con)

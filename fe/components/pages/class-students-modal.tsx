@@ -21,8 +21,12 @@ export default function ClassStudentsModal({
   onClose,
   onUpdate,
 }: ClassStudentsModalProps) {
-  const { addStudentToClass, removeStudentFromClass, isLoading } =
-    useClassesStore();
+  const {
+    addStudentToClass,
+    removeStudentFromClass,
+    checkStudentScheduleConflicts,
+    isLoading,
+  } = useClassesStore();
   const { users, fetchUsers } = useUsersStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,6 +36,7 @@ export default function ClassStudentsModal({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
+  const [conflictWarning, setConflictWarning] = useState<string | null>(null);
 
   // Get current students in class
   const currentStudents = useMemo(
@@ -138,6 +143,57 @@ export default function ClassStudentsModal({
     };
   }, [fetchUsers]);
 
+  useEffect(() => {
+    if (!showAddStudent || !selectedStudentId) {
+      setConflictWarning(null);
+      return;
+    }
+
+    let cancelled = false;
+    checkStudentScheduleConflicts(classData._id, selectedStudentId)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.hasConflict) {
+          setConflictWarning(null);
+          return;
+        }
+
+        const dayNames = [
+          "Chủ nhật",
+          "Thứ 2",
+          "Thứ 3",
+          "Thứ 4",
+          "Thứ 5",
+          "Thứ 6",
+          "Thứ 7",
+        ];
+        const detailText = result.conflicts
+          .map((item) => {
+            const dayLabel =
+              dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+            const subjectPart = item.subject ? ` - ${item.subject}` : "";
+            return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
+          })
+          .join("; ");
+
+        setConflictWarning(
+          `⚠️ Học sinh đang trùng lịch với lớp khác: ${detailText}. Vui lòng xem lại trước khi chuyển lớp.`,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setConflictWarning(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    checkStudentScheduleConflicts,
+    classData._id,
+    selectedStudentId,
+    showAddStudent,
+  ]);
+
   // Handle add student
   const handleAddStudent = async () => {
     if (!selectedStudentId) {
@@ -147,9 +203,38 @@ export default function ClassStudentsModal({
 
     setError(null);
     try {
+      const conflict = await checkStudentScheduleConflicts(
+        classData._id,
+        selectedStudentId,
+      );
+      if (conflict.hasConflict) {
+        const dayNames = [
+          "Chủ nhật",
+          "Thứ 2",
+          "Thứ 3",
+          "Thứ 4",
+          "Thứ 5",
+          "Thứ 6",
+          "Thứ 7",
+        ];
+        const detailText = conflict.conflicts
+          .map((item) => {
+            const dayLabel =
+              dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+            const subjectPart = item.subject ? ` - ${item.subject}` : "";
+            return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
+          })
+          .join("; ");
+        setError(
+          `Học sinh bị trùng lịch, vui lòng kiểm tra lại: ${detailText}`,
+        );
+        return;
+      }
+
       await addStudentToClass(classData._id, selectedStudentId);
       setSuccessMessage("Đã thêm học sinh vào lớp!");
       setSelectedStudentId("");
+      setConflictWarning(null);
       setShowAddStudent(false);
       onUpdate();
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -327,7 +412,11 @@ export default function ClassStudentsModal({
                     <div className="flex gap-2 shrink-0">
                       <Button
                         onClick={handleAddStudent}
-                        disabled={isLoading || !selectedStudentId}
+                        disabled={
+                          isLoading ||
+                          !selectedStudentId ||
+                          Boolean(conflictWarning)
+                        }
                         className="rounded-xl bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
                       >
                         {isLoading ? "Đang thêm..." : "Thêm"}
@@ -346,6 +435,12 @@ export default function ClassStudentsModal({
                       </Button>
                     </div>
                   </div>
+
+                  {conflictWarning && (
+                    <div className="mt-3 p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm">
+                      {conflictWarning}
+                    </div>
+                  )}
 
                   {/* Quick Add - Show matching students as cards */}
                   {addSearchQuery &&
@@ -417,6 +512,38 @@ export default function ClassStudentsModal({
                                   setSelectedStudentId(student._id);
                                   setError(null);
                                   try {
+                                    const conflict =
+                                      await checkStudentScheduleConflicts(
+                                        classData._id,
+                                        student._id,
+                                      );
+                                    if (conflict.hasConflict) {
+                                      const dayNames = [
+                                        "Chủ nhật",
+                                        "Thứ 2",
+                                        "Thứ 3",
+                                        "Thứ 4",
+                                        "Thứ 5",
+                                        "Thứ 6",
+                                        "Thứ 7",
+                                      ];
+                                      const detailText = conflict.conflicts
+                                        .map((item) => {
+                                          const dayLabel =
+                                            dayNames[item.dayOfWeek] ||
+                                            `Thứ ${item.dayOfWeek}`;
+                                          const subjectPart = item.subject
+                                            ? ` - ${item.subject}`
+                                            : "";
+                                          return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
+                                        })
+                                        .join("; ");
+                                      setError(
+                                        `Học sinh bị trùng lịch, vui lòng kiểm tra lại: ${detailText}`,
+                                      );
+                                      return;
+                                    }
+
                                     await addStudentToClass(
                                       classData._id,
                                       student._id,

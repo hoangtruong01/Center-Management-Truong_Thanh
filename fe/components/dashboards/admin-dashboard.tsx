@@ -2191,6 +2191,12 @@ export default function AdminDashboard({
 
   // State for search
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [scholarshipFilter, setScholarshipFilter] = useState<
+    "all" | "has" | "none"
+  >("all");
+  const [scholarshipTypeFilter, setScholarshipTypeFilter] = useState<
+    "all" | "teacher_child" | "poor_family" | "orphan"
+  >("all");
 
   // Effective branch filter - non-admin users chỉ xem được chi nhánh của mình
   const effectiveBranchFilter = isAdmin
@@ -2217,9 +2223,45 @@ export default function AdminDashboard({
       })
     : filteredUsers;
 
-  const apiStudents = searchFilteredUsers.filter((u) => u.role === "student");
-  const apiParents = searchFilteredUsers.filter((u) => u.role === "parent");
-  const apiTeachers = searchFilteredUsers.filter((u) => u.role === "teacher");
+  const scholarshipFilteredUsers =
+    activeAccountTab === "students"
+      ? searchFilteredUsers.filter((u) => {
+          if (u.role !== "student") return true;
+
+          const hasScholarship = Boolean((u as any).hasScholarship);
+          const scholarshipType = (u as any).scholarshipType;
+
+          if (scholarshipFilter === "has" && !hasScholarship) return false;
+          if (scholarshipFilter === "none" && hasScholarship) return false;
+
+          if (
+            scholarshipFilter !== "none" &&
+            scholarshipTypeFilter !== "all" &&
+            scholarshipType !== scholarshipTypeFilter
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+      : searchFilteredUsers;
+
+  const apiStudents = scholarshipFilteredUsers.filter(
+    (u) => u.role === "student",
+  );
+  const apiParents = scholarshipFilteredUsers.filter(
+    (u) => u.role === "parent",
+  );
+  const apiTeachers = scholarshipFilteredUsers.filter(
+    (u) => u.role === "teacher",
+  );
+
+  useEffect(() => {
+    if (activeAccountTab !== "students") {
+      setScholarshipFilter("all");
+      setScholarshipTypeFilter("all");
+    }
+  }, [activeAccountTab]);
 
   // Get branch name by id
   const getBranchName = (branchId?: string) => {
@@ -3414,6 +3456,73 @@ export default function AdminDashboard({
                 </button>
               </div>
 
+              {activeAccountTab === "students" && (
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      🎓 Học bổng:
+                    </span>
+                    <select
+                      value={scholarshipFilter}
+                      onChange={(e) =>
+                        setScholarshipFilter(
+                          e.target.value as "all" | "has" | "none",
+                        )
+                      }
+                      className="nice-select rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="all">Tất cả</option>
+                      <option value="has">Có học bổng</option>
+                      <option value="none">Không học bổng</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      Loại:
+                    </span>
+                    <select
+                      value={scholarshipTypeFilter}
+                      onChange={(e) =>
+                        setScholarshipTypeFilter(
+                          e.target.value as
+                            | "all"
+                            | "teacher_child"
+                            | "poor_family"
+                            | "orphan",
+                        )
+                      }
+                      disabled={scholarshipFilter === "none"}
+                      className="nice-select rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm disabled:opacity-60"
+                    >
+                      <option value="all">Tất cả loại</option>
+                      <option value="teacher_child">Con giáo viên</option>
+                      <option value="poor_family">Hộ nghèo</option>
+                      <option value="orphan">Con mồ côi</option>
+                    </select>
+                  </div>
+
+                  {(scholarshipFilter !== "all" ||
+                    scholarshipTypeFilter !== "all") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setScholarshipFilter("all");
+                        setScholarshipTypeFilter("all");
+                      }}
+                      className="rounded-lg"
+                    >
+                      Xóa lọc học bổng
+                    </Button>
+                  )}
+
+                  <span className="text-xs text-amber-800 font-medium ml-auto">
+                    Kết quả học sinh: {apiStudents.length}
+                  </span>
+                </div>
+              )}
+
               {/* Account List */}
               <div className="space-y-3">
                 {usersLoading ? (
@@ -3452,6 +3561,31 @@ export default function AdminDashboard({
                                 <p className="text-xs text-gray-400">
                                   {s.phone || "Chưa có SĐT"} • MSHS:{" "}
                                   {s.studentCode || s._id?.slice(-6)}
+                                </p>
+                                <p className="text-xs mt-1">
+                                  {(s as any).hasScholarship ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 font-medium">
+                                      🎓{" "}
+                                      {(s as any).scholarshipType ===
+                                      "teacher_child"
+                                        ? "Con giáo viên"
+                                        : (s as any).scholarshipType ===
+                                            "poor_family"
+                                          ? "Hộ nghèo"
+                                          : (s as any).scholarshipType ===
+                                              "orphan"
+                                            ? "Con mồ côi"
+                                            : "Học bổng"}
+                                      {typeof (s as any).scholarshipPercent ===
+                                      "number"
+                                        ? ` - ${(s as any).scholarshipPercent}%`
+                                        : ""}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-600 px-2 py-0.5">
+                                      Không học bổng
+                                    </span>
+                                  )}
                                 </p>
                                 {isAdmin && (
                                   <p className="text-xs text-blue-600 font-medium mt-1">

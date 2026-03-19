@@ -43,6 +43,15 @@ export interface ClassSchedule {
   room?: string;
 }
 
+export interface StudentScheduleConflict {
+  classId: string;
+  className: string;
+  subject?: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
 interface ClassesState {
   classes: Class[];
   selectedClass: Class | null;
@@ -62,6 +71,19 @@ interface ClassesActions {
   updateClass: (id: string, data: UpdateClassData) => Promise<Class>;
   deleteClass: (id: string) => Promise<void>;
   addStudentToClass: (classId: string, studentId: string) => Promise<void>;
+  checkStudentScheduleConflicts: (
+    classId: string,
+    studentId: string,
+  ) => Promise<{
+    hasConflict: boolean;
+    conflictingClasses: string[];
+    conflicts: StudentScheduleConflict[];
+  }>;
+  transferStudentToClass: (
+    toClassId: string,
+    fromClassId: string,
+    studentId: string,
+  ) => Promise<void>;
   removeStudentFromClass: (classId: string, studentId: string) => Promise<void>;
   setSelectedClass: (classData: Class | null) => void;
   clearError: () => void;
@@ -260,7 +282,7 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
 
         set((state) => ({
           classes: state.classes.map((c) =>
-            c._id === classId ? updatedClass : c
+            c._id === classId ? updatedClass : c,
           ),
           selectedClass:
             state.selectedClass?._id === classId
@@ -271,6 +293,55 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
       } catch (error: any) {
         const message =
           error.response?.data?.message || "Lỗi khi thêm học sinh vào lớp";
+        set({ isLoading: false, error: message });
+        throw new Error(message);
+      }
+    },
+
+    checkStudentScheduleConflicts: async (
+      classId: string,
+      studentId: string,
+    ) => {
+      try {
+        const response = await api.get(
+          `/classes/${classId}/students/${studentId}/conflicts`,
+        );
+        return response.data;
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message || "Lỗi khi kiểm tra trùng lịch";
+        throw new Error(message);
+      }
+    },
+
+    transferStudentToClass: async (
+      toClassId: string,
+      fromClassId: string,
+      studentId: string,
+    ) => {
+      set({ isLoading: true, error: null });
+      try {
+        await api.post(`/classes/${toClassId}/students/transfer`, {
+          fromClassId,
+          studentId,
+        });
+
+        const response = await api.get(`/classes/${toClassId}`);
+        const updatedClass = normalizeClass(response.data);
+
+        set((state) => ({
+          classes: state.classes.map((c) =>
+            c._id === toClassId ? updatedClass : c,
+          ),
+          selectedClass:
+            state.selectedClass?._id === toClassId
+              ? updatedClass
+              : state.selectedClass,
+          isLoading: false,
+        }));
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message || "Lỗi khi chuyển học sinh sang lớp";
         set({ isLoading: false, error: message });
         throw new Error(message);
       }
@@ -287,7 +358,7 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
 
         set((state) => ({
           classes: state.classes.map((c) =>
-            c._id === classId ? updatedClass : c
+            c._id === classId ? updatedClass : c,
           ),
           selectedClass:
             state.selectedClass?._id === classId
@@ -310,5 +381,5 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
     clearError: () => {
       set({ error: null });
     },
-  })
+  }),
 );

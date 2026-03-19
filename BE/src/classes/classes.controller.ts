@@ -25,7 +25,7 @@ import type { UserDocument } from '../users/schemas/user.schema';
 @Controller('classes')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ClassesController {
-  constructor(private readonly classesService: ClassesService) { }
+  constructor(private readonly classesService: ClassesService) {}
 
   @Post()
   @Roles(UserRole.Admin)
@@ -67,6 +67,29 @@ export class ClassesController {
   @Roles(UserRole.Admin)
   addStudent(@Param('id') id: string, @Body('studentId') studentId: string) {
     return this.classesService.addStudentToClass(id, studentId);
+  }
+
+  @Get(':id/students/:studentId/conflicts')
+  @Roles(UserRole.Admin)
+  checkStudentConflicts(
+    @Param('id') id: string,
+    @Param('studentId') studentId: string,
+  ) {
+    return this.classesService.getStudentScheduleConflicts(id, studentId);
+  }
+
+  @Post(':toClassId/students/transfer')
+  @Roles(UserRole.Admin)
+  transferStudent(
+    @Param('toClassId') toClassId: string,
+    @Body('studentId') studentId: string,
+    @Body('fromClassId') fromClassId: string,
+  ) {
+    return this.classesService.transferStudentBetweenClasses(
+      fromClassId,
+      toClassId,
+      studentId,
+    );
   }
 
   // Xóa 1 học sinh khỏi lớp
