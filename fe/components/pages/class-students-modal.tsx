@@ -23,6 +23,9 @@ export default function ClassStudentsModal({
 }: ClassStudentsModalProps) {
   const {
     addStudentToClass,
+    classes,
+    fetchClasses,
+    createClassTransferRequest,
     removeStudentFromClass,
     checkStudentScheduleConflicts,
     isLoading,
@@ -37,6 +40,16 @@ export default function ClassStudentsModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
+  const [showTransferPopup, setShowTransferPopup] = useState(false);
+  const [transferStudent, setTransferStudent] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [targetClassId, setTargetClassId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [transferConflictWarning, setTransferConflictWarning] = useState<
+    string | null
+  >(null);
 
   // Get current students in class
   const currentStudents = useMemo(
@@ -125,6 +138,28 @@ export default function ClassStudentsModal({
       .slice(0, 50);
   }, [availableStudents, addSearchQuery]);
 
+  const availableTransferClasses = useMemo(() => {
+    const currentClassId = classData._id;
+    return classes.filter((c) => {
+      if (c._id === currentClassId) return false;
+      if (c.status !== "active") return false;
+
+      if (normalizedBranchId) {
+        const cBranchId =
+          typeof c.branchId === "object" && c.branchId?._id
+            ? c.branchId._id
+            : c.branchId;
+        if (cBranchId && cBranchId !== normalizedBranchId) return false;
+      }
+      return true;
+    });
+  }, [classes, classData._id, normalizedBranchId]);
+
+  const selectedTargetClass = useMemo(
+    () => availableTransferClasses.find((c) => c._id === targetClassId),
+    [availableTransferClasses, targetClassId],
+  );
+
   // Fetch users on mount - fetch students from the same branch
   useEffect(() => {
     // Fetch students - không filter theo branch để lấy tất cả students
@@ -138,10 +173,15 @@ export default function ClassStudentsModal({
         console.error(err);
         if (!cancelled) setIsLoadingStudents(false);
       });
+
+    fetchClasses().catch((err) => {
+      console.error(err);
+    });
+
     return () => {
       cancelled = true;
     };
-  }, [fetchUsers]);
+  }, [fetchUsers, fetchClasses]);
 
   useEffect(() => {
     if (!showAddStudent || !selectedStudentId) {
@@ -243,6 +283,135 @@ export default function ClassStudentsModal({
       setError((err as Error).message || "Có lỗi khi thêm học sinh");
     }
   };
+
+  const openTransferPopup = (studentId: string, studentName: string) => {
+    setTransferStudent({ id: studentId, name: studentName });
+    setTargetClassId("");
+    setTransferReason("");
+    setTransferConflictWarning(null);
+    setError(null);
+    setShowTransferPopup(true);
+  };
+
+  const closeTransferPopup = () => {
+    setShowTransferPopup(false);
+    setTransferStudent(null);
+    setTargetClassId("");
+    setTransferReason("");
+    setTransferConflictWarning(null);
+  };
+
+  const handleCreateTransferRequest = async () => {
+    if (!transferStudent) {
+      setError("Không tìm thấy học sinh để chuyển lớp");
+      return;
+    }
+
+    if (!targetClassId) {
+      setError("Vui lòng chọn lớp đích");
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const conflict = await checkStudentScheduleConflicts(
+        targetClassId,
+        transferStudent.id,
+        classData._id,
+      );
+
+      if (conflict.hasConflict) {
+        const dayNames = [
+          "Chủ nhật",
+          "Thứ 2",
+          "Thứ 3",
+          "Thứ 4",
+          "Thứ 5",
+          "Thứ 6",
+          "Thứ 7",
+        ];
+        const detailText = conflict.conflicts
+          .map((item) => {
+            const dayLabel = dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+            const subjectPart = item.subject ? ` - ${item.subject}` : "";
+            return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
+          })
+          .join("; ");
+
+        setTransferConflictWarning(
+          `Học sinh bị trùng lịch: ${detailText}. Vui lòng chọn lớp khác.`,
+        );
+        return;
+      }
+
+      await createClassTransferRequest({
+        studentId: transferStudent.id,
+        fromClassId: classData._id,
+        toClassId: targetClassId,
+        reason: transferReason.trim() || undefined,
+      });
+
+      setSuccessMessage(
+        `Đã gửi yêu cầu chuyển lớp cho ${transferStudent.name}. Cần admin duyệt trước khi áp dụng.`,
+      );
+      closeTransferPopup();
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: unknown) {
+      setError((err as Error).message || "Có lỗi khi tạo yêu cầu chuyển lớp");
+    }
+  };
+
+  useEffect(() => {
+    if (!showTransferPopup || !transferStudent || !targetClassId) {
+      setTransferConflictWarning(null);
+      return;
+    }
+
+    let cancelled = false;
+    checkStudentScheduleConflicts(targetClassId, transferStudent.id, classData._id)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.hasConflict) {
+          setTransferConflictWarning(null);
+          return;
+        }
+
+        const dayNames = [
+          "Chủ nhật",
+          "Thứ 2",
+          "Thứ 3",
+          "Thứ 4",
+          "Thứ 5",
+          "Thứ 6",
+          "Thứ 7",
+        ];
+        const detailText = result.conflicts
+          .map((item) => {
+            const dayLabel = dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+            const subjectPart = item.subject ? ` - ${item.subject}` : "";
+            return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
+          })
+          .join("; ");
+
+        setTransferConflictWarning(
+          `⚠️ Trùng lịch realtime: ${detailText}. Không thể gửi yêu cầu với lớp đích này.`,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setTransferConflictWarning(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    checkStudentScheduleConflicts,
+    classData._id,
+    showTransferPopup,
+    targetClassId,
+    transferStudent,
+  ]);
 
   // Handle remove student
   const handleRemoveStudent = async (
@@ -616,27 +785,145 @@ export default function ClassStudentsModal({
               filteredCurrentStudents.map((student, index) => (
                 <div
                   key={student._id}
-                  className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-200 hover:shadow-sm transition-all bg-white"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-200 hover:shadow-sm transition-all bg-white"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-lg">
                       👨‍🎓
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50"
+                        onClick={() => openTransferPopup(student._id, student.name)}
+                        disabled={isLoading}
+                      >
+                        🔄 Chuyển lớp
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() =>
+                          handleRemoveStudent(student._id, student.name)
+                        }
+                        disabled={isLoading}
+                      >
+                        🗑️ Xóa
+                      </Button>
                     </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {index + 1}. {student.name}
-                      </p>
-                      <p className="text-xs text-gray-500">{student.email}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
                     className="rounded-lg text-red-600 border-red-200 hover:bg-red-50"
                     onClick={() =>
                       handleRemoveStudent(student._id, student.name)
                     }
                     disabled={isLoading}
+
+          {showTransferPopup && transferStudent && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-60 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-5 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Yêu cầu chuyển lớp</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Học sinh: <strong>{transferStudent.name}</strong>
+                    </p>
+                    <p className="text-xs text-gray-500">Lớp hiện tại: {classData.name}</p>
+                  </div>
+                  <button
+                    onClick={closeTransferPopup}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chọn lớp đích
+                  </label>
+                  <select
+                    value={targetClassId}
+                    onChange={(e) => setTargetClassId(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Chọn lớp đích --</option>
+                    {availableTransferClasses.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                        {c.subject ? ` - ${c.subject}` : ""}
+                        {` (${c.studentIds?.length || 0}/${c.maxStudents || 30})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedTargetClass && (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                    <p className="text-sm font-semibold text-blue-800 mb-2">
+                      Lịch lớp đích: {selectedTargetClass.name}
+                    </p>
+                    {selectedTargetClass.schedule?.length ? (
+                      <div className="space-y-1 text-sm text-blue-700">
+                        {selectedTargetClass.schedule.map((item, idx) => {
+                          const dayNames = [
+                            "Chủ nhật",
+                            "Thứ 2",
+                            "Thứ 3",
+                            "Thứ 4",
+                            "Thứ 5",
+                            "Thứ 6",
+                            "Thứ 7",
+                          ];
+                          const dayLabel =
+                            dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+                          return (
+                            <p key={`${item.dayOfWeek}-${item.startTime}-${idx}`}>
+                              • {dayLabel}: {item.startTime} - {item.endTime}
+                              {item.room ? ` (Phòng ${item.room})` : ""}
+                            </p>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-blue-700">Chưa có lịch học.</p>
+                    )}
+                  </div>
+                )}
+
+                {transferConflictWarning && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                    {transferConflictWarning}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ghi chú lý do (tuỳ chọn)
+                  </label>
+                  <textarea
+                    value={transferReason}
+                    onChange={(e) => setTransferReason(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="VD: Phù hợp trình độ hơn, thuận tiện lịch cá nhân..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={closeTransferPopup}>
+                    Hủy
+                  </Button>
+                  <Button
+                    onClick={handleCreateTransferRequest}
+                    disabled={!targetClassId || Boolean(transferConflictWarning) || isLoading}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isLoading ? "Đang gửi..." : "Xác nhận gửi yêu cầu"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
                   >
                     🗑️ Xóa
                   </Button>

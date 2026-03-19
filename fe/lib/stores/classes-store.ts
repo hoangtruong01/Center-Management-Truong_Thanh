@@ -52,6 +52,36 @@ export interface StudentScheduleConflict {
   endTime: string;
 }
 
+export interface ClassTransferRequest {
+  _id: string;
+  type: string;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  metadata?: {
+    studentId: string;
+    studentName?: string;
+    fromClassId: string;
+    fromClassName?: string;
+    toClassId: string;
+    toClassName?: string;
+    reason?: string;
+    requestedBy?: string;
+    requestedAt?: string;
+    rejectReason?: string;
+    approvedAt?: string;
+    rejectedAt?: string;
+    notifiedUsers?: string[];
+    auditLogs?: Array<{
+      action: "requested" | "approved" | "rejected" | "executed";
+      by?: string;
+      at: string;
+      note?: string;
+    }>;
+  };
+}
+
 interface ClassesState {
   classes: Class[];
   selectedClass: Class | null;
@@ -74,11 +104,26 @@ interface ClassesActions {
   checkStudentScheduleConflicts: (
     classId: string,
     studentId: string,
+    excludeClassId?: string,
   ) => Promise<{
     hasConflict: boolean;
     conflictingClasses: string[];
     conflicts: StudentScheduleConflict[];
   }>;
+  createClassTransferRequest: (data: {
+    studentId: string;
+    fromClassId: string;
+    toClassId: string;
+    reason?: string;
+  }) => Promise<ClassTransferRequest>;
+  fetchClassTransferRequests: (
+    status?: "pending" | "approved" | "rejected",
+  ) => Promise<ClassTransferRequest[]>;
+  approveClassTransferRequest: (requestId: string) => Promise<void>;
+  rejectClassTransferRequest: (
+    requestId: string,
+    reason?: string,
+  ) => Promise<void>;
   transferStudentToClass: (
     toClassId: string,
     fromClassId: string,
@@ -301,15 +346,75 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
     checkStudentScheduleConflicts: async (
       classId: string,
       studentId: string,
+      excludeClassId?: string,
     ) => {
       try {
+        const query = excludeClassId
+          ? `?excludeClassId=${encodeURIComponent(excludeClassId)}`
+          : "";
         const response = await api.get(
-          `/classes/${classId}/students/${studentId}/conflicts`,
+          `/classes/${classId}/students/${studentId}/conflicts${query}`,
         );
         return response.data;
       } catch (error: any) {
         const message =
           error.response?.data?.message || "Lỗi khi kiểm tra trùng lịch";
+        throw new Error(message);
+      }
+    },
+
+    createClassTransferRequest: async (data) => {
+      set({ isLoading: true, error: null });
+      try {
+        const response = await api.post("/admin/class-transfer-requests", data);
+        set({ isLoading: false });
+        return response.data;
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message || "Lỗi khi tạo yêu cầu chuyển lớp";
+        set({ isLoading: false, error: message });
+        throw new Error(message);
+      }
+    },
+
+    fetchClassTransferRequests: async (status) => {
+      try {
+        const response = await api.get("/admin/class-transfer-requests", {
+          params: status ? { status } : undefined,
+        });
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message ||
+          "Lỗi khi tải danh sách yêu cầu chuyển lớp";
+        throw new Error(message);
+      }
+    },
+
+    approveClassTransferRequest: async (requestId: string) => {
+      set({ isLoading: true, error: null });
+      try {
+        await api.post(`/admin/class-transfer-requests/${requestId}/approve`);
+        set({ isLoading: false });
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message || "Lỗi khi duyệt yêu cầu chuyển lớp";
+        set({ isLoading: false, error: message });
+        throw new Error(message);
+      }
+    },
+
+    rejectClassTransferRequest: async (requestId: string, reason?: string) => {
+      set({ isLoading: true, error: null });
+      try {
+        await api.post(`/admin/class-transfer-requests/${requestId}/reject`, {
+          reason,
+        });
+        set({ isLoading: false });
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message || "Lỗi khi từ chối yêu cầu chuyển lớp";
+        set({ isLoading: false, error: message });
         throw new Error(message);
       }
     },

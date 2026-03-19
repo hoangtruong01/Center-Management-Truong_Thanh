@@ -27,6 +27,7 @@ import ImportUsersModal from "@/components/pages/import-users-modal";
 import ImportStudentsModal from "@/components/pages/import-students-modal";
 import ClassFormModal from "@/components/pages/class-form-modal";
 import ClassStudentsModal from "@/components/pages/class-students-modal";
+import ClassTransferRequestsPanel from "@/components/pages/class-transfer-requests-panel";
 import ScheduleManager from "@/components/pages/schedule-manager";
 import AttendanceManager from "@/components/pages/attendance-manager";
 import IncidentsManager from "@/components/pages/incidents-manager";
@@ -3126,6 +3127,12 @@ export default function AdminDashboard({
                   </Button>
                 )}
               </div>
+
+              <ClassTransferRequestsPanel
+                onAfterDecision={async () => {
+                  await fetchClasses();
+                }}
+              />
 
               <div className="space-y-3">
                 {classes.length === 0 ? (
