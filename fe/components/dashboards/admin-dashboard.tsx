@@ -2136,7 +2136,8 @@ export default function AdminDashboard({
     deleteBranch,
     isLoading: branchesLoading,
   } = useBranchesStore();
-  const { classes, fetchClasses } = useClassesStore();
+  const { classes, fetchClasses, fetchClassTransferRequests } =
+    useClassesStore();
   const {
     users,
     importUsers,
@@ -2164,9 +2165,13 @@ export default function AdminDashboard({
   const {
     dashboard: financeDashboard,
     expenses,
+    classHealth,
+    weeklyClassReport,
     isLoading: financeLoading,
     error: financeError,
     fetchDashboard,
+    fetchClassHealth,
+    fetchWeeklyClassReport,
     fetchExpenses,
     createExpense,
     deleteExpense,
@@ -2178,7 +2183,11 @@ export default function AdminDashboard({
   const [selectedYear, setSelectedYear] = useState<number>(
     new Date().getFullYear(),
   );
+  const [classHealthRiskFilter, setClassHealthRiskFilter] = useState<
+    "all" | "green" | "yellow" | "red"
+  >("all");
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [transferPendingCount, setTransferPendingCount] = useState(0);
 
   // State for add user modal
   const [addUserLoading, setAddUserLoading] = useState(false);
@@ -2292,10 +2301,16 @@ export default function AdminDashboard({
         "Could not fetch dashboard stats - make sure backend is running",
       );
     });
+    refreshTransferPendingCount().catch(() => {
+      console.log(
+        "Could not fetch transfer pending count - make sure backend is running",
+      );
+    });
   }, [
     fetchBranches,
     fetchUsers,
     fetchClasses,
+    fetchClassTransferRequests,
     fetchLeaderboard,
     fetchDashboardOverview,
   ]);
@@ -2316,13 +2331,24 @@ export default function AdminDashboard({
         `🔄 Fetching finance dashboard: branch=${selectedBranch}, year=${selectedYear}`,
       );
       fetchDashboard(selectedBranch, selectedYear);
+      fetchClassHealth(selectedBranch, classHealthRiskFilter);
+      fetchWeeklyClassReport(selectedBranch);
 
       // Fetch expenses only if specific branch selected
       if (selectedBranch !== "ALL") {
         fetchExpenses(selectedBranch);
       }
     }
-  }, [activeTab, selectedBranch, selectedYear, fetchDashboard, fetchExpenses]);
+  }, [
+    activeTab,
+    selectedBranch,
+    selectedYear,
+    classHealthRiskFilter,
+    fetchDashboard,
+    fetchClassHealth,
+    fetchWeeklyClassReport,
+    fetchExpenses,
+  ]);
 
   // === Finance Helper Functions ===
   const formatCurrency = (amount: number): string => {
@@ -2352,6 +2378,18 @@ export default function AdminDashboard({
     return names[month - 1] || `T${month}`;
   };
 
+  const getRiskBadgeClass = (risk: "green" | "yellow" | "red") => {
+    if (risk === "red") return "bg-red-100 text-red-700";
+    if (risk === "yellow") return "bg-amber-100 text-amber-700";
+    return "bg-emerald-100 text-emerald-700";
+  };
+
+  const getRiskLabel = (risk: "green" | "yellow" | "red") => {
+    if (risk === "red") return "Nguy cơ cao";
+    if (risk === "yellow") return "Cần theo dõi";
+    return "Ổn định";
+  };
+
   const handleAddExpense = async (data: {
     amount: number;
     description: string;
@@ -2366,6 +2404,8 @@ export default function AdminDashboard({
       // Refresh data parallel
       await Promise.all([
         fetchDashboard(selectedBranch, selectedYear),
+        fetchClassHealth(selectedBranch, classHealthRiskFilter),
+        fetchWeeklyClassReport(selectedBranch),
         selectedBranch !== "ALL"
           ? fetchExpenses(selectedBranch)
           : Promise.resolve(),
@@ -2386,9 +2426,20 @@ export default function AdminDashboard({
 
       // Refresh data
       await fetchDashboard(selectedBranch, selectedYear);
+      await fetchClassHealth(selectedBranch, classHealthRiskFilter);
+      await fetchWeeklyClassReport(selectedBranch);
       await fetchExpenses(selectedBranch);
     } catch (error) {
       console.error("Failed to delete expense:", error);
+    }
+  };
+
+  const refreshTransferPendingCount = async () => {
+    try {
+      const pendingRequests = await fetchClassTransferRequests("pending");
+      setTransferPendingCount(pendingRequests.length);
+    } catch {
+      setTransferPendingCount(0);
     }
   };
 
@@ -2698,6 +2749,8 @@ export default function AdminDashboard({
             // Refetch data when switching tabs to ensure fresh data
             if (value === "courses") {
               fetchClasses().catch(console.error);
+            } else if (value === "class-transfer") {
+              refreshTransferPendingCount().catch(console.error);
             } else if (value === "accounts") {
               fetchUsers().catch(console.error);
             } else if (value === "branches") {
@@ -2723,7 +2776,14 @@ export default function AdminDashboard({
               value="class-transfer"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
-              🔄 Chuyển lớp
+              <span className="inline-flex items-center gap-2">
+                <span>🔄 Chuyển lớp</span>
+                {transferPendingCount > 0 && (
+                  <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+                    {transferPendingCount > 99 ? "99+" : transferPendingCount}
+                  </span>
+                )}
+              </span>
             </TabsTrigger>
             <TabsTrigger
               value="accounts"
@@ -3301,6 +3361,13 @@ export default function AdminDashboard({
               <ClassTransferRequestsPanel
                 onAfterDecision={async () => {
                   await fetchClasses();
+                  await refreshTransferPendingCount();
+                }}
+                onRequestsLoaded={(requests) => {
+                  const pending = requests.filter(
+                    (item) => item.status === "pending",
+                  ).length;
+                  setTransferPendingCount(pending);
                 }}
               />
             </Card>
@@ -4160,6 +4227,179 @@ export default function AdminDashboard({
                   </Card>
                 </div>
 
+                <div className="grid gap-6 lg:grid-cols-3 mb-6">
+                  <Card className="p-5 bg-white border-0 shadow-lg lg:col-span-1">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-bold text-gray-900">
+                        Báo cáo lớp theo tuần
+                      </p>
+                      <span className="text-xs text-gray-500">
+                        {weeklyClassReport?.generatedAt
+                          ? new Date(
+                              weeklyClassReport.generatedAt,
+                            ).toLocaleString("vi-VN")
+                          : "-"}
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        Tổng lớp:{" "}
+                        <strong>
+                          {weeklyClassReport?.summary.totalClasses || 0}
+                        </strong>
+                      </p>
+                      <p>
+                        Rủi ro cao:{" "}
+                        <strong className="text-red-600">
+                          {weeklyClassReport?.summary.red || 0}
+                        </strong>
+                      </p>
+                      <p>
+                        Cần theo dõi:{" "}
+                        <strong className="text-amber-600">
+                          {weeklyClassReport?.summary.yellow || 0}
+                        </strong>
+                      </p>
+                      <p>
+                        Ổn định:{" "}
+                        <strong className="text-emerald-600">
+                          {weeklyClassReport?.summary.green || 0}
+                        </strong>
+                      </p>
+                      <p>
+                        Công nợ:{" "}
+                        <strong>
+                          {formatCurrency(
+                            weeklyClassReport?.summary.totalOutstanding || 0,
+                          )}
+                        </strong>
+                      </p>
+                      <p>
+                        Nợ quá hạn:{" "}
+                        <strong className="text-red-600">
+                          {formatCurrency(
+                            weeklyClassReport?.summary.totalOverdueDebt || 0,
+                          )}
+                        </strong>
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card className="p-5 bg-white border-0 shadow-lg lg:col-span-2">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
+                      <div>
+                        <p className="font-bold text-gray-900">
+                          Sức khỏe tài chính lớp
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Snapshot theo yêu cầu học phí lớp, tự cập nhật khi thu
+                          tiền.
+                        </p>
+                      </div>
+                      <select
+                        value={classHealthRiskFilter}
+                        onChange={(e) =>
+                          setClassHealthRiskFilter(
+                            e.target.value as
+                              | "all"
+                              | "green"
+                              | "yellow"
+                              | "red",
+                          )
+                        }
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="all">Tất cả mức rủi ro</option>
+                        <option value="red">Nguy cơ cao</option>
+                        <option value="yellow">Cần theo dõi</option>
+                        <option value="green">Ổn định</option>
+                      </select>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-2 px-2 font-semibold text-gray-600">
+                              Lớp
+                            </th>
+                            <th className="text-right py-2 px-2 font-semibold text-gray-600">
+                              Thu thực tế
+                            </th>
+                            <th className="text-right py-2 px-2 font-semibold text-gray-600">
+                              Lãi thực tế
+                            </th>
+                            <th className="text-right py-2 px-2 font-semibold text-gray-600">
+                              Nợ quá hạn
+                            </th>
+                            <th className="text-right py-2 px-2 font-semibold text-gray-600">
+                              Rủi ro
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {classHealth.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={5}
+                                className="py-4 text-center text-gray-500"
+                              >
+                                Chưa có dữ liệu sức khỏe tài chính lớp.
+                              </td>
+                            </tr>
+                          ) : (
+                            classHealth.slice(0, 15).map((item) => (
+                              <tr
+                                key={item.classRequestId}
+                                className="border-b border-gray-100"
+                              >
+                                <td className="py-2 px-2">
+                                  <p className="font-semibold text-gray-900">
+                                    {item.className}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {item.classSubject || "-"}
+                                  </p>
+                                </td>
+                                <td className="py-2 px-2 text-right text-blue-700">
+                                  {formatCurrency(
+                                    item.snapshot.collectedRevenue,
+                                  )}
+                                </td>
+                                <td className="py-2 px-2 text-right">
+                                  <span
+                                    className={
+                                      item.snapshot.actualProfit >= 0
+                                        ? "text-emerald-700"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    {formatCurrency(item.snapshot.actualProfit)}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-2 text-right text-red-600">
+                                  {formatCurrency(
+                                    item.snapshot.overdueDebtAmount,
+                                  )}
+                                </td>
+                                <td className="py-2 px-2 text-right">
+                                  <span
+                                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getRiskBadgeClass(
+                                      item.snapshot.riskLevel,
+                                    )}`}
+                                  >
+                                    {getRiskLabel(item.snapshot.riskLevel)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                </div>
+
                 {/* Charts */}
                 <div className="grid gap-6 lg:grid-cols-2 mb-6">
                   {/* Revenue/Expense by Month Chart */}
@@ -4865,6 +5105,13 @@ export default function AdminDashboard({
           onUpdate={() => {
             fetchClasses();
             fetchUsers();
+          }}
+          onTransferRequestCreated={() => {
+            refreshTransferPendingCount().catch(console.error);
+          }}
+          onNavigateToTransferTab={() => {
+            setActiveTab("class-transfer");
+            refreshTransferPendingCount().catch(console.error);
           }}
         />
       )}

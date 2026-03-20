@@ -9,10 +9,12 @@ import {
 
 interface ClassTransferRequestsPanelProps {
   onAfterDecision?: () => Promise<void> | void;
+  onRequestsLoaded?: (requests: ClassTransferRequest[]) => void;
 }
 
 export default function ClassTransferRequestsPanel({
   onAfterDecision,
+  onRequestsLoaded,
 }: ClassTransferRequestsPanelProps) {
   const {
     fetchClassTransferRequests,
@@ -30,6 +32,9 @@ export default function ClassTransferRequestsPanel({
     "all" | "pending" | "approved" | "rejected"
   >("pending");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pageSize, setPageSize] = useState<10 | 20 | 50>(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const filteredRequests = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -50,12 +55,67 @@ export default function ClassTransferRequestsPanel({
     });
   }, [requests, searchQuery, statusFilter]);
 
+  const prioritizedRequests = useMemo(() => {
+    const SLA_HOURS = 24;
+    return [...filteredRequests].sort((a, b) => {
+      const aPending = a.status === "pending";
+      const bPending = b.status === "pending";
+
+      if (aPending !== bPending) {
+        return aPending ? -1 : 1;
+      }
+
+      if (aPending && bPending) {
+        const aCreated = new Date(
+          a.createdAt || a.metadata?.requestedAt || 0,
+        ).getTime();
+        const bCreated = new Date(
+          b.createdAt || b.metadata?.requestedAt || 0,
+        ).getTime();
+        const aDeadline = aCreated + SLA_HOURS * 60 * 60 * 1000;
+        const bDeadline = bCreated + SLA_HOURS * 60 * 60 * 1000;
+        const aOverdue = Date.now() > aDeadline;
+        const bOverdue = Date.now() > bDeadline;
+
+        if (aOverdue !== bOverdue) {
+          return aOverdue ? -1 : 1;
+        }
+
+        return aCreated - bCreated;
+      }
+
+      const aUpdated = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bUpdated = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bUpdated - aUpdated;
+    });
+  }, [filteredRequests]);
+
+  const paginated = useMemo(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(prioritizedRequests.length / pageSize),
+    );
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * pageSize;
+    const items = prioritizedRequests.slice(start, start + pageSize);
+
+    return {
+      items,
+      totalPages,
+      page: safePage,
+      total: prioritizedRequests.length,
+      start: prioritizedRequests.length === 0 ? 0 : start + 1,
+      end: Math.min(start + pageSize, prioritizedRequests.length),
+    };
+  }, [prioritizedRequests, currentPage, pageSize]);
+
   const reload = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await fetchClassTransferRequests();
       setRequests(data);
+      onRequestsLoaded?.(data);
     } catch (err: unknown) {
       setError(
         (err as Error).message || "Không tải được danh sách yêu cầu chuyển lớp",
@@ -69,6 +129,17 @@ export default function ClassTransferRequestsPanel({
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds([]);
+  }, [statusFilter, searchQuery, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > paginated.totalPages) {
+      setCurrentPage(paginated.totalPages);
+    }
+  }, [currentPage, paginated.totalPages]);
 
   const handleApprove = async (requestId: string) => {
     if (!confirm("Duyệt yêu cầu chuyển lớp này?")) {
@@ -94,6 +165,78 @@ export default function ClassTransferRequestsPanel({
     } catch (err: unknown) {
       setError((err as Error).message || "Có lỗi khi từ chối yêu cầu");
     }
+  };
+
+  const pendingIdsOnPage = useMemo(
+    () =>
+      paginated.items.filter((r) => r.status === "pending").map((r) => r._id),
+    [paginated.items],
+  );
+
+  const allPendingOnPageSelected =
+    pendingIdsOnPage.length > 0 &&
+    pendingIdsOnPage.every((id) => selectedIds.includes(id));
+
+  const toggleSelectAllPendingOnPage = () => {
+    if (allPendingOnPageSelected) {
+      setSelectedIds((prev) =>
+        prev.filter((id) => !pendingIdsOnPage.includes(id)),
+      );
+      return;
+    }
+
+    setSelectedIds((prev) =>
+      Array.from(new Set([...prev, ...pendingIdsOnPage])),
+    );
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Duyệt ${selectedIds.length} yêu cầu đã chọn?`)) return;
+
+    const results = await Promise.allSettled(
+      selectedIds.map((id) => approveClassTransferRequest(id)),
+    );
+
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0) {
+      setError(
+        `Có ${failed}/${selectedIds.length} yêu cầu duyệt thất bại. Vui lòng kiểm tra lại.`,
+      );
+    }
+
+    setSelectedIds([]);
+    await reload();
+    await onAfterDecision?.();
+  };
+
+  const handleBulkReject = async () => {
+    if (selectedIds.length === 0) return;
+    const reason =
+      prompt("Nhập lý do từ chối cho các yêu cầu đã chọn (tuỳ chọn):") ||
+      undefined;
+    if (!confirm(`Từ chối ${selectedIds.length} yêu cầu đã chọn?`)) return;
+
+    const results = await Promise.allSettled(
+      selectedIds.map((id) => rejectClassTransferRequest(id, reason)),
+    );
+
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0) {
+      setError(
+        `Có ${failed}/${selectedIds.length} yêu cầu từ chối thất bại. Vui lòng kiểm tra lại.`,
+      );
+    }
+
+    setSelectedIds([]);
+    await reload();
+    await onAfterDecision?.();
   };
 
   return (
@@ -140,7 +283,66 @@ export default function ClassTransferRequestsPanel({
           className="flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm"
           placeholder="Tìm theo học sinh hoặc lớp"
         />
+
+        <select
+          value={pageSize}
+          onChange={(e) => setPageSize(Number(e.target.value) as 10 | 20 | 50)}
+          className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm"
+        >
+          <option value={10}>10 / trang</option>
+          <option value={20}>20 / trang</option>
+          <option value={50}>50 / trang</option>
+        </select>
       </div>
+
+      <div className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs text-indigo-800">
+        Tổng yêu cầu phù hợp: <strong>{paginated.total}</strong>
+        {paginated.total > 0 && (
+          <span>
+            {" "}
+            • Đang hiển thị <strong>{paginated.start}</strong>-
+            <strong>{paginated.end}</strong>
+          </span>
+        )}
+        {paginated.total > 80 && (
+          <span className="ml-2 text-amber-700">
+            ⚠️ Số lượng lớn, nên giữ bộ lọc “Chờ duyệt” và xử lý theo trang.
+          </span>
+        )}
+      </div>
+
+      {pendingIdsOnPage.length > 0 && (
+        <div className="rounded-lg border border-indigo-200 bg-white px-3 py-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <label className="text-xs text-gray-700 flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={allPendingOnPageSelected}
+              onChange={toggleSelectAllPendingOnPage}
+            />
+            Chọn tất cả yêu cầu chờ duyệt trong trang ({pendingIdsOnPage.length}
+            )
+          </label>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={handleBulkApprove}
+              disabled={selectedIds.length === 0 || isLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Duyệt đã chọn ({selectedIds.length})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkReject}
+              disabled={selectedIds.length === 0 || isLoading}
+              className="border-red-300 text-red-700 hover:bg-red-50"
+            >
+              Từ chối đã chọn
+            </Button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -150,19 +352,29 @@ export default function ClassTransferRequestsPanel({
 
       {loading ? (
         <div className="text-sm text-gray-600">Đang tải yêu cầu...</div>
-      ) : filteredRequests.length === 0 ? (
+      ) : prioritizedRequests.length === 0 ? (
         <div className="text-sm text-gray-600">
           Không có yêu cầu phù hợp với bộ lọc hiện tại.
         </div>
       ) : (
         <div className="space-y-2">
-          {filteredRequests.map((request) => (
+          {paginated.items.map((request) => (
             <div
               key={request._id}
               className="rounded-xl border border-indigo-200 bg-white px-3 py-3"
             >
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div className="text-sm text-gray-800">
+                  {request.status === "pending" && (
+                    <label className="inline-flex items-center gap-2 text-xs text-gray-600 mb-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(request._id)}
+                        onChange={() => toggleSelectOne(request._id)}
+                      />
+                      Chọn xử lý hàng loạt
+                    </label>
+                  )}
                   <p className="font-semibold">
                     {request.metadata?.studentName || "Học sinh"}
                   </p>
@@ -181,6 +393,11 @@ export default function ClassTransferRequestsPanel({
                   {request.metadata?.reason && (
                     <p className="text-xs text-gray-500 mt-1">
                       Lý do: {request.metadata.reason}
+                    </p>
+                  )}
+                  {request.status === "pending" && (
+                    <p className="text-xs mt-1 text-amber-700">
+                      Ưu tiên: xếp theo SLA 24h và yêu cầu cũ nhất lên đầu.
                     </p>
                   )}
                   {request.metadata?.rejectReason && (
@@ -269,6 +486,35 @@ export default function ClassTransferRequestsPanel({
               )}
             </div>
           ))}
+
+          {paginated.totalPages > 1 && (
+            <div className="flex items-center justify-between rounded-lg border border-indigo-200 bg-white px-3 py-2">
+              <p className="text-xs text-gray-600">
+                Trang <strong>{paginated.page}</strong> /{" "}
+                <strong>{paginated.totalPages}</strong>
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={paginated.page <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Trước
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={paginated.page >= paginated.totalPages}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(paginated.totalPages, p + 1))
+                  }
+                >
+                  Sau
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -13,6 +13,8 @@ interface ClassStudentsModalProps {
   branchId?: string;
   onClose: () => void;
   onUpdate: () => void;
+  onTransferRequestCreated?: () => void;
+  onNavigateToTransferTab?: () => void;
 }
 
 export default function ClassStudentsModal({
@@ -20,6 +22,8 @@ export default function ClassStudentsModal({
   branchId,
   onClose,
   onUpdate,
+  onTransferRequestCreated,
+  onNavigateToTransferTab,
 }: ClassStudentsModalProps) {
   const {
     addStudentToClass,
@@ -301,7 +305,7 @@ export default function ClassStudentsModal({
     setTransferConflictWarning(null);
   };
 
-  const handleCreateTransferRequest = async () => {
+  const handleCreateTransferRequest = async (openTransferTab = false) => {
     if (!transferStudent) {
       setError("Không tìm thấy học sinh để chuyển lớp");
       return;
@@ -353,10 +357,18 @@ export default function ClassStudentsModal({
         reason: transferReason.trim() || undefined,
       });
 
+      onTransferRequestCreated?.();
+
       setSuccessMessage(
         `Đã gửi yêu cầu chuyển lớp cho ${transferStudent.name}. Cần admin duyệt trước khi áp dụng.`,
       );
       closeTransferPopup();
+
+      if (openTransferTab) {
+        onNavigateToTransferTab?.();
+        onClose();
+      }
+
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: unknown) {
       setError((err as Error).message || "Có lỗi khi tạo yêu cầu chuyển lớp");
@@ -951,7 +963,19 @@ export default function ClassStudentsModal({
                     Hủy
                   </Button>
                   <Button
-                    onClick={handleCreateTransferRequest}
+                    variant="outline"
+                    onClick={() => handleCreateTransferRequest(true)}
+                    disabled={
+                      !targetClassId ||
+                      Boolean(transferConflictWarning) ||
+                      isLoading
+                    }
+                    className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                  >
+                    {isLoading ? "Đang gửi..." : "Gửi & mở tab Chuyển lớp"}
+                  </Button>
+                  <Button
+                    onClick={() => handleCreateTransferRequest(false)}
                     disabled={
                       !targetClassId ||
                       Boolean(transferConflictWarning) ||
