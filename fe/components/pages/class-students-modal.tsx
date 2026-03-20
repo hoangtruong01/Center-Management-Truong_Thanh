@@ -333,7 +333,8 @@ export default function ClassStudentsModal({
         ];
         const detailText = conflict.conflicts
           .map((item) => {
-            const dayLabel = dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+            const dayLabel =
+              dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
             const subjectPart = item.subject ? ` - ${item.subject}` : "";
             return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
           })
@@ -369,7 +370,11 @@ export default function ClassStudentsModal({
     }
 
     let cancelled = false;
-    checkStudentScheduleConflicts(targetClassId, transferStudent.id, classData._id)
+    checkStudentScheduleConflicts(
+      targetClassId,
+      transferStudent.id,
+      classData._id,
+    )
       .then((result) => {
         if (cancelled) return;
         if (!result.hasConflict) {
@@ -388,7 +393,8 @@ export default function ClassStudentsModal({
         ];
         const detailText = result.conflicts
           .map((item) => {
-            const dayLabel = dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
+            const dayLabel =
+              dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
             const subjectPart = item.subject ? ` - ${item.subject}` : "";
             return `${item.className}${subjectPart} (${dayLabel} ${item.startTime}-${item.endTime})`;
           })
@@ -782,52 +788,81 @@ export default function ClassStudentsModal({
                 </p>
               </div>
             ) : (
-              filteredCurrentStudents.map((student, index) => (
+              filteredCurrentStudents.map((student) => (
                 <div
                   key={student._id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-200 hover:shadow-sm transition-all bg-white"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-lg">
                       👨‍🎓
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50"
-                        onClick={() => openTransferPopup(student._id, student.name)}
-                        disabled={isLoading}
-                      >
-                        🔄 Chuyển lớp
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-lg text-red-600 border-red-200 hover:bg-red-50"
-                        onClick={() =>
-                          handleRemoveStudent(student._id, student.name)
-                        }
-                        disabled={isLoading}
-                      >
-                        🗑️ Xóa
-                      </Button>
                     </div>
-                    className="rounded-lg text-red-600 border-red-200 hover:bg-red-50"
-                    onClick={() =>
-                      handleRemoveStudent(student._id, student.name)
-                    }
-                    disabled={isLoading}
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 truncate">
+                        {(student as unknown as Record<string, string>)
+                          .studentCode && (
+                          <span className="text-blue-600">
+                            [
+                            {
+                              (student as unknown as Record<string, string>)
+                                .studentCode
+                            }
+                            ]{" "}
+                          </span>
+                        )}
+                        {student.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {student.email}
+                        {(student as unknown as Record<string, string>).phone &&
+                          ` • ${(student as unknown as Record<string, string>).phone}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50"
+                      onClick={() =>
+                        openTransferPopup(student._id, student.name)
+                      }
+                      disabled={isLoading}
+                    >
+                      🔄 Chuyển lớp
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() =>
+                        handleRemoveStudent(student._id, student.name)
+                      }
+                      disabled={isLoading}
+                    >
+                      🗑️ Xóa
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
 
           {showTransferPopup && transferStudent && (
             <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-60 p-4">
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-5 space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900">Yêu cầu chuyển lớp</h3>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      Yêu cầu chuyển lớp
+                    </h3>
                     <p className="text-sm text-gray-600 mt-1">
                       Học sinh: <strong>{transferStudent.name}</strong>
                     </p>
-                    <p className="text-xs text-gray-500">Lớp hiện tại: {classData.name}</p>
+                    <p className="text-xs text-gray-500">
+                      Lớp hiện tại: {classData.name}
+                    </p>
                   </div>
                   <button
                     onClick={closeTransferPopup}
@@ -877,7 +912,9 @@ export default function ClassStudentsModal({
                           const dayLabel =
                             dayNames[item.dayOfWeek] || `Thứ ${item.dayOfWeek}`;
                           return (
-                            <p key={`${item.dayOfWeek}-${item.startTime}-${idx}`}>
+                            <p
+                              key={`${item.dayOfWeek}-${item.startTime}-${idx}`}
+                            >
                               • {dayLabel}: {item.startTime} - {item.endTime}
                               {item.room ? ` (Phòng ${item.room})` : ""}
                             </p>
@@ -915,7 +952,11 @@ export default function ClassStudentsModal({
                   </Button>
                   <Button
                     onClick={handleCreateTransferRequest}
-                    disabled={!targetClassId || Boolean(transferConflictWarning) || isLoading}
+                    disabled={
+                      !targetClassId ||
+                      Boolean(transferConflictWarning) ||
+                      isLoading
+                    }
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     {isLoading ? "Đang gửi..." : "Xác nhận gửi yêu cầu"}
@@ -924,13 +965,6 @@ export default function ClassStudentsModal({
               </div>
             </div>
           )}
-                  >
-                    🗑️ Xóa
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
 
           {/* Summary */}
           <div className="mt-4 pt-4 border-t border-gray-200">
