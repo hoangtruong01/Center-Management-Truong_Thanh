@@ -2720,6 +2720,12 @@ export default function AdminDashboard({
               📚 Khóa học
             </TabsTrigger>
             <TabsTrigger
+              value="class-transfer"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🔄 Chuyển lớp
+            </TabsTrigger>
+            <TabsTrigger
               value="accounts"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
@@ -3128,12 +3134,6 @@ export default function AdminDashboard({
                 )}
               </div>
 
-              <ClassTransferRequestsPanel
-                onAfterDecision={async () => {
-                  await fetchClasses();
-                }}
-              />
-
               <div className="space-y-3">
                 {classes.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
@@ -3280,6 +3280,29 @@ export default function AdminDashboard({
                     </div>
                   )}
               </div>
+            </Card>
+          </TabsContent>
+
+          {/* Tab Chuyển lớp */}
+          <TabsContent value="class-transfer" className="mt-6">
+            <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-gray-900 text-lg">
+                    Quản lý chuyển lớp
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Theo dõi, duyệt và tra cứu lịch sử yêu cầu chuyển lớp tại
+                    một nơi riêng.
+                  </p>
+                </div>
+              </div>
+
+              <ClassTransferRequestsPanel
+                onAfterDecision={async () => {
+                  await fetchClasses();
+                }}
+              />
             </Card>
           </TabsContent>
 
