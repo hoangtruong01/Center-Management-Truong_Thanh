@@ -109,6 +109,8 @@ interface PaymentRequestsState {
     students: StudentPaymentRequest[];
   }>;
   cancelClassRequest: (id: string) => Promise<void>;
+  approveClassRequestException: (id: string) => Promise<void>;
+  rejectClassRequestException: (id: string, reason?: string) => Promise<void>;
 
   clearError: () => void;
 }
@@ -198,6 +200,34 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
       set({ isLoading: false });
     } catch (error: any) {
       const message = error.response?.data?.message || "Lỗi hủy yêu cầu";
+      set({ isLoading: false, error: message });
+      throw new Error(message);
+    }
+  },
+
+  approveClassRequestException: async (id: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.patch(`/payment-requests/class/${id}/exception/approve`);
+      set({ isLoading: false });
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message || "Lỗi duyệt ngoại lệ học bổng";
+      set({ isLoading: false, error: message });
+      throw new Error(message);
+    }
+  },
+
+  rejectClassRequestException: async (id: string, reason?: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.patch(`/payment-requests/class/${id}/exception/reject`, {
+        reason,
+      });
+      set({ isLoading: false });
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message || "Lỗi từ chối ngoại lệ học bổng";
       set({ isLoading: false, error: message });
       throw new Error(message);
     }

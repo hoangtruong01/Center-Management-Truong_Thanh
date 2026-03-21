@@ -177,6 +177,32 @@ export class UsersService {
     return this.userModel.findOne({ email }).exec();
   }
 
+  async findParentsForStudent(student: {
+    studentId: string;
+    email?: string;
+    parentPhone?: string;
+  }): Promise<User[]> {
+    const orConditions: any[] = [{ childrenIds: { $in: [student.studentId] } }];
+
+    if (student.email) {
+      orConditions.push({ childEmail: student.email.toLowerCase().trim() });
+    }
+
+    if (student.parentPhone) {
+      orConditions.push({ phone: student.parentPhone });
+    }
+
+    if (orConditions.length === 0) return [];
+
+    return this.userModel
+      .find({
+        role: UserRole.Parent,
+        $or: orConditions,
+      })
+      .select('-passwordHash')
+      .exec();
+  }
+
   async findByEmails(emails: string[]): Promise<UserDocument[]> {
     return this.userModel.find({ childEmail: { $in: emails } }).exec();
   }

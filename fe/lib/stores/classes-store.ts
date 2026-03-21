@@ -124,6 +124,21 @@ interface ClassesActions {
     requestId: string,
     reason?: string,
   ) => Promise<void>;
+  bulkApproveClassTransferRequests: (requestIds: string[]) => Promise<{
+    total: number;
+    success: number;
+    failed: number;
+    failures: Array<{ requestId: string; error: string }>;
+  }>;
+  bulkRejectClassTransferRequests: (
+    requestIds: string[],
+    reason?: string,
+  ) => Promise<{
+    total: number;
+    success: number;
+    failed: number;
+    failures: Array<{ requestId: string; error: string }>;
+  }>;
   transferStudentToClass: (
     toClassId: string,
     fromClassId: string,
@@ -414,6 +429,48 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
       } catch (error: any) {
         const message =
           error.response?.data?.message || "Lỗi khi từ chối yêu cầu chuyển lớp";
+        set({ isLoading: false, error: message });
+        throw new Error(message);
+      }
+    },
+
+    bulkApproveClassTransferRequests: async (requestIds: string[]) => {
+      set({ isLoading: true, error: null });
+      try {
+        const response = await api.post(
+          "/admin/class-transfer-requests/bulk-approve",
+          { requestIds },
+        );
+        set({ isLoading: false });
+        return response.data;
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message ||
+          "Lỗi khi duyệt hàng loạt yêu cầu chuyển lớp";
+        set({ isLoading: false, error: message });
+        throw new Error(message);
+      }
+    },
+
+    bulkRejectClassTransferRequests: async (
+      requestIds: string[],
+      reason?: string,
+    ) => {
+      set({ isLoading: true, error: null });
+      try {
+        const response = await api.post(
+          "/admin/class-transfer-requests/bulk-reject",
+          {
+            requestIds,
+            reason,
+          },
+        );
+        set({ isLoading: false });
+        return response.data;
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message ||
+          "Lỗi khi từ chối hàng loạt yêu cầu chuyển lớp";
         set({ isLoading: false, error: message });
         throw new Error(message);
       }

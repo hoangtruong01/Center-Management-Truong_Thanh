@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -74,21 +75,20 @@ export class ClassesController {
   checkStudentConflicts(
     @Param('id') id: string,
     @Param('studentId') studentId: string,
+    @Query('excludeClassId') excludeClassId?: string,
   ) {
-    return this.classesService.getStudentScheduleConflicts(id, studentId);
+    return this.classesService.getStudentScheduleConflicts(
+      id,
+      studentId,
+      excludeClassId,
+    );
   }
 
   @Post(':toClassId/students/transfer')
   @Roles(UserRole.Admin)
-  transferStudent(
-    @Param('toClassId') toClassId: string,
-    @Body('studentId') studentId: string,
-    @Body('fromClassId') fromClassId: string,
-  ) {
-    return this.classesService.transferStudentBetweenClasses(
-      fromClassId,
-      toClassId,
-      studentId,
+  transferStudent() {
+    throw new BadRequestException(
+      'Chức năng chuyển lớp cần gửi yêu cầu duyệt qua API /admin/class-transfer-requests',
     );
   }
 

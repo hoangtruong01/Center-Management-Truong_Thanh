@@ -89,4 +89,3 @@ export const StudentPaymentRequestSchema = SchemaFactory.createForClass(
   StudentPaymentRequest,
 );
 StudentPaymentRequestSchema.index({ studentId: 1, status: 1 });
-StudentPaymentRequestSchema.index({ classPaymentRequestId: 1 });

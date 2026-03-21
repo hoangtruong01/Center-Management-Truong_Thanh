@@ -20,6 +20,8 @@ export default function ClassTransferRequestsPanel({
     fetchClassTransferRequests,
     approveClassTransferRequest,
     rejectClassTransferRequest,
+    bulkApproveClassTransferRequests,
+    bulkRejectClassTransferRequests,
     isLoading,
   } = useClassesStore();
 
@@ -200,20 +202,19 @@ export default function ClassTransferRequestsPanel({
     if (selectedIds.length === 0) return;
     if (!confirm(`Duyệt ${selectedIds.length} yêu cầu đã chọn?`)) return;
 
-    const results = await Promise.allSettled(
-      selectedIds.map((id) => approveClassTransferRequest(id)),
-    );
-
-    const failed = results.filter((r) => r.status === "rejected").length;
-    if (failed > 0) {
-      setError(
-        `Có ${failed}/${selectedIds.length} yêu cầu duyệt thất bại. Vui lòng kiểm tra lại.`,
-      );
+    try {
+      const result = await bulkApproveClassTransferRequests(selectedIds);
+      if (result.failed > 0) {
+        setError(
+          `Có ${result.failed}/${result.total} yêu cầu duyệt thất bại. Vui lòng kiểm tra lại.`,
+        );
+      }
+      setSelectedIds([]);
+      await reload();
+      await onAfterDecision?.();
+    } catch (err: unknown) {
+      setError((err as Error).message || "Có lỗi khi duyệt hàng loạt");
     }
-
-    setSelectedIds([]);
-    await reload();
-    await onAfterDecision?.();
   };
 
   const handleBulkReject = async () => {
@@ -223,20 +224,19 @@ export default function ClassTransferRequestsPanel({
       undefined;
     if (!confirm(`Từ chối ${selectedIds.length} yêu cầu đã chọn?`)) return;
 
-    const results = await Promise.allSettled(
-      selectedIds.map((id) => rejectClassTransferRequest(id, reason)),
-    );
-
-    const failed = results.filter((r) => r.status === "rejected").length;
-    if (failed > 0) {
-      setError(
-        `Có ${failed}/${selectedIds.length} yêu cầu từ chối thất bại. Vui lòng kiểm tra lại.`,
-      );
+    try {
+      const result = await bulkRejectClassTransferRequests(selectedIds, reason);
+      if (result.failed > 0) {
+        setError(
+          `Có ${result.failed}/${result.total} yêu cầu từ chối thất bại. Vui lòng kiểm tra lại.`,
+        );
+      }
+      setSelectedIds([]);
+      await reload();
+      await onAfterDecision?.();
+    } catch (err: unknown) {
+      setError((err as Error).message || "Có lỗi khi từ chối hàng loạt");
     }
-
-    setSelectedIds([]);
-    await reload();
-    await onAfterDecision?.();
   };
 
   return (

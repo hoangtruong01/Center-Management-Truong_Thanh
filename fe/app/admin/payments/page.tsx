@@ -77,6 +77,8 @@ export default function AdminPaymentRequestsPage() {
     createClassPaymentRequest,
     cancelClassRequest,
     getClassRequestStudents,
+    approveClassRequestException,
+    rejectClassRequestException,
     isLoading: requestsLoading,
   } = usePaymentRequestsStore();
   const {
@@ -385,6 +387,36 @@ export default function AdminPaymentRequestsPage() {
     }
   };
 
+  const handleApproveException = async (id: string) => {
+    if (!confirm("Duyệt ngoại lệ học bổng cho yêu cầu này?")) {
+      return;
+    }
+
+    try {
+      await approveClassRequestException(id);
+      notify.success("Đã duyệt ngoại lệ thành công");
+      fetchClassRequests();
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
+    }
+  };
+
+  const handleRejectException = async (id: string) => {
+    const reason =
+      prompt("Nhập lý do từ chối ngoại lệ (tuỳ chọn):") || undefined;
+    if (!confirm("Từ chối ngoại lệ và hủy yêu cầu này?")) {
+      return;
+    }
+
+    try {
+      await rejectClassRequestException(id, reason);
+      notify.success("Đã từ chối ngoại lệ và hủy yêu cầu");
+      fetchClassRequests();
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
+    }
+  };
+
   // Toggle select helpers
   const toggleBranch = (branchId: string) => {
     setSelectedBranches((prev) =>
@@ -640,6 +672,22 @@ export default function AdminPaymentRequestsPage() {
                             {req.amount.toLocaleString("vi-VN")} đ
                           </p>
 
+                          <p className="text-xs mt-1">
+                            {req.status === "pending_exception" ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                Chờ duyệt ngoại lệ
+                              </span>
+                            ) : req.status === "active" ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                Đang hoạt động
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                                Đã hủy
+                              </span>
+                            )}
+                          </p>
+
                           {/* Progress */}
                           <div className="flex items-center gap-2 mt-2">
                             <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -677,10 +725,31 @@ export default function AdminPaymentRequestsPage() {
                           size="sm"
                           className="text-red-600 hover:bg-red-50"
                           onClick={() => handleCancelRequest(req._id)}
+                          disabled={req.status !== "active"}
                         >
                           <Trash2 className="w-4 h-4 mr-1" />
                           Hủy
                         </Button>
+
+                        {req.status === "pending_exception" && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApproveException(req._id)}
+                            >
+                              Duyệt ngoại lệ
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-700 border-red-300 hover:bg-red-50"
+                              onClick={() => handleRejectException(req._id)}
+                            >
+                              Từ chối ngoại lệ
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}

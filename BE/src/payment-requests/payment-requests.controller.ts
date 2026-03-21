@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -54,6 +55,22 @@ export class PaymentRequestsController {
   @Roles(UserRole.Admin)
   async cancelClassRequest(@Param('id') id: string) {
     return this.service.cancelClassPaymentRequest(id);
+  }
+
+  @Patch('class/:id/exception/approve')
+  @Roles(UserRole.Admin)
+  async approveClassRequestException(@Param('id') id: string, @Request() req) {
+    return this.service.approveException(id, req.user._id);
+  }
+
+  @Patch('class/:id/exception/reject')
+  @Roles(UserRole.Admin)
+  async rejectClassRequestException(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() body: { reason?: string },
+  ) {
+    return this.service.rejectException(id, req.user._id, body?.reason);
   }
 
   @Get('my')

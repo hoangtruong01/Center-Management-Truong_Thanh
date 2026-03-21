@@ -8,6 +8,7 @@ export enum ApprovalType {
   LinkParent = 'link_parent',
   PasswordReset = 'password_reset',
   Contact = 'contact',
+  ClassTransfer = 'class_transfer',
 }
 
 export enum ApprovalStatus {

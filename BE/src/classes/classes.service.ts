@@ -367,8 +367,16 @@ export class ClassesService {
     return this.findOne(classId);
   }
 
-  async getStudentScheduleConflicts(classId: string, studentId: string) {
-    return this.checkStudentScheduleConflict(studentId, classId);
+  async getStudentScheduleConflicts(
+    classId: string,
+    studentId: string,
+    excludeClassId?: string,
+  ) {
+    return this.checkStudentScheduleConflict(
+      studentId,
+      classId,
+      excludeClassId,
+    );
   }
 
   async transferStudentBetweenClasses(

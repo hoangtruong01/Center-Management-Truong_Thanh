@@ -1,8 +1,18 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Payment, PaymentDocument, PaymentStatus } from '../payments/schemas/payment.schema';
+import {
+  Payment,
+  PaymentDocument,
+  PaymentStatus,
+} from '../payments/schemas/payment.schema';
 import { Expense, ExpenseDocument } from '../expenses/schemas/expense.schema';
+import {
+  ClassPaymentRequest,
+  ClassPaymentRequestDocument,
+  ClassPaymentRequestStatus,
+} from '../payment-requests/schemas/class-payment-request.schema';
+import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
 
 interface MonthlyData {
   month: number;
@@ -27,15 +37,49 @@ export interface DashboardResponse {
   detailByMonth: MonthlyData[];
 }
 
+export interface ClassFinancialHealthItem {
+  classRequestId: string;
+  classId: string;
+  className: string;
+  classSubject?: string;
+  status: string;
+  dueDate?: Date;
+  totalStudents: number;
+  paidCount: number;
+  paidRate: number;
+  snapshot: {
+    listedRevenue: number;
+    scholarshipDiscountTotal: number;
+    scholarshipDiscountRatio: number;
+    estimatedRevenue: number;
+    estimatedCost: number;
+    projectedProfit: number;
+    collectedRevenue: number;
+    outstandingAmount: number;
+    overdueDebtAmount: number;
+    actualCollectionRate: number;
+    actualProfit: number;
+    minProfitTarget: number;
+    riskLevel: 'green' | 'yellow' | 'red';
+    isCapExceeded: boolean;
+  };
+}
 
 @Injectable()
 export class FinanceService {
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(Expense.name) private expenseModel: Model<ExpenseDocument>,
+    @InjectModel(ClassPaymentRequest.name)
+    private classRequestModel: Model<ClassPaymentRequestDocument>,
+    @InjectModel(ClassEntity.name)
+    private classModel: Model<ClassDocument>,
   ) {}
 
-  async getDashboard(branchId: string, year: number): Promise<DashboardResponse> {
+  async getDashboard(
+    branchId: string,
+    year: number,
+  ): Promise<DashboardResponse> {
     // Validate inputs
     if (!year || year < 2000 || year > 2100) {
       throw new BadRequestException('Năm không hợp lệ');
@@ -75,7 +119,6 @@ export class FinanceService {
       console.warn('Could not aggregate revenue by subject:', error.message);
       revenueBySubject = [];
     }
-
 
     // 4. Normalize to 12 months & calculate totals
     const detailByMonth = this.mergeMonthlyData(
@@ -124,9 +167,7 @@ export class FinanceService {
     };
 
     // Build aggregation pipeline
-    const pipeline: any[] = [
-      { $match: matchStage },
-    ];
+    const pipeline: any[] = [{ $match: matchStage }];
 
     // Filter by branch if not ALL
     if (branchId !== 'ALL') {
@@ -232,9 +273,7 @@ export class FinanceService {
     };
 
     // Build pipeline
-    const pipeline: any[] = [
-      { $match: matchStage },
-    ];
+    const pipeline: any[] = [{ $match: matchStage }];
 
     // Add branch filter with fallback if not ALL
     if (branchId !== 'ALL') {
@@ -314,5 +353,165 @@ export class FinanceService {
     }
 
     return merged;
+  }
+
+  async getClassFinancialHealth(
+    branchId: string,
+    risk?: 'all' | 'green' | 'yellow' | 'red',
+  ): Promise<ClassFinancialHealthItem[]> {
+    const query: any = {
+      status: {
+        $in: [
+          ClassPaymentRequestStatus.ACTIVE,
+          ClassPaymentRequestStatus.PENDING_EXCEPTION,
+        ],
+      },
+      financialSnapshot: { $ne: null },
+    };
+
+    if (risk && risk !== 'all') {
+      query['financialSnapshot.riskLevel'] = risk;
+    }
+
+    if (branchId !== 'ALL') {
+      const classes = await this.classModel
+        .find({ branchId: new Types.ObjectId(branchId) })
+        .select('_id')
+        .lean();
+      query.classId = { $in: classes.map((c) => c._id) };
+    }
+
+    const items = await this.classRequestModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const riskOrder: Record<'green' | 'yellow' | 'red', number> = {
+      green: 1,
+      yellow: 2,
+      red: 3,
+    };
+
+    return items
+      .map((item) => {
+        const paidRate =
+          item.totalStudents > 0 ? item.paidCount / item.totalStudents : 0;
+
+        return {
+          classRequestId: item._id.toString(),
+          classId: item.classId.toString(),
+          className: item.className,
+          classSubject: item.classSubject,
+          status: item.status,
+          dueDate: item.dueDate,
+          totalStudents: item.totalStudents,
+          paidCount: item.paidCount,
+          paidRate,
+          snapshot: {
+            listedRevenue: item.financialSnapshot?.listedRevenue || 0,
+            scholarshipDiscountTotal:
+              item.financialSnapshot?.scholarshipDiscountTotal || 0,
+            scholarshipDiscountRatio:
+              item.financialSnapshot?.scholarshipDiscountRatio || 0,
+            estimatedRevenue: item.financialSnapshot?.estimatedRevenue || 0,
+            estimatedCost: item.financialSnapshot?.estimatedCost || 0,
+            projectedProfit: item.financialSnapshot?.projectedProfit || 0,
+            collectedRevenue: item.financialSnapshot?.collectedRevenue || 0,
+            outstandingAmount: item.financialSnapshot?.outstandingAmount || 0,
+            overdueDebtAmount: item.financialSnapshot?.overdueDebtAmount || 0,
+            actualCollectionRate:
+              item.financialSnapshot?.actualCollectionRate || 0,
+            actualProfit: item.financialSnapshot?.actualProfit || 0,
+            minProfitTarget: item.financialSnapshot?.minProfitTarget || 0,
+            riskLevel: item.financialSnapshot?.riskLevel || 'green',
+            isCapExceeded: Boolean(item.financialSnapshot?.isCapExceeded),
+          },
+        };
+      })
+      .sort((a, b) => {
+        const riskDiff =
+          riskOrder[b.snapshot.riskLevel] - riskOrder[a.snapshot.riskLevel];
+        if (riskDiff !== 0) return riskDiff;
+        return b.snapshot.overdueDebtAmount - a.snapshot.overdueDebtAmount;
+      });
+  }
+
+  async getWeeklyClassFinancialReport(branchId: string): Promise<{
+    generatedAt: string;
+    branchId: string;
+    summary: {
+      totalClasses: number;
+      red: number;
+      yellow: number;
+      green: number;
+      totalOutstanding: number;
+      totalOverdueDebt: number;
+    };
+    topRisks: Array<{
+      classRequestId: string;
+      className: string;
+      riskLevel: 'green' | 'yellow' | 'red';
+      outstandingAmount: number;
+      overdueDebtAmount: number;
+      actualProfit: number;
+      minProfitTarget: number;
+      isCapExceeded: boolean;
+    }>;
+  }> {
+    const health = await this.getClassFinancialHealth(branchId, 'all');
+
+    const red = health.filter((h) => h.snapshot.riskLevel === 'red').length;
+    const yellow = health.filter(
+      (h) => h.snapshot.riskLevel === 'yellow',
+    ).length;
+    const green = health.filter((h) => h.snapshot.riskLevel === 'green').length;
+
+    const totalOutstanding = health.reduce(
+      (sum, h) => sum + h.snapshot.outstandingAmount,
+      0,
+    );
+    const totalOverdueDebt = health.reduce(
+      (sum, h) => sum + h.snapshot.overdueDebtAmount,
+      0,
+    );
+
+    const riskOrder: Record<'green' | 'yellow' | 'red', number> = {
+      green: 1,
+      yellow: 2,
+      red: 3,
+    };
+
+    const topRisks = [...health]
+      .sort((a, b) => {
+        const riskDiff =
+          riskOrder[b.snapshot.riskLevel] - riskOrder[a.snapshot.riskLevel];
+        if (riskDiff !== 0) return riskDiff;
+        return b.snapshot.overdueDebtAmount - a.snapshot.overdueDebtAmount;
+      })
+      .slice(0, 10)
+      .map((h) => ({
+        classRequestId: h.classRequestId,
+        className: h.className,
+        riskLevel: h.snapshot.riskLevel,
+        outstandingAmount: h.snapshot.outstandingAmount,
+        overdueDebtAmount: h.snapshot.overdueDebtAmount,
+        actualProfit: h.snapshot.actualProfit,
+        minProfitTarget: h.snapshot.minProfitTarget,
+        isCapExceeded: h.snapshot.isCapExceeded,
+      }));
+
+    return {
+      generatedAt: new Date().toISOString(),
+      branchId,
+      summary: {
+        totalClasses: health.length,
+        red,
+        yellow,
+        green,
+        totalOutstanding,
+        totalOverdueDebt,
+      },
+      topRisks,
+    };
   }
 }
