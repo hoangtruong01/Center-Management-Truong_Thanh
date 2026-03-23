@@ -47,6 +47,20 @@ npm run start:dev   # development
 npm run start       # production build required
 ```
 
+## Seed demo users (4 roles)
+
+```bash
+npm run seed
+```
+
+Script seed sẽ tạo tài khoản demo cho 4 quyền phục vụ chạy local.
+
+Nếu cần reset sạch dữ liệu để seed lại toàn bộ:
+
+```bash
+npm run seed:fresh
+```
+
 ## Core modules (API)
 
 - Auth: /auth/register, /auth/login, /auth/refresh
@@ -62,6 +76,10 @@ npm run start       # production build required
 - Feedback: học sinh đánh giá giáo viên
 
 ## Deployment
+
+CI/CD đã được cấu hình ở root repository trong `.github/workflows`:
+- `ci.yml`: lint + build cho BE và FE.
+- `cd.yml`: trigger deploy bằng webhook (Render/Vercel) qua GitHub Secrets.
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 

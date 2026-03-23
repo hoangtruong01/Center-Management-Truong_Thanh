@@ -73,7 +73,7 @@ Tất cả endpoints yêu cầu:
   "createdBy": {
     "_id": "abc123def456789012345678",
     "name": "Nguyễn Văn Giáo viên",
-    "email": "teacher@example.com"
+    "email": "teacher@sample.local"
   },
   "createdAt": "2026-01-24T12:00:00.000Z",
   "updatedAt": "2026-01-24T12:00:00.000Z"
@@ -121,7 +121,7 @@ Authorization: Bearer <token>
     "createdBy": {
       "_id": "abc123def456789012345678",
       "name": "Nguyễn Văn Giáo viên",
-      "email": "teacher@example.com"
+      "email": "teacher@sample.local"
     },
     "createdAt": "2026-01-24T12:00:00.000Z",
     "updatedAt": "2026-01-24T12:00:00.000Z"
@@ -145,7 +145,7 @@ Authorization: Bearer <token>
     "createdBy": {
       "_id": "abc123def456789012345678",
       "name": "Nguyễn Văn Giáo viên",
-      "email": "teacher@example.com"
+      "email": "teacher@sample.local"
     },
     "createdAt": "2026-01-20T12:00:00.000Z",
     "updatedAt": "2026-01-20T12:00:00.000Z"
@@ -196,7 +196,7 @@ Authorization: Bearer <token>
   "createdBy": {
     "_id": "abc123def456789012345678",
     "name": "Nguyễn Văn Giáo viên",
-    "email": "teacher@example.com"
+    "email": "teacher@sample.local"
   },
   "createdAt": "2026-01-24T12:00:00.000Z",
   "updatedAt": "2026-01-24T12:00:00.000Z"
@@ -258,7 +258,7 @@ Authorization: Bearer <token>
   "createdBy": {
     "_id": "abc123def456789012345678",
     "name": "Nguyễn Văn Giáo viên",
-    "email": "teacher@example.com"
+    "email": "teacher@sample.local"
   },
   "createdAt": "2026-01-24T12:00:00.000Z",
   "updatedAt": "2026-01-24T12:30:00.000Z"
