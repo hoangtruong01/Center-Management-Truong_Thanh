@@ -33,6 +33,18 @@ export class Session {
   @Prop({ type: String, enum: SessionStatus, default: SessionStatus.Pending })
   status: SessionStatus;
 
+  @Prop({ type: Types.ObjectId, ref: 'Session' })
+  originalSessionId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  cancelledBy?: Types.ObjectId;
+
+  @Prop()
+  cancelledAt?: Date;
+
+  @Prop()
+  cancelReason?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User' })
   createdBy?: Types.ObjectId;
 

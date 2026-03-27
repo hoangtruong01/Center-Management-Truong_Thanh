@@ -23,6 +23,7 @@ describe('Sessions & Attendance API (e2e)', () => {
   let teacherId: string;
   let studentId: string;
   let classId: string;
+  let secondClassId: string;
   let sessionId: string;
 
   beforeAll(async () => {
@@ -73,6 +74,13 @@ describe('Sessions & Attendance API (e2e)', () => {
         role: UserRole.Student,
         status: UserStatus.Active,
       },
+      {
+        name: 'Teacher 2 User',
+        email: 'teacher2@sessions-test.com',
+        passwordHash: await bcrypt.hash(password, 10),
+        role: UserRole.Teacher,
+        status: UserStatus.Active,
+      },
     ]);
 
     teacherId = users[1]._id.toString();
@@ -86,6 +94,14 @@ describe('Sessions & Attendance API (e2e)', () => {
       studentIds: [users[2]._id],
     });
     classId = classDoc._id.toString();
+
+    const secondClassDoc = await classModel.create({
+      name: 'Conflict Class',
+      subject: 'Physics',
+      teacherId: users[3]._id,
+      studentIds: [users[2]._id],
+    });
+    secondClassId = secondClassDoc._id.toString();
 
     // Login and get tokens
     const adminLogin = await request(app.getHttpServer())
@@ -232,6 +248,101 @@ describe('Sessions & Attendance API (e2e)', () => {
 
         expect(res.body.note).toBe('Updated note');
         expect(res.body.status).toBe('approved');
+      });
+    });
+
+    describe('POST /sessions/:id/cancel-and-makeup', () => {
+      it('should block in strict mode when students conflict', async () => {
+        const now = new Date();
+        const originalStart = new Date(now.getTime() + 500000000);
+        const originalEnd = new Date(originalStart.getTime() + 5400000);
+        const conflictStart = new Date(now.getTime() + 560000000);
+        const conflictEnd = new Date(conflictStart.getTime() + 5400000);
+
+        const originalSession = await request(app.getHttpServer())
+          .post('/sessions')
+          .set('Authorization', `Bearer ${teacherToken}`)
+          .send({
+            classId,
+            startTime: originalStart.toISOString(),
+            endTime: originalEnd.toISOString(),
+            type: 'regular',
+          })
+          .expect(201);
+
+        await request(app.getHttpServer())
+          .post('/sessions')
+          .set('Authorization', `Bearer ${teacherToken}`)
+          .send({
+            classId: secondClassId,
+            startTime: conflictStart.toISOString(),
+            endTime: conflictEnd.toISOString(),
+            type: 'regular',
+          })
+          .expect(201);
+
+        await request(app.getHttpServer())
+          .post(`/sessions/${originalSession.body._id}/cancel-and-makeup`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            reason: 'Teacher absent',
+            makeupStartTime: conflictStart.toISOString(),
+            makeupEndTime: conflictEnd.toISOString(),
+            policy: 'block_all',
+          })
+          .expect(400);
+      });
+
+      it('should allow create with manual resolution policy', async () => {
+        const now = new Date();
+        const originalStart = new Date(now.getTime() + 700000000);
+        const originalEnd = new Date(originalStart.getTime() + 5400000);
+        const conflictStart = new Date(now.getTime() + 760000000);
+        const conflictEnd = new Date(conflictStart.getTime() + 5400000);
+
+        const originalSession = await request(app.getHttpServer())
+          .post('/sessions')
+          .set('Authorization', `Bearer ${teacherToken}`)
+          .send({
+            classId,
+            startTime: originalStart.toISOString(),
+            endTime: originalEnd.toISOString(),
+            type: 'regular',
+          })
+          .expect(201);
+
+        await request(app.getHttpServer())
+          .post('/sessions')
+          .set('Authorization', `Bearer ${teacherToken}`)
+          .send({
+            classId: secondClassId,
+            startTime: conflictStart.toISOString(),
+            endTime: conflictEnd.toISOString(),
+            type: 'regular',
+          })
+          .expect(201);
+
+        const res = await request(app.getHttpServer())
+          .post(`/sessions/${originalSession.body._id}/cancel-and-makeup`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            reason: 'Holiday reschedule',
+            makeupStartTime: conflictStart.toISOString(),
+            makeupEndTime: conflictEnd.toISOString(),
+            policy: 'allow_with_manual_resolution',
+          })
+          .expect(201);
+
+        expect(res.body.previewOnly).toBe(false);
+        expect(res.body.report.policyDecision.requiresManualResolution).toBe(
+          true,
+        );
+
+        const originalAfter = await request(app.getHttpServer())
+          .get(`/sessions/${originalSession.body._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+        expect(originalAfter.body.status).toBe('cancelled');
       });
     });
   });

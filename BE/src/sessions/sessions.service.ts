@@ -9,20 +9,404 @@ import { Session, SessionDocument } from './schemas/session.schema';
 import { CreateSessionDto, SessionType } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import {
+  CancelAndMakeupSessionDto,
+  MakeupConflictPolicy,
+} from './dto/cancel-and-makeup-session.dto';
+import {
   ScheduleQueryDto,
   GenerateSessionsDto,
   CheckConflictDto,
   BulkCreateSessionsDto,
 } from './dto/schedule-query.dto';
-import { UserDocument } from '../users/schemas/user.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
 import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
+
+type StudentConflictDetail = {
+  studentId: string;
+  studentName: string;
+  conflictingClassId: string;
+  conflictingClassName: string;
+  conflictingSessionId: string;
+  conflictingStartTime: Date;
+  conflictingEndTime: Date;
+};
+
+type MakeupConflictReport = {
+  classId: string;
+  totalStudents: number;
+  conflictStudents: StudentConflictDetail[];
+  conflictingStudentCount: number;
+  conflictingStudentIds: string[];
+  conflictRate: number;
+  teacherConflicts: Array<{
+    sessionId: string;
+    startTime: Date;
+    endTime: Date;
+  }>;
+  roomConflicts: Array<{
+    sessionId: string;
+    room: string;
+    startTime: Date;
+    endTime: Date;
+  }>;
+  policyDecision: {
+    policy: MakeupConflictPolicy;
+    canCreate: boolean;
+    requiresManualResolution: boolean;
+    thresholdUsed?: number;
+    reason?: string;
+  };
+};
 
 @Injectable()
 export class SessionsService {
   constructor(
     @InjectModel(Session.name) private model: Model<SessionDocument>,
     @InjectModel(ClassEntity.name) private classModel: Model<ClassDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
+
+  private appendCancelReason(note: string | undefined, reason: string): string {
+    const cancelNote = `Cancelled reason: ${reason}`;
+    if (!note) return cancelNote;
+    return `${note}\n${cancelNote}`;
+  }
+
+  private buildOverlapFilter(
+    startTime: Date,
+    endTime: Date,
+    excludeSessionId: string,
+  ) {
+    return {
+      _id: { $ne: new Types.ObjectId(excludeSessionId) },
+      status: { $ne: 'cancelled' },
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
+    };
+  }
+
+  private evaluatePolicy(
+    report: Omit<MakeupConflictReport, 'policyDecision'>,
+    policy: MakeupConflictPolicy,
+    maxConflictRate: number,
+  ): MakeupConflictReport['policyDecision'] {
+    if (report.teacherConflicts.length > 0) {
+      return {
+        policy,
+        canCreate: false,
+        requiresManualResolution: false,
+        reason: 'Teacher has schedule conflict at selected make-up time',
+      };
+    }
+
+    if (report.roomConflicts.length > 0) {
+      return {
+        policy,
+        canCreate: false,
+        requiresManualResolution: false,
+        reason: 'Room is occupied at selected make-up time',
+      };
+    }
+
+    if (policy === MakeupConflictPolicy.BlockAll) {
+      return {
+        policy,
+        canCreate: report.conflictingStudentCount === 0,
+        requiresManualResolution: false,
+        reason:
+          report.conflictingStudentCount > 0
+            ? 'Student conflicts detected in strict mode'
+            : undefined,
+      };
+    }
+
+    if (policy === MakeupConflictPolicy.AllowWithThreshold) {
+      return {
+        policy,
+        canCreate: report.conflictRate <= maxConflictRate,
+        requiresManualResolution: false,
+        thresholdUsed: maxConflictRate,
+        reason:
+          report.conflictRate > maxConflictRate
+            ? `Conflict rate ${Math.round(report.conflictRate * 100)}% exceeds threshold ${Math.round(maxConflictRate * 100)}%`
+            : undefined,
+      };
+    }
+
+    return {
+      policy,
+      canCreate: true,
+      requiresManualResolution: report.conflictingStudentCount > 0,
+      reason:
+        report.conflictingStudentCount > 0
+          ? 'Students with conflicts require manual follow-up'
+          : undefined,
+    };
+  }
+
+  private async analyzeMakeupConflicts(
+    originalSession: SessionDocument,
+    classDoc: ClassDocument,
+    makeupStartTime: Date,
+    makeupEndTime: Date,
+    policy: MakeupConflictPolicy,
+    maxConflictRate: number,
+  ): Promise<MakeupConflictReport> {
+    const overlapFilter = this.buildOverlapFilter(
+      makeupStartTime,
+      makeupEndTime,
+      originalSession._id.toString(),
+    );
+    const classId = classDoc._id.toString();
+
+    const teacherId = originalSession.teacherId || classDoc.teacherId;
+    let teacherConflicts: MakeupConflictReport['teacherConflicts'] = [];
+    if (teacherId) {
+      const teacherClassIds = await this.classModel
+        .find({ teacherId })
+        .select('_id')
+        .lean()
+        .exec();
+
+      const teacherOwnedClassIds = teacherClassIds.map((item: any) => item._id);
+
+      const teacherConflictDocs = await this.model
+        .find({
+          ...overlapFilter,
+          $or: [{ teacherId }, { classId: { $in: teacherOwnedClassIds } }],
+        })
+        .select('_id startTime endTime')
+        .lean()
+        .exec();
+
+      teacherConflicts = teacherConflictDocs.map((doc: any) => ({
+        sessionId: doc._id.toString(),
+        startTime: doc.startTime,
+        endTime: doc.endTime,
+      }));
+    }
+
+    let roomConflicts: MakeupConflictReport['roomConflicts'] = [];
+    if (originalSession.room) {
+      const roomConflictDocs = await this.model
+        .find({
+          ...overlapFilter,
+          room: originalSession.room,
+        })
+        .select('_id room startTime endTime')
+        .lean()
+        .exec();
+
+      roomConflicts = roomConflictDocs.map((doc: any) => ({
+        sessionId: doc._id.toString(),
+        room: doc.room,
+        startTime: doc.startTime,
+        endTime: doc.endTime,
+      }));
+    }
+
+    const classStudentIds = (classDoc.studentIds || []).map((id) =>
+      id.toString(),
+    );
+    const totalStudents = classStudentIds.length;
+    const classStudentIdSet = new Set(classStudentIds);
+
+    let conflictStudents: StudentConflictDetail[] = [];
+    if (totalStudents > 0) {
+      const otherClasses = await this.classModel
+        .find({
+          _id: { $ne: classDoc._id },
+          studentIds: { $in: classDoc.studentIds },
+        })
+        .select('_id name studentIds')
+        .lean()
+        .exec();
+
+      if (otherClasses.length > 0) {
+        const otherClassIds = otherClasses.map((item: any) => item._id);
+        const otherClassMap = new Map(
+          otherClasses.map((item: any) => [item._id.toString(), item]),
+        );
+
+        const conflictSessionDocs = await this.model
+          .find({
+            ...overlapFilter,
+            classId: { $in: otherClassIds },
+          })
+          .select('_id classId startTime endTime')
+          .lean()
+          .exec();
+
+        if (conflictSessionDocs.length > 0) {
+          const studentDocs = await this.userModel
+            .find({ _id: { $in: classDoc.studentIds } })
+            .select('_id name')
+            .lean()
+            .exec();
+          const studentNameMap = new Map(
+            studentDocs.map((student: any) => [
+              student._id.toString(),
+              student.name,
+            ]),
+          );
+
+          for (const conflictSession of conflictSessionDocs as any[]) {
+            const relatedClass = otherClassMap.get(
+              conflictSession.classId.toString(),
+            );
+            if (!relatedClass?.studentIds?.length) continue;
+
+            for (const sid of relatedClass.studentIds as Types.ObjectId[]) {
+              const sidStr = sid.toString();
+              if (!classStudentIdSet.has(sidStr)) continue;
+
+              conflictStudents.push({
+                studentId: sidStr,
+                studentName: studentNameMap.get(sidStr) || 'Unknown',
+                conflictingClassId: relatedClass._id.toString(),
+                conflictingClassName: relatedClass.name,
+                conflictingSessionId: conflictSession._id.toString(),
+                conflictingStartTime: conflictSession.startTime,
+                conflictingEndTime: conflictSession.endTime,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    const uniqueConflictStudents = Array.from(
+      new Map(
+        conflictStudents.map((item) => [
+          `${item.studentId}-${item.conflictingSessionId}`,
+          item,
+        ]),
+      ).values(),
+    );
+    const conflictingStudentIds = [
+      ...new Set(uniqueConflictStudents.map((item) => item.studentId)),
+    ];
+    const conflictingStudentCount = conflictingStudentIds.length;
+    const conflictRate =
+      totalStudents > 0 ? conflictingStudentCount / totalStudents : 0;
+
+    const baseReport = {
+      classId,
+      totalStudents,
+      conflictStudents: uniqueConflictStudents,
+      conflictingStudentCount,
+      conflictingStudentIds,
+      conflictRate,
+      teacherConflicts,
+      roomConflicts,
+    };
+
+    return {
+      ...baseReport,
+      policyDecision: this.evaluatePolicy(baseReport, policy, maxConflictRate),
+    };
+  }
+
+  async cancelAndCreateMakeupSession(
+    user: UserDocument,
+    sessionId: string,
+    dto: CancelAndMakeupSessionDto,
+  ) {
+    const originalSession = await this.model.findById(sessionId).exec();
+    if (!originalSession) {
+      throw new NotFoundException('Session not found');
+    }
+
+    if (!originalSession.classId) {
+      throw new BadRequestException(
+        'Only class-based sessions support make-up flow',
+      );
+    }
+
+    if (originalSession.status === 'cancelled') {
+      throw new BadRequestException('Session is already cancelled');
+    }
+
+    const classDoc = await this.classModel
+      .findById(originalSession.classId)
+      .exec();
+    if (!classDoc) {
+      throw new NotFoundException('Class not found');
+    }
+
+    const makeupStartTime = new Date(dto.makeupStartTime);
+    const makeupEndTime = new Date(dto.makeupEndTime);
+    if (makeupEndTime <= makeupStartTime) {
+      throw new BadRequestException(
+        'makeupEndTime must be after makeupStartTime',
+      );
+    }
+
+    const policy = dto.policy || MakeupConflictPolicy.BlockAll;
+    const maxConflictRate = dto.maxConflictRate ?? 0.15;
+    const report = await this.analyzeMakeupConflicts(
+      originalSession,
+      classDoc,
+      makeupStartTime,
+      makeupEndTime,
+      policy,
+      maxConflictRate,
+    );
+
+    if (dto.dryRun) {
+      return {
+        previewOnly: true,
+        originalSessionId: originalSession._id.toString(),
+        proposedMakeup: {
+          startTime: makeupStartTime,
+          endTime: makeupEndTime,
+        },
+        report,
+      };
+    }
+
+    if (!report.policyDecision.canCreate) {
+      throw new BadRequestException({
+        message:
+          report.policyDecision.reason || 'Cannot create make-up session',
+        report,
+      });
+    }
+
+    await this.model
+      .findByIdAndUpdate(originalSession._id, {
+        status: 'cancelled',
+        cancelledBy: user._id,
+        cancelledAt: new Date(),
+        cancelReason: dto.reason,
+        note: this.appendCancelReason(originalSession.note, dto.reason),
+      })
+      .exec();
+
+    const createdMakeupSession = await new this.model({
+      classId: originalSession.classId,
+      teacherId: originalSession.teacherId || classDoc.teacherId,
+      subject: originalSession.subject,
+      title: originalSession.title,
+      room: originalSession.room,
+      startTime: makeupStartTime,
+      endTime: makeupEndTime,
+      type: SessionType.Makeup,
+      status: 'pending',
+      note: `Make-up for session ${originalSession._id.toString()}`,
+      createdBy: user._id,
+      originalSessionId: originalSession._id,
+    }).save();
+
+    return {
+      previewOnly: false,
+      message: 'Session cancelled and make-up session created',
+      originalSessionId: originalSession._id.toString(),
+      makeupSessionId: createdMakeupSession._id.toString(),
+      report,
+      makeupSession: createdMakeupSession,
+    };
+  }
 
   async create(user: UserDocument, dto: CreateSessionDto) {
     const doc = new this.model({

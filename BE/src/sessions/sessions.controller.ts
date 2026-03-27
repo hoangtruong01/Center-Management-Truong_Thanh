@@ -19,6 +19,7 @@ import {
   CheckConflictDto,
   BulkCreateSessionsDto,
 } from './dto/schedule-query.dto';
+import { CancelAndMakeupSessionDto } from './dto/cancel-and-makeup-session.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -31,7 +32,7 @@ import type { UserDocument } from '../users/schemas/user.schema';
 @Controller('sessions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SessionsController {
-  constructor(private readonly sessionsService: SessionsService) { }
+  constructor(private readonly sessionsService: SessionsService) {}
 
   @Post()
   @Roles(UserRole.Admin, UserRole.Teacher)
@@ -136,6 +137,16 @@ export class SessionsController {
     @CurrentUser() user: UserDocument,
   ) {
     return this.sessionsService.update(id, dto, user);
+  }
+
+  @Post(':id/cancel-and-makeup')
+  @Roles(UserRole.Admin)
+  cancelAndMakeup(
+    @Param('id') id: string,
+    @CurrentUser() user: UserDocument,
+    @Body() dto: CancelAndMakeupSessionDto,
+  ) {
+    return this.sessionsService.cancelAndCreateMakeupSession(user, id, dto);
   }
 
   @Delete(':id')
