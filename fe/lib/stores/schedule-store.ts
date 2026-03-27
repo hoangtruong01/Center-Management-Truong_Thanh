@@ -52,9 +52,78 @@ export interface Session {
     name: string;
     email: string;
   };
+  originalSessionId?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  cancelReason?: string;
   note?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export enum MakeupConflictPolicy {
+  BlockAll = "block_all",
+  AllowWithThreshold = "allow_with_threshold",
+  AllowWithManualResolution = "allow_with_manual_resolution",
+}
+
+export interface CancelAndMakeupData {
+  reason: string;
+  makeupStartTime: string;
+  makeupEndTime: string;
+  policy?: MakeupConflictPolicy;
+  maxConflictRate?: number;
+  dryRun?: boolean;
+}
+
+export interface StudentConflictDetail {
+  studentId: string;
+  studentName: string;
+  conflictingClassId: string;
+  conflictingClassName: string;
+  conflictingSessionId: string;
+  conflictingStartTime: string;
+  conflictingEndTime: string;
+}
+
+export interface MakeupConflictReport {
+  classId: string;
+  totalStudents: number;
+  conflictStudents: StudentConflictDetail[];
+  conflictingStudentCount: number;
+  conflictingStudentIds: string[];
+  conflictRate: number;
+  teacherConflicts: Array<{
+    sessionId: string;
+    startTime: string;
+    endTime: string;
+  }>;
+  roomConflicts: Array<{
+    sessionId: string;
+    room: string;
+    startTime: string;
+    endTime: string;
+  }>;
+  policyDecision: {
+    policy: MakeupConflictPolicy;
+    canCreate: boolean;
+    requiresManualResolution: boolean;
+    thresholdUsed?: number;
+    reason?: string;
+  };
+}
+
+export interface CancelAndMakeupResult {
+  previewOnly: boolean;
+  message?: string;
+  originalSessionId: string;
+  makeupSessionId?: string;
+  proposedMakeup?: {
+    startTime: string;
+    endTime: string;
+  };
+  report: MakeupConflictReport;
+  makeupSession?: Session;
 }
 
 export interface CreateSessionData {
@@ -164,6 +233,10 @@ interface ScheduleActions {
 
   // Utility
   checkConflict: (data: ConflictCheckData) => Promise<ConflictResult>;
+  cancelAndMakeupSession: (
+    id: string,
+    data: CancelAndMakeupData,
+  ) => Promise<CancelAndMakeupResult>;
   setSelectedSession: (session: Session | null) => void;
   clearError: () => void;
 }
@@ -395,6 +468,44 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
         const response = await api.post("/sessions/check-conflict", data);
         return response.data;
       } catch (error: any) {
+        throw error;
+      }
+    },
+
+    cancelAndMakeupSession: async (id: string, data: CancelAndMakeupData) => {
+      set({ isLoading: true, error: null });
+      try {
+        const response = await api.post(
+          `/sessions/${id}/cancel-and-makeup`,
+          data,
+        );
+        const result = response.data as CancelAndMakeupResult;
+        if (!result.previewOnly && result.makeupSession) {
+          set((state) => ({
+            sessions: state.sessions
+              .map((s) =>
+                s._id === result.originalSessionId
+                  ? { ...s, status: SessionStatus.Cancelled }
+                  : s,
+              )
+              .concat(result.makeupSession as Session),
+            isLoading: false,
+          }));
+        } else {
+          set({ isLoading: false });
+        }
+        return result;
+      } catch (error: any) {
+        const responseMessage = error?.response?.data?.message;
+        const message =
+          typeof responseMessage === "string"
+            ? responseMessage
+            : responseMessage?.message ||
+              "Failed to cancel and create make-up session";
+        set({
+          error: message,
+          isLoading: false,
+        });
         throw error;
       }
     },

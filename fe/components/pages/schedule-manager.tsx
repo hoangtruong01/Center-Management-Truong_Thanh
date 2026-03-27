@@ -8,6 +8,9 @@ import {
   useScheduleStore,
   Session,
   SessionType,
+  SessionStatus,
+  MakeupConflictPolicy,
+  CancelAndMakeupResult,
   getTypeColor,
   getSessionClassName,
   getSessionTeacherName,
@@ -111,6 +114,19 @@ export default function ScheduleManager({
   const [selectedClassDetail, setSelectedClassDetail] = useState<Class | null>(
     null,
   );
+  const [showMakeupModal, setShowMakeupModal] = useState(false);
+  const [selectedSessionForMakeup, setSelectedSessionForMakeup] =
+    useState<Session | null>(null);
+  const [makeupReason, setMakeupReason] = useState("");
+  const [makeupPolicy, setMakeupPolicy] = useState<MakeupConflictPolicy>(
+    MakeupConflictPolicy.BlockAll,
+  );
+  const [maxConflictRatePercent, setMaxConflictRatePercent] = useState(15);
+  const [makeupStart, setMakeupStart] = useState("");
+  const [makeupEnd, setMakeupEnd] = useState("");
+  const [previewResult, setPreviewResult] =
+    useState<CancelAndMakeupResult | null>(null);
+  const [isSubmittingMakeup, setIsSubmittingMakeup] = useState(false);
 
   // Stores
   const {
@@ -123,6 +139,7 @@ export default function ScheduleManager({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     updateSession,
     deleteSession,
+    cancelAndMakeupSession,
     clearError,
   } = useScheduleStore();
 
@@ -325,6 +342,127 @@ export default function ScheduleManager({
     }
   };
 
+  const toLocalDateTime = (iso: string) => {
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = `${d.getMonth() + 1}`.padStart(2, "0");
+    const day = `${d.getDate()}`.padStart(2, "0");
+    const h = `${d.getHours()}`.padStart(2, "0");
+    const min = `${d.getMinutes()}`.padStart(2, "0");
+    return `${y}-${m}-${day}T${h}:${min}`;
+  };
+
+  const openMakeupModal = (session: Session) => {
+    const start = new Date(session.startTime);
+    const end = new Date(session.endTime);
+    const durationMs = end.getTime() - start.getTime();
+    const suggestedStart = new Date(start);
+    suggestedStart.setDate(suggestedStart.getDate() + 1);
+    const suggestedEnd = new Date(suggestedStart.getTime() + durationMs);
+
+    setSelectedSessionForMakeup(session);
+    setMakeupReason("");
+    setMakeupPolicy(MakeupConflictPolicy.BlockAll);
+    setMaxConflictRatePercent(15);
+    setMakeupStart(toLocalDateTime(suggestedStart.toISOString()));
+    setMakeupEnd(toLocalDateTime(suggestedEnd.toISOString()));
+    setPreviewResult(null);
+    setShowMakeupModal(true);
+  };
+
+  const closeMakeupModal = () => {
+    setShowMakeupModal(false);
+    setSelectedSessionForMakeup(null);
+    setPreviewResult(null);
+  };
+
+  const extractServerMessage = (error: any) => {
+    const message = error?.response?.data?.message;
+    if (typeof message === "string") return message;
+    if (message?.message) return message.message;
+    return "Không thể xử lý lịch bù. Vui lòng thử lại.";
+  };
+
+  const validateMakeupInput = () => {
+    if (!selectedSessionForMakeup) {
+      alert("Không tìm thấy buổi học cần xử lý.");
+      return false;
+    }
+    if (!makeupReason.trim()) {
+      alert("Vui lòng nhập lý do hủy buổi cũ.");
+      return false;
+    }
+    if (!makeupStart || !makeupEnd) {
+      alert("Vui lòng chọn đầy đủ thời gian học bù.");
+      return false;
+    }
+    const start = new Date(makeupStart);
+    const end = new Date(makeupEnd);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      alert("Thời gian học bù không hợp lệ.");
+      return false;
+    }
+    if (end <= start) {
+      alert("Giờ kết thúc phải sau giờ bắt đầu.");
+      return false;
+    }
+    return true;
+  };
+
+  const runMakeupAction = async (dryRun: boolean) => {
+    if (!validateMakeupInput() || !selectedSessionForMakeup) return;
+
+    setIsSubmittingMakeup(true);
+    try {
+      const result = await cancelAndMakeupSession(
+        selectedSessionForMakeup._id,
+        {
+          reason: makeupReason.trim(),
+          makeupStartTime: new Date(makeupStart).toISOString(),
+          makeupEndTime: new Date(makeupEnd).toISOString(),
+          policy: makeupPolicy,
+          maxConflictRate:
+            makeupPolicy === MakeupConflictPolicy.AllowWithThreshold
+              ? maxConflictRatePercent / 100
+              : undefined,
+          dryRun,
+        },
+      );
+
+      setPreviewResult(result);
+
+      if (!dryRun) {
+        const query: ScheduleQuery = {
+          startDate: dateRange.start.toISOString(),
+          endDate: dateRange.end.toISOString(),
+        };
+        if (selectedClassFilter) query.classId = selectedClassFilter;
+        if (selectedTeacherFilter) query.teacherId = selectedTeacherFilter;
+        if (selectedBranchFilter) query.branchId = selectedBranchFilter;
+        await fetchSchedule(query);
+        await fetchStatistics(
+          dateRange.start.toISOString(),
+          dateRange.end.toISOString(),
+          selectedBranchFilter || undefined,
+        );
+        alert("Đã hủy buổi cũ và tạo buổi học bù thành công.");
+        closeMakeupModal();
+      }
+    } catch (error: any) {
+      const report = error?.response?.data?.message?.report;
+      if (report) {
+        setPreviewResult({
+          previewOnly: true,
+          originalSessionId: selectedSessionForMakeup._id,
+          report,
+        });
+      }
+      alert(extractServerMessage(error));
+    } finally {
+      setIsSubmittingMakeup(false);
+    }
+  };
+
   // Close modal
   const handleCloseModal = () => {
     setShowCreateModal(false);
@@ -381,6 +519,19 @@ export default function ScheduleManager({
             </div>
           </div>
           <div className="flex flex-col gap-1">
+            {session.status !== SessionStatus.Cancelled && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-7 text-amber-700 border-amber-200 hover:bg-amber-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openMakeupModal(session);
+                }}
+              >
+                Hủy + bù
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -866,6 +1017,219 @@ export default function ScheduleManager({
           classData={selectedClassDetail}
           onClose={() => setSelectedClassDetail(null)}
         />
+      )}
+
+      {showMakeupModal && selectedSessionForMakeup && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <Card className="w-full max-w-3xl p-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Hủy buổi và xếp lịch học bù
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Buổi gốc:{" "}
+                  <span className="font-medium">
+                    {getSessionClassName(selectedSessionForMakeup)}
+                  </span>{" "}
+                  - {formatSessionTime(selectedSessionForMakeup)}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={closeMakeupModal}>
+                Đóng
+              </Button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Thời gian học bù bắt đầu
+                </label>
+                <input
+                  type="datetime-local"
+                  value={makeupStart}
+                  onChange={(e) => {
+                    setMakeupStart(e.target.value);
+                    setPreviewResult(null);
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Thời gian học bù kết thúc
+                </label>
+                <input
+                  type="datetime-local"
+                  value={makeupEnd}
+                  onChange={(e) => {
+                    setMakeupEnd(e.target.value);
+                    setPreviewResult(null);
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lý do hủy buổi cũ
+              </label>
+              <textarea
+                value={makeupReason}
+                onChange={(e) => {
+                  setMakeupReason(e.target.value);
+                  setPreviewResult(null);
+                }}
+                rows={3}
+                placeholder="Ví dụ: Nghỉ lễ, giáo viên bận đột xuất..."
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Chính sách xử lý trùng học sinh
+                </label>
+                <select
+                  value={makeupPolicy}
+                  onChange={(e) => {
+                    setMakeupPolicy(e.target.value as MakeupConflictPolicy);
+                    setPreviewResult(null);
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={MakeupConflictPolicy.BlockAll}>
+                    Chặn toàn bộ nếu có trùng
+                  </option>
+                  <option value={MakeupConflictPolicy.AllowWithThreshold}>
+                    Cho phép theo ngưỡng trùng
+                  </option>
+                  <option
+                    value={MakeupConflictPolicy.AllowWithManualResolution}
+                  >
+                    Cho phép và xử lý thủ công
+                  </option>
+                </select>
+              </div>
+
+              {makeupPolicy === MakeupConflictPolicy.AllowWithThreshold && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ngưỡng tối đa học sinh trùng (%)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={maxConflictRatePercent}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setMaxConflictRatePercent(Number.isNaN(v) ? 0 : v);
+                      setPreviewResult(null);
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+            </div>
+
+            {previewResult && (
+              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                    Sĩ số: {previewResult.report.totalStudents}
+                  </span>
+                  <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+                    Trùng học sinh:{" "}
+                    {previewResult.report.conflictingStudentCount}
+                  </span>
+                  <span className="px-2 py-1 rounded-full bg-slate-200 text-slate-700">
+                    Tỷ lệ:{" "}
+                    {(previewResult.report.conflictRate * 100).toFixed(1)}%
+                  </span>
+                </div>
+
+                {!previewResult.report.policyDecision.canCreate && (
+                  <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+                    Không thể chuyển lịch:{" "}
+                    {previewResult.report.policyDecision.reason ||
+                      "vi phạm chính sách"}
+                  </div>
+                )}
+
+                {previewResult.report.policyDecision
+                  .requiresManualResolution && (
+                  <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    Có học sinh trùng lịch. Buổi bù vẫn tạo được nhưng admin cần
+                    xử lý thủ công danh sách bên dưới.
+                  </div>
+                )}
+
+                {previewResult.report.teacherConflicts.length > 0 && (
+                  <div className="text-sm text-red-700">
+                    Giáo viên bị trùng{" "}
+                    {previewResult.report.teacherConflicts.length} buổi ở khung
+                    giờ này.
+                  </div>
+                )}
+
+                {previewResult.report.roomConflicts.length > 0 && (
+                  <div className="text-sm text-red-700">
+                    Phòng học bị trùng{" "}
+                    {previewResult.report.roomConflicts.length} buổi ở khung giờ
+                    này.
+                  </div>
+                )}
+
+                {previewResult.report.conflictStudents.length > 0 && (
+                  <div>
+                    <div className="text-sm font-medium text-gray-800 mb-2">
+                      Danh sách học sinh trùng lịch
+                    </div>
+                    <div className="max-h-44 overflow-auto rounded-lg border border-gray-200 bg-white">
+                      {previewResult.report.conflictStudents.map((item) => (
+                        <div
+                          key={`${item.studentId}-${item.conflictingSessionId}`}
+                          className="px-3 py-2 text-sm border-b last:border-b-0"
+                        >
+                          <span className="font-medium">
+                            {item.studentName}
+                          </span>{" "}
+                          trùng với lớp {item.conflictingClassName}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-wrap gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => runMakeupAction(true)}
+                disabled={isSubmittingMakeup}
+              >
+                Xem trước xung đột
+              </Button>
+              <Button
+                onClick={() => runMakeupAction(false)}
+                disabled={
+                  isSubmittingMakeup ||
+                  (previewResult !== null &&
+                    !previewResult.report.policyDecision.canCreate)
+                }
+                className="bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              >
+                {isSubmittingMakeup
+                  ? "Đang xử lý..."
+                  : "Xác nhận hủy và tạo buổi bù"}
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
