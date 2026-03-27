@@ -11,6 +11,7 @@ import {
 import { PaymentRequestsModule } from '../payment-requests/payment-requests.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Branch, BranchSchema } from '../branches/schemas/branch.schema';
+import { ChatModule } from '../chat/chat.module';
 
 import { PayosGateway } from './gateways/payos.gateway';
 import { PaymentGatewayFactory } from './gateways/gateway.factory';
@@ -24,13 +25,10 @@ import { PaymentGatewayFactory } from './gateways/gateway.factory';
       { name: Branch.name, schema: BranchSchema },
     ]),
     PaymentRequestsModule,
+    ChatModule,
   ],
   controllers: [PaymentsController],
-  providers: [
-    PaymentsService,
-    PayosGateway,
-    PaymentGatewayFactory,
-  ],
+  providers: [PaymentsService, PayosGateway, PaymentGatewayFactory],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

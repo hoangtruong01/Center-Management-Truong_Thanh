@@ -1,4 +1,4 @@
-import { io, Socket } from 'socket.io-client';
+import { io, Socket } from "socket.io-client";
 
 class SocketService {
   private socket: Socket | null = null;
@@ -10,27 +10,30 @@ class SocketService {
     }
 
     this.token = token;
-    this.socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000', {
-      auth: {
-        token: token,
+    this.socket = io(
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
+      {
+        auth: {
+          token: token,
+        },
+        extraHeaders: {
+          Authorization: `Bearer ${token}`,
+        },
+        transports: ["websocket", "polling"],
+        forceNew: true,
       },
-      extraHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-      transports: ['websocket', 'polling'],
-      forceNew: true,
+    );
+
+    this.socket.on("connect", () => {
+      console.log("Connected to server");
     });
 
-    this.socket.on('connect', () => {
-      console.log('Connected to server');
+    this.socket.on("disconnect", () => {
+      console.log("Disconnected from server");
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+    this.socket.on("connect_error", (error) => {
+      console.error("Connection error:", error);
     });
 
     return this.socket;
@@ -54,8 +57,8 @@ class SocketService {
   // Chat methods
   sendMessage(receiverId: string, content: string) {
     if (!this.socket) return;
-    
-    this.socket.emit('sendMessage', {
+
+    this.socket.emit("sendMessage", {
       receiverId,
       content,
     });
@@ -63,50 +66,72 @@ class SocketService {
 
   joinConversation(otherUserId: string) {
     if (!this.socket) return;
-    
-    this.socket.emit('joinConversation', { otherUserId });
+
+    this.socket.emit("joinConversation", { otherUserId });
   }
 
   leaveConversation(otherUserId: string) {
     if (!this.socket) return;
-    
-    this.socket.emit('leaveConversation', { otherUserId });
+
+    this.socket.emit("leaveConversation", { otherUserId });
   }
 
   setTyping(receiverId: string, isTyping: boolean) {
     if (!this.socket) return;
-    
-    this.socket.emit('typing', { receiverId, isTyping });
+
+    this.socket.emit("typing", { receiverId, isTyping });
   }
 
   // Event listeners
-  onNewMessage(callback: (message: any) => void) {
+  onNewMessage(callback: (message: unknown) => void) {
     if (!this.socket) return;
-    this.socket.on('newMessage', callback);
+    this.socket.on("newMessage", callback);
   }
 
-  onMessageSent(callback: (message: any) => void) {
+  onMessageSent(callback: (message: unknown) => void) {
     if (!this.socket) return;
-    this.socket.on('messageSent', callback);
+    this.socket.on("messageSent", callback);
   }
 
-  onUserTyping(callback: (data: { userId: string; userName: string; isTyping: boolean }) => void) {
+  onUserTyping(
+    callback: (data: {
+      userId: string;
+      userName: string;
+      isTyping: boolean;
+    }) => void,
+  ) {
     if (!this.socket) return;
-    this.socket.on('userTyping', callback);
+    this.socket.on("userTyping", callback);
   }
 
   onUserOnline(callback: (data: { userId: string; name: string }) => void) {
     if (!this.socket) return;
-    this.socket.on('userOnline', callback);
+    this.socket.on("userOnline", callback);
   }
 
   onUserOffline(callback: (data: { userId: string }) => void) {
     if (!this.socket) return;
-    this.socket.on('userOffline', callback);
+    this.socket.on("userOffline", callback);
+  }
+
+  onPaymentStatusUpdated(
+    callback: (data: {
+      paymentId: string;
+      status: string;
+      method: string;
+      studentId?: string;
+      paidBy?: string;
+      requestIds: string[];
+      paidAt?: string;
+      updatedAt?: string;
+    }) => void,
+  ) {
+    if (!this.socket) return;
+    this.socket.on("paymentStatusUpdated", callback);
   }
 
   // Remove listeners
-  off(event: string, callback?: any) {
+  off(event: string, callback?: (...args: unknown[]) => void) {
     if (!this.socket) return;
     this.socket.off(event, callback);
   }

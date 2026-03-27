@@ -6,13 +6,24 @@ import ChatSelector from "./chat-selector";
 import ChatWindow from "./chat-window";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import socketService from "@/lib/socket";
+import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
+import { usePaymentsStore } from "@/lib/stores/payments-store";
+
+interface ChatRecipient {
+  _id: string;
+  name: string;
+  role: string;
+}
 
 export default function ChatButton() {
   const [showSelector, setShowSelector] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  
+  const [selectedUser, setSelectedUser] = useState<ChatRecipient | null>(null);
+
   const { initializeSocket, disconnectSocket, conversations } = useChatStore();
   const { user, accessToken } = useAuthStore();
+  const { fetchMyRequests, fetchChildrenRequests } = usePaymentRequestsStore();
+  const { fetchMyPayments } = usePaymentsStore();
 
   // Initialize socket when user is authenticated
   useEffect(() => {
@@ -25,7 +36,34 @@ export default function ChatButton() {
     };
   }, [user, accessToken, initializeSocket, disconnectSocket]);
 
-  const handleSelectUser = (user: any) => {
+  useEffect(() => {
+    if (!user || !accessToken) {
+      return;
+    }
+
+    const handlePaymentStatusUpdated = () => {
+      if (user.role === "student") {
+        void fetchMyRequests();
+      } else if (user.role === "parent") {
+        void fetchChildrenRequests();
+      }
+      void fetchMyPayments();
+    };
+
+    socketService.onPaymentStatusUpdated(handlePaymentStatusUpdated);
+
+    return () => {
+      socketService.off("paymentStatusUpdated", handlePaymentStatusUpdated);
+    };
+  }, [
+    user,
+    accessToken,
+    fetchMyRequests,
+    fetchChildrenRequests,
+    fetchMyPayments,
+  ]);
+
+  const handleSelectUser = (user: ChatRecipient) => {
     setSelectedUser(user);
     setShowSelector(false);
   };
@@ -39,12 +77,15 @@ export default function ChatButton() {
   };
 
   // Don't show chat button if user is not authenticated or is admin
-  if (!user || user.role === 'admin') {
+  if (!user || user.role === "admin") {
     return null;
   }
 
   // Count unread messages
-  const unreadCount = conversations.reduce((total, conv) => total + conv.unreadCount, 0);
+  const unreadCount = conversations.reduce(
+    (total, conv) => total + conv.unreadCount,
+    0,
+  );
 
   return (
     <>
@@ -58,7 +99,7 @@ export default function ChatButton() {
           <MessageCircle className="w-6 h-6 text-white" />
           {unreadCount > 0 && (
             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-medium">
-              {unreadCount > 99 ? '99+' : unreadCount}
+              {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </Button>
@@ -74,10 +115,7 @@ export default function ChatButton() {
 
       {/* Chat Window */}
       {selectedUser && (
-        <ChatWindow
-          recipient={selectedUser}
-          onClose={handleCloseChat}
-        />
+        <ChatWindow recipient={selectedUser} onClose={handleCloseChat} />
       )}
     </>
   );

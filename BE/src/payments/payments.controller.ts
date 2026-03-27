@@ -23,7 +23,7 @@ import { UserRole } from '../common/enums/role.enum';
 @ApiBearerAuth()
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) { }
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   // ==================== CREATE PAYMENT ====================
 
@@ -53,7 +53,8 @@ export class PaymentsController {
   ) {
     const result = await this.paymentsService.handlePayosReturn(queryParams);
 
-    const frontendUrl = process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:3001';
+    const frontendUrl =
+      process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:3001';
     const redirectUrl = `${frontendUrl}/payment-result?success=${result.success}&paymentId=${result.paymentId}&message=${encodeURIComponent(result.message)}`;
 
     return res.redirect(redirectUrl);
@@ -64,8 +65,6 @@ export class PaymentsController {
     console.log('PayOS Webhook endpoint hit');
     return this.paymentsService.handlePayosWebhook(webhookData);
   }
-
-
 
   // ==================== FAKE PAYOS ====================
 
@@ -78,8 +77,6 @@ export class PaymentsController {
       body.status,
     );
   }
-
-
 
   // ==================== CASH ====================
 
@@ -122,7 +119,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.Student, UserRole.Parent)
   async getMyPayments(@Request() req) {
-    return this.paymentsService.findByStudent(req.user._id);
+    return this.paymentsService.findByUser(req.user._id, req.user.role);
   }
 
   @Get(':id')

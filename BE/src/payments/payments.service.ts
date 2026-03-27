@@ -22,6 +22,7 @@ import { User, UserDocument } from '../users/schemas/user.schema';
 import { Branch, BranchDocument } from '../branches/schemas/branch.schema';
 import { PaymentGatewayFactory } from './gateways/gateway.factory';
 import { CreatePaymentParams } from './gateways/payment.gateway';
+import { ChatGateway } from '../chat/chat.gateway';
 
 @Injectable()
 export class PaymentsService {
@@ -33,8 +34,8 @@ export class PaymentsService {
     @InjectModel(Branch.name) private branchModel: Model<BranchDocument>,
     private paymentRequestsService: PaymentRequestsService,
     private gatewayFactory: PaymentGatewayFactory,
+    private chatGateway: ChatGateway,
   ) {}
-
 
   // ==================== CREATE PAYMENT ====================
 
@@ -77,19 +78,15 @@ export class PaymentsService {
     let branchId: Types.ObjectId | null = null;
     let branchName: string | null = null;
     if (student.branchId) {
-
       const branch = await this.branchModel.findById(student.branchId).lean();
       if (branch) {
         branchId = new Types.ObjectId(student.branchId);
         branchName = branch.name;
       }
-
     }
 
     // Snapshot subject names from requests
-    const subjects = requests
-      .map((r: any) => r.classSubject)
-      .filter((s) => s);
+    const subjects = requests.map((r: any) => r.classSubject).filter((s) => s);
     const subjectName = [...new Set(subjects)].join(', ');
 
     // 4. Tạo payment record
@@ -111,9 +108,13 @@ export class PaymentsService {
     });
 
     // 5. Gateway Factory Logic
-    console.log(`PaymentsService requesting gateway for method: '${dto.method}'`);
+    console.log(
+      `PaymentsService requesting gateway for method: '${dto.method}'`,
+    );
     const gateway = this.gatewayFactory.getByMethod(dto.method);
-    console.log(`Gateway obtained: ${gateway ? gateway.constructor.name : 'null'}`);
+    console.log(
+      `Gateway obtained: ${gateway ? gateway.constructor.name : 'null'}`,
+    );
 
     if (gateway) {
       // PAYOS or FAKE
@@ -158,10 +159,11 @@ export class PaymentsService {
     }
   }
 
-
   // ==================== PAYOS HANDLERS ====================
 
-  async handlePayosWebhook(webhookData: any): Promise<{ success: boolean; message: string }> {
+  async handlePayosWebhook(
+    webhookData: any,
+  ): Promise<{ success: boolean; message: string }> {
     try {
       console.log('PayOS Webhook received:', webhookData);
 
@@ -170,7 +172,14 @@ export class PaymentsService {
         throw new BadRequestException('Invalid webhook data');
       }
 
-      const { orderCode, amount, description, accountNumber, reference, transactionDateTime } = webhookData.data;
+      const {
+        orderCode,
+        amount,
+        description,
+        accountNumber,
+        reference,
+        transactionDateTime,
+      } = webhookData.data;
 
       // Find payment by orderCode (stored in vnpTxnRef as PAYOS_{orderCode})
       const payment = await this.paymentModel.findOne({
@@ -198,6 +207,8 @@ export class PaymentsService {
         payment.requestIds.map((id) => id.toString()),
         payment._id as Types.ObjectId,
       );
+
+      await this.emitPaymentStatusUpdated(payment);
 
       // Log transaction
       await this.logTransaction(
@@ -234,7 +245,11 @@ export class PaymentsService {
       });
 
       if (!payment) {
-        return { success: false, paymentId: '', message: 'Không tìm thấy giao dịch' };
+        return {
+          success: false,
+          paymentId: '',
+          message: 'Không tìm thấy giao dịch',
+        };
       }
 
       // Check if cancelled
@@ -267,6 +282,8 @@ export class PaymentsService {
           payment.requestIds.map((id) => id.toString()),
           payment._id as Types.ObjectId,
         );
+
+        await this.emitPaymentStatusUpdated(payment);
 
         await this.logTransaction(
           payment._id as Types.ObjectId,
@@ -333,6 +350,8 @@ export class PaymentsService {
         payment._id as Types.ObjectId,
       );
 
+      await this.emitPaymentStatusUpdated(payment);
+
       return { success: true, message: 'Thanh toán thành công (Fake)' };
     } else {
       payment.status = PaymentStatus.CANCELLED;
@@ -363,7 +382,9 @@ export class PaymentsService {
     }
 
     if (payment.status !== PaymentStatus.PENDING_CASH) {
-      throw new BadRequestException('Giao dịch không ở trạng thái chờ xác nhận');
+      throw new BadRequestException(
+        'Giao dịch không ở trạng thái chờ xác nhận',
+      );
     }
 
     // Update payment
@@ -378,6 +399,8 @@ export class PaymentsService {
       payment.requestIds.map((id) => id.toString()),
       payment._id as Types.ObjectId,
     );
+
+    await this.emitPaymentStatusUpdated(payment);
 
     await this.logTransaction(
       payment._id as Types.ObjectId,
@@ -409,6 +432,51 @@ export class PaymentsService {
       .sort({ createdAt: -1 });
   }
 
+  async findByUser(userId: string, userRole: string): Promise<Payment[]> {
+    if (userRole === 'parent') {
+      const parent = await this.userModel.findById(userId).lean();
+      if (!parent) {
+        return [];
+      }
+
+      const childIds = new Set<string>();
+
+      if (Array.isArray(parent.childrenIds)) {
+        parent.childrenIds.forEach((id) => {
+          if (id) {
+            childIds.add(id.toString());
+          }
+        });
+      }
+
+      if (parent.childEmail) {
+        const child = await this.userModel
+          .findOne({ email: parent.childEmail })
+          .lean();
+        if (child?._id) {
+          childIds.add((child._id as Types.ObjectId).toString());
+        }
+      }
+
+      const studentObjectIds = Array.from(childIds)
+        .filter((id) => Types.ObjectId.isValid(id))
+        .map((id) => new Types.ObjectId(id));
+
+      return this.paymentModel
+        .find({
+          $or: [
+            { paidBy: new Types.ObjectId(userId) },
+            ...(studentObjectIds.length > 0
+              ? [{ studentId: { $in: studentObjectIds } }]
+              : []),
+          ],
+        })
+        .sort({ createdAt: -1 });
+    }
+
+    return this.findByStudent(userId);
+  }
+
   async getAllPayments(): Promise<Payment[]> {
     return this.paymentModel
       .find()
@@ -417,7 +485,10 @@ export class PaymentsService {
       .sort({ createdAt: -1 });
   }
 
-  async getFinanceOverview(fromDate?: Date, toDate?: Date): Promise<{
+  async getFinanceOverview(
+    fromDate?: Date,
+    toDate?: Date,
+  ): Promise<{
     summary: {
       totalRevenue: number;
       totalPaymentsCount: number;
@@ -481,7 +552,7 @@ export class PaymentsService {
     console.log('=== FINANCE OVERVIEW DEBUG ===');
     console.log('Date range:', { from, to });
     console.log('Match stage:', JSON.stringify(matchStage, null, 2));
-    
+
     // Count total SUCCESS payments
     const totalSuccessCount = await this.paymentModel.countDocuments({
       status: PaymentStatus.SUCCESS,
@@ -539,7 +610,6 @@ export class PaymentsService {
       },
     ]);
 
-
     const total = totalStats[0] || { totalRevenue: 0, totalCount: 0 };
     const previousRevenue = previousStats[0]?.totalRevenue || 0;
     const growthRate =
@@ -582,7 +652,6 @@ export class PaymentsService {
     console.log('==============================\n');
 
     return result;
-
   }
 
   private async logTransaction(
@@ -600,6 +669,42 @@ export class PaymentsService {
       performedBy,
     });
     await transaction.save();
+  }
+
+  private async emitPaymentStatusUpdated(
+    payment: PaymentDocument,
+  ): Promise<void> {
+    try {
+      const server = this.chatGateway?.server;
+      if (!server) {
+        return;
+      }
+
+      const targetUserIds = new Set<string>();
+      if (payment.studentId) {
+        targetUserIds.add(payment.studentId.toString());
+      }
+      if (payment.paidBy) {
+        targetUserIds.add(payment.paidBy.toString());
+      }
+
+      const payload = {
+        paymentId: (payment._id as Types.ObjectId).toString(),
+        status: payment.status,
+        method: payment.method,
+        studentId: payment.studentId?.toString(),
+        paidBy: payment.paidBy?.toString(),
+        requestIds: payment.requestIds.map((id) => id.toString()),
+        paidAt: payment.paidAt?.toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      targetUserIds.forEach((userId) => {
+        server.to(`user_${userId}`).emit('paymentStatusUpdated', payload);
+      });
+    } catch (error) {
+      console.error('Emit paymentStatusUpdated error:', error);
+    }
   }
 
   // ==================== FIND BY ID (for mobile polling) ====================
