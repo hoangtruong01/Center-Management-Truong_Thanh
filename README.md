@@ -78,6 +78,7 @@ Dự án hỗ trợ đầy đủ các quy trình nghiệp vụ của một trung
     ```bash
     cd ../fe
     npm install
+    # Tạo file .env từ .env.example
     npm run dev
     ```
 
@@ -87,6 +88,34 @@ Dự án hỗ trợ đầy đủ các quy trình nghiệp vụ của một trung
     npm install
     npx expo start
     ```
+
+### Đăng nhập nhanh 4 quyền (FE + BE)
+
+BE đã có script seed tạo sẵn tài khoản demo theo 4 quyền.
+
+Chạy seed tại thư mục `BE`:
+```bash
+npm run seed
+```
+
+Trong thư mục `fe`, tạo `.env` từ `.env.example` để bật nút đăng nhập nhanh trên trang login:
+```bash
+NEXT_PUBLIC_ENABLE_QUICK_LOGIN=true
+```
+
+Thông tin email/password demo được cấu hình nội bộ theo môi trường local và không public trong tài liệu.
+
+---
+
+## CI/CD
+
+Repository đã được setup GitHub Actions:
+- `.github/workflows/ci.yml`: chạy lint + build cho `BE` và `fe` khi push/pull request vào `main`/`develop`.
+- `.github/workflows/cd.yml`: trigger deploy hook cho BE (Render) và FE (Vercel) khi push `main` hoặc chạy thủ công.
+
+Để CD hoạt động, cấu hình GitHub Secrets:
+- `RENDER_DEPLOY_HOOK_URL`
+- `VERCEL_DEPLOY_HOOK_URL`
 
 ---
 

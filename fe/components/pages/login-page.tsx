@@ -63,6 +63,43 @@ const ROLE_CONFIG = {
 
 type Role = "student" | "teacher" | "parent" | "admin";
 
+type QuickLoginConfig = {
+  email: string;
+  password: string;
+};
+
+const QUICK_LOGIN_ENABLED =
+  process.env.NEXT_PUBLIC_ENABLE_QUICK_LOGIN === "true" ||
+  process.env.NODE_ENV !== "production";
+
+const QUICK_LOGIN_CREDENTIALS: Record<Role, QuickLoginConfig> = {
+  student: {
+    email:
+      process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_EMAIL ||
+      "student@example.com",
+    password:
+      process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_PASSWORD || "123456",
+  },
+  teacher: {
+    email:
+      process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_EMAIL ||
+      "teacher@example.com",
+    password:
+      process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_PASSWORD || "123456",
+  },
+  parent: {
+    email:
+      process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_EMAIL || "parent@example.com",
+    password:
+      process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_PASSWORD || "123456",
+  },
+  admin: {
+    email: process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_EMAIL || "admin@example.com",
+    password:
+      process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_PASSWORD || "123456",
+  },
+};
+
 // Modal types
 type ModalType = "forgot-password" | "contact-admin" | null;
 
@@ -209,6 +246,27 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     branches.length > 0
       ? branches.map((b) => ({ id: b._id, name: b.name }))
       : BRANCHES;
+
+  const handleQuickLogin = async (role: Role) => {
+    const credentials = QUICK_LOGIN_CREDENTIALS[role];
+    const nextBranchId =
+      role === "admin" ? branchId : branchId || displayBranches[0]?.id || "";
+
+    setSelectedRole(role);
+    setEmail(credentials.email);
+    setPassword(credentials.password);
+
+    if (role !== "admin" && !nextBranchId) {
+      toast.error("Chưa có dữ liệu cơ sở để đăng nhập nhanh.");
+      return;
+    }
+
+    if (role !== "admin" && nextBranchId !== branchId) {
+      setBranchId(nextBranchId);
+    }
+
+    await handleLogin(credentials.email, credentials.password, role);
+  };
 
   // Handle real API login
   const handleLogin = async (
@@ -525,6 +583,32 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
             {/* Login Form */}
             <div className="space-y-3 sm:space-y-4">
+              {QUICK_LOGIN_ENABLED && (
+                <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100">
+                      Đăng nhập nhanh 4 quyền
+                    </p>
+                    <span className="text-[11px] text-emerald-200/80">
+                      Demo: 123456
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(Object.keys(ROLE_CONFIG) as Role[]).map((role) => (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => handleQuickLogin(role)}
+                        className="rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-left text-xs text-white transition hover:bg-white/20"
+                      >
+                        <span className="mr-1">{ROLE_CONFIG[role].icon}</span>
+                        {ROLE_CONFIG[role].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Branch & Role in one row on mobile */}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-4">
                 {/* Branch Select */}
