@@ -101,6 +101,14 @@ interface SuggestedMakeupSlot {
   score: number;
 }
 
+interface SelectedClassOccurrence {
+  dateIso: string;
+  classId: string;
+  startTime: string;
+  endTime: string;
+  room?: string;
+}
+
 export default function ScheduleManager({
   userRole = "admin",
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -117,6 +125,8 @@ export default function ScheduleManager({
   const [selectedClassDetail, setSelectedClassDetail] = useState<Class | null>(
     null,
   );
+  const [selectedClassOccurrence, setSelectedClassOccurrence] =
+    useState<SelectedClassOccurrence | null>(null);
   const [showMakeupModal, setShowMakeupModal] = useState(false);
   const [selectedSessionForMakeup, setSelectedSessionForMakeup] =
     useState<Session | null>(null);
@@ -151,7 +161,7 @@ export default function ScheduleManager({
     clearError,
   } = useScheduleStore();
 
-  const { classes, fetchClasses, updateClass } = useClassesStore();
+  const { classes, fetchClasses } = useClassesStore();
   const { branches, fetchBranches } = useBranchesStore();
   const { users, fetchUsers } = useUsersStore();
   const canManageSchedule = userRole === "admin";
@@ -450,58 +460,154 @@ export default function ScheduleManager({
     }
   };
 
-  const removeFixedScheduleFromClassDetail = async (
-    scheduleIndex: number,
-    reason: string,
+  const getSessionClassId = (session: Session) => {
+    if (!session.classId) return "";
+    if (typeof session.classId === "string") return session.classId;
+    return session.classId._id;
+  };
+
+  const buildOccurrenceDateKey = (date: Date) => {
+    const y = date.getFullYear();
+    const m = `${date.getMonth() + 1}`.padStart(2, "0");
+    const d = `${date.getDate()}`.padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const buildOccurrenceKey = (
+    classId: string,
+    date: Date,
+    startTime: string,
+    endTime: string,
+    room?: string,
+  ) =>
+    `${classId}|${buildOccurrenceDateKey(date)}|${startTime}|${endTime}|${room || ""}`;
+
+  const cancelledOccurrenceKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const session of sessions) {
+      if (session.status !== SessionStatus.Cancelled) continue;
+      const classId = getSessionClassId(session);
+      if (!classId) continue;
+      const start = new Date(session.startTime);
+      const end = new Date(session.endTime);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
+        continue;
+
+      const startHHmm = `${`${start.getHours()}`.padStart(2, "0")}:${`${start.getMinutes()}`.padStart(2, "0")}`;
+      const endHHmm = `${`${end.getHours()}`.padStart(2, "0")}:${`${end.getMinutes()}`.padStart(2, "0")}`;
+      const dateKey = buildOccurrenceDateKey(start);
+      keys.add(
+        `${classId}|${dateKey}|${startHHmm}|${endHHmm}|${session.room || ""}`,
+      );
+      keys.add(`${classId}|${dateKey}|${startHHmm}|${endHHmm}|`);
+    }
+    return keys;
+  }, [sessions]);
+
+  const isClassOccurrenceCancelled = (
+    event: ClassScheduleEvent,
+    date: Date,
   ) => {
+    return (
+      cancelledOccurrenceKeys.has(
+        buildOccurrenceKey(
+          event.classId,
+          date,
+          event.startTime,
+          event.endTime,
+          event.room,
+        ),
+      ) ||
+      cancelledOccurrenceKeys.has(
+        buildOccurrenceKey(event.classId, date, event.startTime, event.endTime),
+      )
+    );
+  };
+
+  const deleteSelectedOccurrence = async (reason: string) => {
     if (!canManageSchedule) {
-      notify.error("Bạn không có quyền xóa lịch cố định.");
+      notify.error("Bạn không có quyền xóa buổi học.");
+      return;
+    }
+    if (!selectedClassOccurrence) {
+      notify.error("Không tìm thấy buổi học đã chọn.");
       return;
     }
 
     const normalizedReason = reason.trim();
     if (!normalizedReason) {
-      notify.warning("Vui lòng nhập lý do trước khi xóa lịch cố định.");
+      notify.warning("Vui lòng nhập lý do xóa buổi học.");
       return;
     }
 
-    if (!selectedClassDetail) {
-      notify.error("Không tìm thấy lớp cần xóa lịch cố định.");
+    const occurrenceDate = new Date(selectedClassOccurrence.dateIso);
+    if (Number.isNaN(occurrenceDate.getTime())) {
+      notify.error("Ngày buổi học không hợp lệ.");
       return;
     }
 
-    const classInfo = classes.find((c) => c._id === selectedClassDetail._id);
-    if (!classInfo?.schedule?.length) {
-      notify.error("Không tìm thấy lịch cố định của lớp.");
-      return;
-    }
+    const [startHour, startMinute] = selectedClassOccurrence.startTime
+      .split(":")
+      .map((v) => Number(v));
+    const [endHour, endMinute] = selectedClassOccurrence.endTime
+      .split(":")
+      .map((v) => Number(v));
 
-    if (scheduleIndex < 0 || scheduleIndex >= classInfo.schedule.length) {
-      notify.error("Không tìm thấy buổi cố định cần xóa.");
-      return;
-    }
+    const startDate = new Date(occurrenceDate);
+    startDate.setHours(startHour, startMinute, 0, 0);
+    const endDate = new Date(occurrenceDate);
+    endDate.setHours(endHour, endMinute, 0, 0);
 
-    const targetSchedule = classInfo.schedule[scheduleIndex];
-    const confirmed = window.confirm(
-      `Xác nhận xóa lịch cố định ${targetSchedule.startTime} - ${targetSchedule.endTime} (${targetSchedule.dayOfWeek === 0 ? "Chủ nhật" : `Thứ ${targetSchedule.dayOfWeek + 1}`})?\n\nLý do: ${normalizedReason}`,
-    );
-    if (!confirmed) return;
-
-    const nextSchedule = classInfo.schedule.filter(
-      (_, idx) => idx !== scheduleIndex,
-    );
+    const existingSession = sessions.find((session) => {
+      const sid = getSessionClassId(session);
+      if (sid !== selectedClassOccurrence.classId) return false;
+      const sStart = new Date(session.startTime);
+      const sEnd = new Date(session.endTime);
+      return (
+        sStart.getTime() === startDate.getTime() &&
+        sEnd.getTime() === endDate.getTime()
+      );
+    });
 
     try {
-      const updatedClass = await updateClass(classInfo._id, {
-        schedule: nextSchedule,
-      });
-      setSelectedClassDetail(updatedClass);
-      await fetchClasses();
-      notify.success(
-        "Đã xóa lịch cố định. Bạn có thể tạo buổi học bù theo ngày cụ thể ngay trên lịch.",
-      );
+      if (existingSession) {
+        if (existingSession.status !== SessionStatus.Cancelled) {
+          await updateSession(existingSession._id, {
+            status: SessionStatus.Cancelled,
+            note: normalizedReason,
+          });
+        }
+      } else {
+        const created = await useScheduleStore.getState().createSession({
+          classId: selectedClassOccurrence.classId,
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString(),
+          room: selectedClassOccurrence.room,
+          type: SessionType.Regular,
+          note: normalizedReason,
+        });
+
+        await updateSession(created._id, {
+          status: SessionStatus.Cancelled,
+          note: normalizedReason,
+        });
+      }
+
+      const query: ScheduleQuery = {
+        startDate: dateRange.start.toISOString(),
+        endDate: dateRange.end.toISOString(),
+      };
+      if (selectedClassFilter) query.classId = selectedClassFilter;
+      if (selectedTeacherFilter) query.teacherId = selectedTeacherFilter;
+      if (selectedBranchFilter) query.branchId = selectedBranchFilter;
+      await fetchSchedule(query);
+
+      notify.success("Đã xóa buổi học của ngày đã chọn.");
+      setSelectedClassDetail(null);
+      setSelectedClassOccurrence(null);
     } catch (error: unknown) {
       notify.error(extractServerMessage(error));
+      throw error;
     }
   };
 
@@ -551,16 +657,27 @@ export default function ScheduleManager({
     // Convert dayIndex (0=Monday, 6=Sunday) to dayOfWeek (1=Monday, 0=Sunday)
     const targetDayOfWeek = dayIndex === 6 ? 0 : dayIndex + 1;
 
+    const targetDate = new Date(dateRange.start);
+    targetDate.setDate(targetDate.getDate() + dayIndex);
+
     return classScheduleEvents.filter((event) => {
       const startHour = parseInt(event.startTime.split(":")[0], 10);
-      return event.dayOfWeek === targetDayOfWeek && startHour === hour;
+      return (
+        event.dayOfWeek === targetDayOfWeek &&
+        startHour === hour &&
+        !isClassOccurrenceCancelled(event, targetDate)
+      );
     });
   };
 
   // Get class schedules for a specific date (for month view)
   const getClassSchedulesForDate = (date: Date): ClassScheduleEvent[] => {
     const dayOfWeek = date.getDay(); // 0=Sunday, 1=Monday, etc.
-    return classScheduleEvents.filter((event) => event.dayOfWeek === dayOfWeek);
+    return classScheduleEvents.filter(
+      (event) =>
+        event.dayOfWeek === dayOfWeek &&
+        !isClassOccurrenceCancelled(event, date),
+    );
   };
 
   // Get sessions for a specific date (for month view)
@@ -838,6 +955,7 @@ export default function ScheduleManager({
   const renderClassScheduleCard = (
     event: ClassScheduleEvent,
     compact = false,
+    occurrenceDate?: Date,
   ) => {
     const colorClass = CLASS_COLORS[event.colorIndex];
 
@@ -846,6 +964,17 @@ export default function ScheduleManager({
       const classInfo = classes.find((c) => c._id === event.classId);
       if (classInfo) {
         setSelectedClassDetail(classInfo);
+        if (occurrenceDate) {
+          setSelectedClassOccurrence({
+            dateIso: occurrenceDate.toISOString(),
+            classId: event.classId,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            room: event.room,
+          });
+        } else {
+          setSelectedClassOccurrence(null);
+        }
       }
     };
 
@@ -947,7 +1076,15 @@ export default function ScheduleManager({
                     >
                       {/* Render class schedules (recurring) */}
                       {slotClassSchedules.map((event) =>
-                        renderClassScheduleCard(event, true),
+                        renderClassScheduleCard(
+                          event,
+                          true,
+                          new Date(
+                            dateRange.start.getFullYear(),
+                            dateRange.start.getMonth(),
+                            dateRange.start.getDate() + dayIndex,
+                          ),
+                        ),
                       )}
                       {/* Render sessions (one-time events) */}
                       {slotSessions.map((session) =>
@@ -1050,7 +1187,9 @@ export default function ScheduleManager({
                     {/* Render class schedules first */}
                     {dayClassSchedules
                       .slice(0, 2)
-                      .map((event) => renderClassScheduleCard(event, true))}
+                      .map((event) =>
+                        renderClassScheduleCard(event, true, date),
+                      )}
                     {/* Then render sessions */}
                     {daySessions
                       .slice(0, Math.max(0, 3 - dayClassSchedules.length))
@@ -1311,11 +1450,18 @@ export default function ScheduleManager({
       {selectedClassDetail && (
         <ClassDetailModal
           classData={selectedClassDetail}
-          canManageFixedSchedule={canManageSchedule}
-          onDeleteFixedSchedule={async (_schedule, index, reason) => {
-            await removeFixedScheduleFromClassDetail(index, reason);
+          canDeleteOccurrence={canManageSchedule && !!selectedClassOccurrence}
+          selectedOccurrenceDate={selectedClassOccurrence?.dateIso}
+          selectedOccurrenceTimeRange={
+            selectedClassOccurrence
+              ? `${selectedClassOccurrence.startTime} - ${selectedClassOccurrence.endTime}`
+              : undefined
+          }
+          onDeleteOccurrence={deleteSelectedOccurrence}
+          onClose={() => {
+            setSelectedClassDetail(null);
+            setSelectedClassOccurrence(null);
           }}
-          onClose={() => setSelectedClassDetail(null)}
         />
       )}
 

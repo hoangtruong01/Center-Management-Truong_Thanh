@@ -2,17 +2,15 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Class, ClassSchedule } from "@/lib/stores/classes-store";
+import { Class } from "@/lib/stores/classes-store";
 import { getSubjectColor } from "@/lib/constants/subjects";
 
 interface ClassDetailModalProps {
   classData: Class;
-  canManageFixedSchedule?: boolean;
-  onDeleteFixedSchedule?: (
-    schedule: ClassSchedule,
-    scheduleIndex: number,
-    reason: string,
-  ) => Promise<void>;
+  canDeleteOccurrence?: boolean;
+  selectedOccurrenceDate?: string;
+  selectedOccurrenceTimeRange?: string;
+  onDeleteOccurrence?: (reason: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -46,15 +44,16 @@ const STATUS_CONFIG = {
 
 export default function ClassDetailModal({
   classData,
-  canManageFixedSchedule = false,
-  onDeleteFixedSchedule,
+  canDeleteOccurrence = false,
+  selectedOccurrenceDate,
+  selectedOccurrenceTimeRange,
+  onDeleteOccurrence,
   onClose,
 }: ClassDetailModalProps) {
-  const [deletingScheduleIndex, setDeletingScheduleIndex] = useState<
-    number | null
-  >(null);
+  const [showDeleteOccurrenceForm, setShowDeleteOccurrenceForm] =
+    useState(false);
   const [deleteReason, setDeleteReason] = useState("");
-  const [isDeletingSchedule, setIsDeletingSchedule] = useState(false);
+  const [isDeletingOccurrence, setIsDeletingOccurrence] = useState(false);
 
   // Get teacher name
   const teacherName = useMemo(() => {
@@ -82,35 +81,22 @@ export default function ClassDetailModal({
     ? getSubjectColor(classData.subject)
     : "bg-gray-100 text-gray-800";
 
-  // Format schedule
-  const formatSchedule = (schedule: ClassSchedule) => {
-    return `${DAYS_OF_WEEK_NAMES[schedule.dayOfWeek]}: ${schedule.startTime} - ${schedule.endTime}${schedule.room ? ` (${schedule.room})` : ""}`;
-  };
-
-  const handleStartDeleteSchedule = (index: number) => {
-    setDeletingScheduleIndex(index);
+  const handleCancelDeleteOccurrence = () => {
+    setShowDeleteOccurrenceForm(false);
     setDeleteReason("");
   };
 
-  const handleCancelDeleteSchedule = () => {
-    setDeletingScheduleIndex(null);
-    setDeleteReason("");
-  };
-
-  const handleConfirmDeleteSchedule = async (
-    schedule: ClassSchedule,
-    index: number,
-  ) => {
-    if (!onDeleteFixedSchedule) return;
+  const handleConfirmDeleteOccurrence = async () => {
+    if (!onDeleteOccurrence) return;
     if (!deleteReason.trim()) return;
 
-    setIsDeletingSchedule(true);
+    setIsDeletingOccurrence(true);
     try {
-      await onDeleteFixedSchedule(schedule, index, deleteReason.trim());
-      setDeletingScheduleIndex(null);
+      await onDeleteOccurrence(deleteReason.trim());
+      setShowDeleteOccurrenceForm(false);
       setDeleteReason("");
     } finally {
-      setIsDeletingSchedule(false);
+      setIsDeletingOccurrence(false);
     }
   };
 
@@ -225,62 +211,83 @@ export default function ClassDetailModal({
                           )}
                         </div>
                       </div>
-                      {canManageFixedSchedule && onDeleteFixedSchedule && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
-                          onClick={() => handleStartDeleteSchedule(index)}
-                        >
-                          Xóa cố định
-                        </Button>
-                      )}
                     </div>
-
-                    {deletingScheduleIndex === index && (
-                      <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
-                        <label className="block text-xs font-medium text-red-700 mb-1">
-                          Lý do xóa lịch cố định{" "}
-                          <span className="text-red-600">*</span>
-                        </label>
-                        <textarea
-                          value={deleteReason}
-                          onChange={(e) => setDeleteReason(e.target.value)}
-                          className="w-full rounded-md border border-red-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
-                          rows={2}
-                          placeholder="Nhập lý do xóa lịch cố định..."
-                        />
-                        <div className="mt-2 flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCancelDeleteSchedule}
-                            disabled={isDeletingSchedule}
-                          >
-                            Hủy
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                            onClick={() =>
-                              handleConfirmDeleteSchedule(sch, index)
-                            }
-                            disabled={
-                              isDeletingSchedule || !deleteReason.trim()
-                            }
-                          >
-                            {isDeletingSchedule
-                              ? "Đang xóa..."
-                              : "Xác nhận xóa"}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          {canDeleteOccurrence &&
+            selectedOccurrenceDate &&
+            onDeleteOccurrence && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  🗑️ Xóa buổi học trong ngày
+                </h4>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <p className="text-sm text-red-800">
+                    Ngày:{" "}
+                    {new Date(selectedOccurrenceDate).toLocaleDateString(
+                      "vi-VN",
+                    )}
+                    {selectedOccurrenceTimeRange
+                      ? ` - ${selectedOccurrenceTimeRange}`
+                      : ""}
+                  </p>
+                  <p className="mt-1 text-xs text-red-700">
+                    Thao tác này chỉ xóa buổi của ngày đã chọn trên thời khóa
+                    biểu, không ảnh hưởng lịch cố định cả tuần.
+                  </p>
+
+                  {!showDeleteOccurrenceForm ? (
+                    <Button
+                      size="sm"
+                      className="mt-3 bg-red-600 hover:bg-red-700 text-white"
+                      onClick={() => setShowDeleteOccurrenceForm(true)}
+                    >
+                      Xóa buổi ngày này
+                    </Button>
+                  ) : (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-red-700 mb-1">
+                        Lý do xóa buổi học{" "}
+                        <span className="text-red-600">*</span>
+                      </label>
+                      <textarea
+                        value={deleteReason}
+                        onChange={(e) => setDeleteReason(e.target.value)}
+                        className="w-full rounded-md border border-red-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                        rows={2}
+                        placeholder="Nhập lý do xóa buổi học trong ngày..."
+                      />
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelDeleteOccurrence}
+                          disabled={isDeletingOccurrence}
+                        >
+                          Hủy
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                          onClick={handleConfirmDeleteOccurrence}
+                          disabled={
+                            isDeletingOccurrence || !deleteReason.trim()
+                          }
+                        >
+                          {isDeletingOccurrence
+                            ? "Đang xóa..."
+                            : "Xác nhận xóa"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
           {/* Description */}
           {classData.description && (
