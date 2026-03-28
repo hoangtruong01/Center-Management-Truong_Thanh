@@ -9,8 +9,8 @@ import {
   contactAdmin,
   validateLogin,
 } from "@/lib/stores/auth-store";
-import { useBranchesStore, type Branch } from "@/lib/stores/branches-store";
-import { Bounce, ToastContainer, toast } from "react-toastify";
+import { useBranchesStore } from "@/lib/stores/branches-store";
+import { Bounce, toast } from "react-toastify";
 import DarkVeil from "@/components/ui/darkveil-background";
 
 interface LoginPageProps {
@@ -68,6 +68,21 @@ type QuickLoginConfig = {
   password: string;
 };
 
+type LoginAttemptOptions = {
+  silent?: boolean;
+  branchIdOverride?: string;
+};
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 const QUICK_LOGIN_ENABLED =
   process.env.NEXT_PUBLIC_ENABLE_QUICK_LOGIN === "true" ||
   process.env.NODE_ENV !== "production";
@@ -77,28 +92,63 @@ const QUICK_LOGIN_CREDENTIALS: Record<Role, QuickLoginConfig> = {
     email:
       process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_EMAIL ||
       "student@example.com",
-    password:
-      process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_PASSWORD || "123456",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_PASSWORD || "123456",
   },
   teacher: {
     email:
       process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_EMAIL ||
       "teacher@example.com",
-    password:
-      process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_PASSWORD || "123456",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_PASSWORD || "123456",
   },
   parent: {
     email:
       process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_EMAIL || "parent@example.com",
-    password:
-      process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_PASSWORD || "123456",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_PASSWORD || "123456",
   },
   admin: {
-    email: process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_EMAIL || "admin@example.com",
-    password:
-      process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_PASSWORD || "123456",
+    email:
+      process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_EMAIL || "admin@example.com",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_PASSWORD || "123456",
   },
 };
+
+const QUICK_LOGIN_FALLBACKS: Record<Role, QuickLoginConfig[]> = {
+  student: [
+    { email: "student.an@truongthanh.edu.vn", password: "123456" },
+    { email: "student@example.com", password: "123456" },
+  ],
+  teacher: [
+    { email: "teacher.binh@truongthanh.edu.vn", password: "123456" },
+    { email: "teacher@example.com", password: "123456" },
+  ],
+  parent: [
+    { email: "parent.hung@truongthanh.edu.vn", password: "123456" },
+    { email: "parent@example.com", password: "123456" },
+  ],
+  admin: [
+    { email: "admin@truongthanh.edu.vn", password: "123456" },
+    { email: "admin@example.com", password: "123456" },
+  ],
+};
+
+function buildQuickLoginAttempts(role: Role): QuickLoginConfig[] {
+  const envCredential = QUICK_LOGIN_CREDENTIALS[role];
+  const fallbacks = QUICK_LOGIN_FALLBACKS[role];
+  const unique = new Map<string, QuickLoginConfig>();
+
+  const allCandidates = [envCredential, ...fallbacks];
+  for (const candidate of allCandidates) {
+    const email = candidate.email?.trim();
+    const password = candidate.password?.trim();
+    if (!email || !password) continue;
+    const key = `${email.toLowerCase()}::${password}`;
+    if (!unique.has(key)) {
+      unique.set(key, { email, password });
+    }
+  }
+
+  return Array.from(unique.values());
+}
 
 // Modal types
 type ModalType = "forgot-password" | "contact-admin" | null;
@@ -221,12 +271,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [contactSuccess, setContactSuccess] = useState(false);
 
   // Zustand stores
-  const {
-    login,
-    isAuthenticated,
-    user,
-    isLoading: authLoading,
-  } = useAuthStore();
+  const { login } = useAuthStore();
   const { branches, fetchBranches } = useBranchesStore();
 
   // Fetch branches on mount
@@ -248,13 +293,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       : BRANCHES;
 
   const handleQuickLogin = async (role: Role) => {
-    const credentials = QUICK_LOGIN_CREDENTIALS[role];
+    const credentials = buildQuickLoginAttempts(role);
     const nextBranchId =
       role === "admin" ? branchId : branchId || displayBranches[0]?.id || "";
 
     setSelectedRole(role);
-    setEmail(credentials.email);
-    setPassword(credentials.password);
+    if (credentials.length > 0) {
+      setEmail(credentials[0].email);
+      setPassword(credentials[0].password);
+    }
 
     if (role !== "admin" && !nextBranchId) {
       toast.error("Chưa có dữ liệu cơ sở để đăng nhập nhanh.");
@@ -265,7 +312,30 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       setBranchId(nextBranchId);
     }
 
-    await handleLogin(credentials.email, credentials.password, role);
+    let lastErrorMessage = "Đăng nhập nhanh thất bại. Vui lòng thử lại.";
+
+    for (let i = 0; i < credentials.length; i++) {
+      const candidate = credentials[i];
+      const isLastAttempt = i === credentials.length - 1;
+      const success = await handleLogin(
+        candidate.email,
+        candidate.password,
+        role,
+        {
+          branchIdOverride: nextBranchId,
+          silent: !isLastAttempt,
+        },
+      );
+
+      if (success) {
+        return;
+      }
+
+      lastErrorMessage = useAuthStore.getState().error || lastErrorMessage;
+    }
+
+    setError(lastErrorMessage);
+    toast.error(lastErrorMessage);
   };
 
   // Handle real API login
@@ -273,17 +343,21 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     loginEmail: string,
     loginPassword: string,
     loginRole?: Role,
+    options?: LoginAttemptOptions,
   ) => {
+    const effectiveBranchId = options?.branchIdOverride ?? branchId;
     setIsLoading(true);
-    setError(null);
+    if (!options?.silent) {
+      setError(null);
+    }
 
     try {
       // Validate role and branch before login if role is selected
-      if (loginRole && branchId) {
+      if (loginRole && effectiveBranchId) {
         const validation = await validateLogin({
           email: loginEmail,
           role: loginRole,
-          branchId: branchId,
+          branchId: effectiveBranchId,
         });
 
         if (
@@ -291,10 +365,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           validation.errors &&
           validation.errors.length > 0
         ) {
-          setError(validation.errors.join("\n"));
-          toast.error(validation.errors[0]);
+          if (!options?.silent) {
+            setError(validation.errors.join("\n"));
+            toast.error(validation.errors[0]);
+          }
           setIsLoading(false);
-          return;
+          return false;
         }
       }
 
@@ -311,35 +387,56 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
       // Verify role matches if selected
       if (loginRole && userData.role !== loginRole) {
-        setError(
-          `Vai trò không đúng. Tài khoản này có vai trò "${
-            ROLE_CONFIG[userData.role as Role]?.label || userData.role
-          }".`,
-        );
-        toast.error("Vai trò không đúng!", {
-          position: "top-right",
-          autoClose: 1000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: false,
-          draggable: true,
-          progress: undefined,
-          theme: "light",
-          transition: Bounce,
-        });
+        if (!options?.silent) {
+          setError(
+            `Vai trò không đúng. Tài khoản này có vai trò "${
+              ROLE_CONFIG[userData.role as Role]?.label || userData.role
+            }".`,
+          );
+          toast.error("Vai trò không đúng!", {
+            position: "top-right",
+            autoClose: 1000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: false,
+            draggable: true,
+            progress: undefined,
+            theme: "light",
+            transition: Bounce,
+          });
+        }
         setIsLoading(false);
-        return;
+        return false;
       }
 
       // Verify branch matches (except for admin)
       if (
         userData.role !== "admin" &&
-        branchId &&
+        effectiveBranchId &&
         userBranchId &&
-        userBranchId !== branchId
+        userBranchId !== effectiveBranchId
       ) {
-        setError("Cơ sở không đúng. Vui lòng chọn đúng cơ sở của bạn.");
-        toast.error("Cơ sở không đúng!", {
+        if (!options?.silent) {
+          setError("Cơ sở không đúng. Vui lòng chọn đúng cơ sở của bạn.");
+          toast.error("Cơ sở không đúng!", {
+            position: "top-right",
+            autoClose: 1000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: false,
+            draggable: true,
+            progress: undefined,
+            theme: "light",
+            transition: Bounce,
+          });
+        }
+        setIsLoading(false);
+        return false;
+      }
+
+      // Show success toast
+      if (!options?.silent) {
+        toast.success(`Chào mừng ${userData.name}!`, {
           position: "top-right",
           autoClose: 1000,
           hideProgressBar: false,
@@ -350,22 +447,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           theme: "light",
           transition: Bounce,
         });
-        setIsLoading(false);
-        return;
       }
-
-      // Show success toast
-      toast.success(`Chào mừng ${userData.name}!`, {
-        position: "top-right",
-        autoClose: 1000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: false,
-        draggable: true,
-        progress: undefined,
-        theme: "light",
-        transition: Bounce,
-      });
 
       // If onLogin callback exists (for backward compatibility)
       if (onLogin && userData) {
@@ -383,10 +465,18 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           gender: userData.gender,
         });
       }
-    } catch (err: any) {
-      const errorMsg = err.message || "Đăng nhập thất bại. Vui lòng thử lại.";
-      setError(errorMsg);
-      toast.error(errorMsg);
+
+      return true;
+    } catch (err: unknown) {
+      const errorMsg = getErrorMessage(
+        err,
+        "Đăng nhập thất bại. Vui lòng thử lại.",
+      );
+      if (!options?.silent) {
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -419,8 +509,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       const result = await forgotPassword(forgotEmail);
       setForgotSuccess(true);
       toast.success(result.message);
-    } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra!");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Có lỗi xảy ra!"));
     } finally {
       setForgotLoading(false);
     }
@@ -443,8 +533,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       });
       setContactSuccess(true);
       toast.success(result.message);
-    } catch (err: any) {
-      toast.error(err.message || "Có lỗi xảy ra!");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Có lỗi xảy ra!"));
     } finally {
       setContactLoading(false);
     }
@@ -1024,7 +1114,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     </label>
                     <select
                       value={contactType}
-                      onChange={(e) => setContactType(e.target.value as any)}
+                      onChange={(e) =>
+                        setContactType(
+                          e.target.value as "register" | "support" | "other",
+                        )
+                      }
                       className="w-full rounded-xl border-2 border-gray-100 bg-gray-50 px-4 py-2 text-sm focus:outline-none focus:border-purple-500"
                     >
                       <option value="register">🎓 Đăng ký tài khoản mới</option>

@@ -450,42 +450,52 @@ export default function ScheduleManager({
     }
   };
 
-  const removeFixedSchedule = async (event: ClassScheduleEvent) => {
+  const removeFixedScheduleFromClassDetail = async (
+    scheduleIndex: number,
+    reason: string,
+  ) => {
     if (!canManageSchedule) {
       notify.error("Bạn không có quyền xóa lịch cố định.");
       return;
     }
 
-    const classInfo = classes.find((c) => c._id === event.classId);
+    const normalizedReason = reason.trim();
+    if (!normalizedReason) {
+      notify.warning("Vui lòng nhập lý do trước khi xóa lịch cố định.");
+      return;
+    }
+
+    if (!selectedClassDetail) {
+      notify.error("Không tìm thấy lớp cần xóa lịch cố định.");
+      return;
+    }
+
+    const classInfo = classes.find((c) => c._id === selectedClassDetail._id);
     if (!classInfo?.schedule?.length) {
       notify.error("Không tìm thấy lịch cố định của lớp.");
       return;
     }
 
-    const targetIndex = classInfo.schedule.findIndex(
-      (item) =>
-        item.dayOfWeek === event.dayOfWeek &&
-        item.startTime === event.startTime &&
-        item.endTime === event.endTime &&
-        (item.room || "") === (event.room || ""),
-    );
-
-    if (targetIndex < 0) {
+    if (scheduleIndex < 0 || scheduleIndex >= classInfo.schedule.length) {
       notify.error("Không tìm thấy buổi cố định cần xóa.");
       return;
     }
 
+    const targetSchedule = classInfo.schedule[scheduleIndex];
     const confirmed = window.confirm(
-      "Bạn có chắc muốn xóa khung lịch cố định này? Sau đó hãy tạo buổi học bù theo ngày cụ thể nếu cần.",
+      `Xác nhận xóa lịch cố định ${targetSchedule.startTime} - ${targetSchedule.endTime} (${targetSchedule.dayOfWeek === 0 ? "Chủ nhật" : `Thứ ${targetSchedule.dayOfWeek + 1}`})?\n\nLý do: ${normalizedReason}`,
     );
     if (!confirmed) return;
 
     const nextSchedule = classInfo.schedule.filter(
-      (_, idx) => idx !== targetIndex,
+      (_, idx) => idx !== scheduleIndex,
     );
 
     try {
-      await updateClass(event.classId, { schedule: nextSchedule });
+      const updatedClass = await updateClass(classInfo._id, {
+        schedule: nextSchedule,
+      });
+      setSelectedClassDetail(updatedClass);
       await fetchClasses();
       notify.success(
         "Đã xóa lịch cố định. Bạn có thể tạo buổi học bù theo ngày cụ thể ngay trên lịch.",
@@ -841,33 +851,18 @@ export default function ScheduleManager({
 
     if (compact) {
       return (
-        <div className="space-y-1">
-          <div
-            key={`${event.classId}-${event.dayOfWeek}-${event.startTime}`}
-            className={`p-1.5 rounded text-xs border-l-2 cursor-pointer hover:opacity-80 transition-opacity ${colorClass}`}
-            title={`${event.className} - ${event.teacherName}\n${
-              event.startTime
-            } - ${event.endTime}${event.room ? `\nPhòng: ${event.room}` : ""}\n\nNhấn để xem chi tiết`}
-            onClick={handleClickClass}
-          >
-            <div className="font-medium truncate">{event.className}</div>
-            <div className="text-[10px] opacity-70">
-              {event.startTime} - {event.endTime}
-            </div>
+        <div
+          key={`${event.classId}-${event.dayOfWeek}-${event.startTime}`}
+          className={`p-1.5 rounded text-xs border-l-2 cursor-pointer hover:opacity-80 transition-opacity ${colorClass}`}
+          title={`${event.className} - ${event.teacherName}\n${
+            event.startTime
+          } - ${event.endTime}${event.room ? `\nPhòng: ${event.room}` : ""}\n\nNhấn để xem chi tiết`}
+          onClick={handleClickClass}
+        >
+          <div className="font-medium truncate">{event.className}</div>
+          <div className="text-[10px] opacity-70">
+            {event.startTime} - {event.endTime}
           </div>
-          {canManageSchedule && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 w-full text-[10px] text-red-600 border-red-200 hover:bg-red-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeFixedSchedule(event);
-              }}
-            >
-              Xóa cố định
-            </Button>
-          )}
         </div>
       );
     }
@@ -892,19 +887,7 @@ export default function ScheduleManager({
               Lịch cố định
             </span>
           </div>
-          {canManageSchedule && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeFixedSchedule(event);
-              }}
-            >
-              Xóa cố định
-            </Button>
-          )}
+          <span className="text-xs text-gray-600">Nhấn để xem chi tiết</span>
         </div>
       </Card>
     );
@@ -1328,6 +1311,10 @@ export default function ScheduleManager({
       {selectedClassDetail && (
         <ClassDetailModal
           classData={selectedClassDetail}
+          canManageFixedSchedule={canManageSchedule}
+          onDeleteFixedSchedule={async (_schedule, index, reason) => {
+            await removeFixedScheduleFromClassDetail(index, reason);
+          }}
           onClose={() => setSelectedClassDetail(null)}
         />
       )}
