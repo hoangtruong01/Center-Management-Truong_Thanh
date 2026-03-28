@@ -337,6 +337,17 @@ describe('Sessions & Attendance API (e2e)', () => {
         expect(res.body.report.policyDecision.requiresManualResolution).toBe(
           true,
         );
+        expect(res.body.makeupSession.conflictResolutionRequired).toBe(true);
+        expect(res.body.makeupSession.conflictResolutionStatus).toBe('pending');
+
+        const markResolved = await request(app.getHttpServer())
+          .patch(`/sessions/${res.body.makeupSessionId}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            conflictResolutionStatus: 'resolved',
+          })
+          .expect(200);
+        expect(markResolved.body.conflictResolutionStatus).toBe('resolved');
 
         const originalAfter = await request(app.getHttpServer())
           .get(`/sessions/${originalSession.body._id}`)

@@ -56,6 +56,8 @@ export interface Session {
   cancelledBy?: string;
   cancelledAt?: string;
   cancelReason?: string;
+  conflictResolutionRequired?: boolean;
+  conflictResolutionStatus?: "pending" | "resolved";
   note?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -148,6 +150,8 @@ export interface UpdateSessionData {
   endTime?: string;
   type?: SessionType;
   status?: SessionStatus;
+  conflictResolutionRequired?: boolean;
+  conflictResolutionStatus?: "pending" | "resolved";
   note?: string;
 }
 

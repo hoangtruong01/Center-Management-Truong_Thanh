@@ -45,6 +45,16 @@ export class Session {
   @Prop()
   cancelReason?: string;
 
+  @Prop({ default: false })
+  conflictResolutionRequired?: boolean;
+
+  @Prop({
+    type: String,
+    enum: ['pending', 'resolved'],
+    default: 'resolved',
+  })
+  conflictResolutionStatus?: 'pending' | 'resolved';
+
   @Prop({ type: Types.ObjectId, ref: 'User' })
   createdBy?: Types.ObjectId;
 

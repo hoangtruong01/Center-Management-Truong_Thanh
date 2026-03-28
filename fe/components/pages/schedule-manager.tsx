@@ -20,6 +20,8 @@ import {
 import { useClassesStore, Class } from "@/lib/stores/classes-store";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useUsersStore } from "@/lib/stores/users-store";
+import { notify } from "@/lib/notify";
+import api from "@/lib/api";
 import SessionFormModal from "./session-form-modal";
 import ClassDetailModal from "./class-detail-modal";
 
@@ -45,11 +47,6 @@ const getEndOfWeek = (date: Date): Date => {
   end.setDate(end.getDate() + 6);
   end.setHours(23, 59, 59, 999);
   return end;
-};
-
-// Helper format date
-const formatDate = (date: Date): string => {
-  return date.toISOString();
 };
 
 const formatDisplayDate = (date: Date): string => {
@@ -97,8 +94,14 @@ interface ClassScheduleEvent {
   colorIndex: number;
 }
 
+interface SuggestedMakeupSlot {
+  startTime: string;
+  endTime: string;
+  report: CancelAndMakeupResult["report"];
+  score: number;
+}
+
 export default function ScheduleManager({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   userRole = "admin",
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   userId,
@@ -127,6 +130,12 @@ export default function ScheduleManager({
   const [previewResult, setPreviewResult] =
     useState<CancelAndMakeupResult | null>(null);
   const [isSubmittingMakeup, setIsSubmittingMakeup] = useState(false);
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
+  const [suggestedSlots, setSuggestedSlots] = useState<SuggestedMakeupSlot[]>(
+    [],
+  );
+  const [showManualResolutionOnly, setShowManualResolutionOnly] =
+    useState(false);
 
   // Stores
   const {
@@ -136,16 +145,31 @@ export default function ScheduleManager({
     statistics,
     fetchSchedule,
     fetchStatistics,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     updateSession,
     deleteSession,
     cancelAndMakeupSession,
     clearError,
   } = useScheduleStore();
 
-  const { classes, fetchClasses } = useClassesStore();
+  const { classes, fetchClasses, updateClass } = useClassesStore();
   const { branches, fetchBranches } = useBranchesStore();
   const { users, fetchUsers } = useUsersStore();
+  const canManageSchedule = userRole === "admin";
+
+  const readErrorMessagePayload = (error: unknown) => {
+    if (!error || typeof error !== "object") return undefined;
+    const response = (error as { response?: { data?: { message?: unknown } } })
+      .response;
+    return response?.data?.message;
+  };
+
+  const readErrorReport = (error: unknown) => {
+    const payload = readErrorMessagePayload(error);
+    if (!payload || typeof payload !== "object") return undefined;
+    const report = (payload as { report?: CancelAndMakeupResult["report"] })
+      .report;
+    return report;
+  };
 
   // Calculate date range based on view mode
   const dateRange = useMemo(() => {
@@ -260,6 +284,217 @@ export default function ScheduleManager({
     selectedTeacherFilter,
   ]);
 
+  const filteredSessions = useMemo(() => {
+    if (!showManualResolutionOnly) return sessions;
+    return sessions.filter(
+      (session) =>
+        session.type === SessionType.Makeup &&
+        session.conflictResolutionRequired &&
+        session.conflictResolutionStatus === "pending",
+    );
+  }, [sessions, showManualResolutionOnly]);
+
+  const previewMakeupRequest = async (
+    sessionId: string,
+    payload: {
+      reason: string;
+      makeupStartTime: string;
+      makeupEndTime: string;
+      policy: MakeupConflictPolicy;
+      maxConflictRate?: number;
+    },
+  ): Promise<CancelAndMakeupResult> => {
+    try {
+      const response = await api.post(
+        `/sessions/${sessionId}/cancel-and-makeup`,
+        {
+          ...payload,
+          dryRun: true,
+        },
+      );
+      return response.data;
+    } catch (error: unknown) {
+      const report = readErrorReport(error);
+      if (report) {
+        return {
+          previewOnly: true,
+          originalSessionId: sessionId,
+          report,
+        };
+      }
+      throw error;
+    }
+  };
+
+  const calculateSuggestionScore = (result: CancelAndMakeupResult) => {
+    const report = result.report;
+    const policyPenalty = report.policyDecision.canCreate ? 0 : 1000;
+    const teacherPenalty = report.teacherConflicts.length * 300;
+    const roomPenalty = report.roomConflicts.length * 250;
+    const studentPenalty = report.conflictingStudentCount * 10;
+    const ratePenalty = Math.round(report.conflictRate * 100);
+    return (
+      policyPenalty +
+      teacherPenalty +
+      roomPenalty +
+      studentPenalty +
+      ratePenalty
+    );
+  };
+
+  const buildCandidateSlots = () => {
+    if (!selectedSessionForMakeup || !makeupStart || !makeupEnd) return [];
+    const baseStart = new Date(makeupStart);
+    const baseEnd = new Date(makeupEnd);
+    const duration = baseEnd.getTime() - baseStart.getTime();
+    if (duration <= 0) return [];
+
+    const hourOffsets = [0, 1, -1];
+    const dayOffsets = [0, 1, 2, 3, 4, 5, 6];
+    const candidates: Array<{ startTime: string; endTime: string }> = [];
+
+    for (const dayOffset of dayOffsets) {
+      for (const hourOffset of hourOffsets) {
+        const start = new Date(baseStart);
+        start.setDate(start.getDate() + dayOffset);
+        start.setHours(start.getHours() + hourOffset);
+        if (start.getHours() < 7 || start.getHours() > 20) continue;
+
+        const end = new Date(start.getTime() + duration);
+        candidates.push({
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+        });
+      }
+    }
+
+    return Array.from(
+      new Map(
+        candidates.map((item) => [`${item.startTime}-${item.endTime}`, item]),
+      ).values(),
+    ).slice(0, 12);
+  };
+
+  const generateSuggestedSlots = async () => {
+    if (!selectedSessionForMakeup) return;
+    if (!validateMakeupInput()) return;
+
+    const candidates = buildCandidateSlots();
+    if (candidates.length === 0) {
+      notify.warning("Không tạo được danh sách gợi ý từ thời gian hiện tại.");
+      return;
+    }
+
+    setIsGeneratingSuggestions(true);
+    try {
+      const rawResults = await Promise.all(
+        candidates.map(async (candidate) => {
+          const result = await previewMakeupRequest(
+            selectedSessionForMakeup._id,
+            {
+              reason: makeupReason.trim(),
+              makeupStartTime: candidate.startTime,
+              makeupEndTime: candidate.endTime,
+              policy: makeupPolicy,
+              maxConflictRate:
+                makeupPolicy === MakeupConflictPolicy.AllowWithThreshold
+                  ? maxConflictRatePercent / 100
+                  : undefined,
+            },
+          );
+
+          return {
+            startTime: candidate.startTime,
+            endTime: candidate.endTime,
+            report: result.report,
+            score: calculateSuggestionScore(result),
+          } as SuggestedMakeupSlot;
+        }),
+      );
+
+      const bestSlots = rawResults
+        .sort((a, b) => a.score - b.score)
+        .slice(0, 3);
+      setSuggestedSlots(bestSlots);
+      if (bestSlots.length > 0) {
+        notify.success("Đã tìm thấy các khung giờ gợi ý tối ưu.");
+      } else {
+        notify.warning("Không tìm thấy khung giờ phù hợp.");
+      }
+    } catch (error: unknown) {
+      notify.error(extractServerMessage(error));
+    } finally {
+      setIsGeneratingSuggestions(false);
+    }
+  };
+
+  const applySuggestedSlot = (slot: SuggestedMakeupSlot) => {
+    setMakeupStart(toLocalDateTime(slot.startTime));
+    setMakeupEnd(toLocalDateTime(slot.endTime));
+    setPreviewResult({
+      previewOnly: true,
+      originalSessionId: selectedSessionForMakeup?._id || "",
+      report: slot.report,
+    });
+    notify.info("Đã áp dụng khung giờ gợi ý.");
+  };
+
+  const markManualResolutionDone = async (session: Session) => {
+    try {
+      await updateSession(session._id, {
+        conflictResolutionStatus: "resolved",
+      });
+      notify.success("Đã đánh dấu xử lý thủ công hoàn tất.");
+    } catch (error: unknown) {
+      notify.error(extractServerMessage(error));
+    }
+  };
+
+  const removeFixedSchedule = async (event: ClassScheduleEvent) => {
+    if (!canManageSchedule) {
+      notify.error("Bạn không có quyền xóa lịch cố định.");
+      return;
+    }
+
+    const classInfo = classes.find((c) => c._id === event.classId);
+    if (!classInfo?.schedule?.length) {
+      notify.error("Không tìm thấy lịch cố định của lớp.");
+      return;
+    }
+
+    const targetIndex = classInfo.schedule.findIndex(
+      (item) =>
+        item.dayOfWeek === event.dayOfWeek &&
+        item.startTime === event.startTime &&
+        item.endTime === event.endTime &&
+        (item.room || "") === (event.room || ""),
+    );
+
+    if (targetIndex < 0) {
+      notify.error("Không tìm thấy buổi cố định cần xóa.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Bạn có chắc muốn xóa khung lịch cố định này? Sau đó hãy tạo buổi học bù theo ngày cụ thể nếu cần.",
+    );
+    if (!confirmed) return;
+
+    const nextSchedule = classInfo.schedule.filter(
+      (_, idx) => idx !== targetIndex,
+    );
+
+    try {
+      await updateClass(event.classId, { schedule: nextSchedule });
+      await fetchClasses();
+      notify.success(
+        "Đã xóa lịch cố định. Bạn có thể tạo buổi học bù theo ngày cụ thể ngay trên lịch.",
+      );
+    } catch (error: unknown) {
+      notify.error(extractServerMessage(error));
+    }
+  };
+
   // Navigate week/month
   const navigatePrev = () => {
     const newDate = new Date(currentDate);
@@ -290,7 +525,7 @@ export default function ScheduleManager({
     const targetDate = new Date(dateRange.start);
     targetDate.setDate(targetDate.getDate() + dayIndex);
 
-    return sessions.filter((session) => {
+    return filteredSessions.filter((session) => {
       const sessionStart = new Date(session.startTime);
       const sessionHour = sessionStart.getHours();
       const sessionDate = sessionStart.toDateString();
@@ -320,7 +555,7 @@ export default function ScheduleManager({
 
   // Get sessions for a specific date (for month view)
   const getSessionsForDate = (date: Date): Session[] => {
-    return sessions.filter((session) => {
+    return filteredSessions.filter((session) => {
       const sessionDate = new Date(session.startTime).toDateString();
       return sessionDate === date.toDateString();
     });
@@ -333,11 +568,16 @@ export default function ScheduleManager({
   };
 
   const handleDeleteSession = async (session: Session) => {
-    if (confirm("Bạn có chắc muốn xóa buổi học này?")) {
+    if (!canManageSchedule) {
+      notify.error("Bạn không có quyền xóa buổi học.");
+      return;
+    }
+    if (window.confirm("Bạn có chắc muốn xóa buổi học này?")) {
       try {
         await deleteSession(session._id);
-      } catch (error) {
-        console.error("Error deleting session:", error);
+        notify.success("Đã xóa buổi học.");
+      } catch (error: unknown) {
+        notify.error(extractServerMessage(error));
       }
     }
   };
@@ -367,6 +607,7 @@ export default function ScheduleManager({
     setMakeupStart(toLocalDateTime(suggestedStart.toISOString()));
     setMakeupEnd(toLocalDateTime(suggestedEnd.toISOString()));
     setPreviewResult(null);
+    setSuggestedSlots([]);
     setShowMakeupModal(true);
   };
 
@@ -374,36 +615,44 @@ export default function ScheduleManager({
     setShowMakeupModal(false);
     setSelectedSessionForMakeup(null);
     setPreviewResult(null);
+    setSuggestedSlots([]);
   };
 
-  const extractServerMessage = (error: any) => {
-    const message = error?.response?.data?.message;
+  const extractServerMessage = (error: unknown) => {
+    const message = readErrorMessagePayload(error);
     if (typeof message === "string") return message;
-    if (message?.message) return message.message;
+    if (
+      message &&
+      typeof message === "object" &&
+      "message" in message &&
+      typeof message.message === "string"
+    ) {
+      return message.message;
+    }
     return "Không thể xử lý lịch bù. Vui lòng thử lại.";
   };
 
   const validateMakeupInput = () => {
     if (!selectedSessionForMakeup) {
-      alert("Không tìm thấy buổi học cần xử lý.");
+      notify.error("Không tìm thấy buổi học cần xử lý.");
       return false;
     }
     if (!makeupReason.trim()) {
-      alert("Vui lòng nhập lý do hủy buổi cũ.");
+      notify.warning("Vui lòng nhập lý do hủy buổi cũ.");
       return false;
     }
     if (!makeupStart || !makeupEnd) {
-      alert("Vui lòng chọn đầy đủ thời gian học bù.");
+      notify.warning("Vui lòng chọn đầy đủ thời gian học bù.");
       return false;
     }
     const start = new Date(makeupStart);
     const end = new Date(makeupEnd);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      alert("Thời gian học bù không hợp lệ.");
+      notify.error("Thời gian học bù không hợp lệ.");
       return false;
     }
     if (end <= start) {
-      alert("Giờ kết thúc phải sau giờ bắt đầu.");
+      notify.warning("Giờ kết thúc phải sau giờ bắt đầu.");
       return false;
     }
     return true;
@@ -445,11 +694,13 @@ export default function ScheduleManager({
           dateRange.end.toISOString(),
           selectedBranchFilter || undefined,
         );
-        alert("Đã hủy buổi cũ và tạo buổi học bù thành công.");
+        notify.success("Đã hủy buổi cũ và tạo buổi học bù thành công.");
         closeMakeupModal();
+      } else {
+        notify.info("Đã cập nhật xem trước xung đột.");
       }
-    } catch (error: any) {
-      const report = error?.response?.data?.message?.report;
+    } catch (error: unknown) {
+      const report = readErrorReport(error);
       if (report) {
         setPreviewResult({
           previewOnly: true,
@@ -457,7 +708,7 @@ export default function ScheduleManager({
           report,
         });
       }
-      alert(extractServerMessage(error));
+      notify.error(extractServerMessage(error));
     } finally {
       setIsSubmittingMakeup(false);
     }
@@ -516,33 +767,57 @@ export default function ScheduleManager({
                     ? "Học bù"
                     : "Kiểm tra"}
               </span>
+              {session.conflictResolutionRequired &&
+                session.conflictResolutionStatus === "pending" && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    Chờ xử lý thủ công
+                  </span>
+                )}
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            {session.status !== SessionStatus.Cancelled && (
+            {canManageSchedule &&
+              session.status !== SessionStatus.Cancelled && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7 text-amber-700 border-amber-200 hover:bg-amber-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openMakeupModal(session);
+                  }}
+                >
+                  Hủy + bù
+                </Button>
+              )}
+            {canManageSchedule &&
+              session.conflictResolutionRequired &&
+              session.conflictResolutionStatus === "pending" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markManualResolutionDone(session);
+                  }}
+                >
+                  Đã xử lý
+                </Button>
+              )}
+            {canManageSchedule && (
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs h-7 text-amber-700 border-amber-200 hover:bg-amber-50"
+                className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50"
                 onClick={(e) => {
                   e.stopPropagation();
-                  openMakeupModal(session);
+                  handleDeleteSession(session);
                 }}
               >
-                Hủy + bù
+                ✕
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteSession(session);
-              }}
-            >
-              ✕
-            </Button>
           </div>
         </div>
       </Card>
@@ -566,18 +841,33 @@ export default function ScheduleManager({
 
     if (compact) {
       return (
-        <div
-          key={`${event.classId}-${event.dayOfWeek}-${event.startTime}`}
-          className={`p-1.5 rounded text-xs border-l-2 cursor-pointer hover:opacity-80 transition-opacity ${colorClass}`}
-          title={`${event.className} - ${event.teacherName}\n${
-            event.startTime
-          } - ${event.endTime}${event.room ? `\nPhòng: ${event.room}` : ""}\n\nNhấn để xem chi tiết`}
-          onClick={handleClickClass}
-        >
-          <div className="font-medium truncate">{event.className}</div>
-          <div className="text-[10px] opacity-70">
-            {event.startTime} - {event.endTime}
+        <div className="space-y-1">
+          <div
+            key={`${event.classId}-${event.dayOfWeek}-${event.startTime}`}
+            className={`p-1.5 rounded text-xs border-l-2 cursor-pointer hover:opacity-80 transition-opacity ${colorClass}`}
+            title={`${event.className} - ${event.teacherName}\n${
+              event.startTime
+            } - ${event.endTime}${event.room ? `\nPhòng: ${event.room}` : ""}\n\nNhấn để xem chi tiết`}
+            onClick={handleClickClass}
+          >
+            <div className="font-medium truncate">{event.className}</div>
+            <div className="text-[10px] opacity-70">
+              {event.startTime} - {event.endTime}
+            </div>
           </div>
+          {canManageSchedule && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 w-full text-[10px] text-red-600 border-red-200 hover:bg-red-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeFixedSchedule(event);
+              }}
+            >
+              Xóa cố định
+            </Button>
+          )}
         </div>
       );
     }
@@ -602,6 +892,19 @@ export default function ScheduleManager({
               Lịch cố định
             </span>
           </div>
+          {canManageSchedule && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeFixedSchedule(event);
+              }}
+            >
+              Xóa cố định
+            </Button>
+          )}
         </div>
       </Card>
     );
@@ -786,7 +1089,7 @@ export default function ScheduleManager({
 
   // Render list view
   const renderListView = () => {
-    const groupedByDate = sessions.reduce(
+    const groupedByDate = filteredSessions.reduce(
       (acc, session) => {
         const dateKey = new Date(session.startTime).toDateString();
         if (!acc[dateKey]) acc[dateKey] = [];
@@ -929,6 +1232,16 @@ export default function ScheduleManager({
               Xóa bộ lọc
             </Button>
           )}
+
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 border rounded-lg px-3 py-2">
+            <input
+              type="checkbox"
+              checked={showManualResolutionOnly}
+              onChange={(e) => setShowManualResolutionOnly(e.target.checked)}
+              className="rounded"
+            />
+            Chỉ hiển thị buổi bù chờ xử lý thủ công
+          </label>
         </div>
       </Card>
 
@@ -1051,6 +1364,7 @@ export default function ScheduleManager({
                   onChange={(e) => {
                     setMakeupStart(e.target.value);
                     setPreviewResult(null);
+                    setSuggestedSlots([]);
                   }}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -1065,6 +1379,7 @@ export default function ScheduleManager({
                   onChange={(e) => {
                     setMakeupEnd(e.target.value);
                     setPreviewResult(null);
+                    setSuggestedSlots([]);
                   }}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -1080,6 +1395,7 @@ export default function ScheduleManager({
                 onChange={(e) => {
                   setMakeupReason(e.target.value);
                   setPreviewResult(null);
+                  setSuggestedSlots([]);
                 }}
                 rows={3}
                 placeholder="Ví dụ: Nghỉ lễ, giáo viên bận đột xuất..."
@@ -1097,6 +1413,7 @@ export default function ScheduleManager({
                   onChange={(e) => {
                     setMakeupPolicy(e.target.value as MakeupConflictPolicy);
                     setPreviewResult(null);
+                    setSuggestedSlots([]);
                   }}
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -1128,9 +1445,64 @@ export default function ScheduleManager({
                       const v = Number(e.target.value);
                       setMaxConflictRatePercent(Number.isNaN(v) ? 0 : v);
                       setPreviewResult(null);
+                      setSuggestedSlots([]);
                     }}
                     className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-sky-900">
+                    Gợi ý khung giờ tối ưu
+                  </div>
+                  <div className="text-xs text-sky-700 mt-1">
+                    Hệ thống thử nhiều khung giờ gần nhất và chọn 3 phương án có
+                    xung đột thấp nhất.
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={generateSuggestedSlots}
+                  disabled={isGeneratingSuggestions || isSubmittingMakeup}
+                  className="border-sky-300 text-sky-800 hover:bg-sky-100"
+                >
+                  {isGeneratingSuggestions
+                    ? "Đang phân tích..."
+                    : "Gợi ý 3 khung giờ"}
+                </Button>
+              </div>
+
+              {suggestedSlots.length > 0 && (
+                <div className="mt-3 grid md:grid-cols-3 gap-2">
+                  {suggestedSlots.map((slot) => (
+                    <button
+                      key={`${slot.startTime}-${slot.endTime}`}
+                      className="text-left rounded-lg border border-sky-200 bg-white p-3 hover:border-sky-400 hover:bg-sky-50 transition-colors"
+                      onClick={() => applySuggestedSlot(slot)}
+                    >
+                      <div className="text-sm font-semibold text-gray-900">
+                        {new Date(slot.startTime).toLocaleDateString("vi-VN")}
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {new Date(slot.startTime).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {" - "}
+                        {new Date(slot.endTime).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      <div className="text-[11px] text-sky-700 mt-2">
+                        Trùng học sinh: {slot.report.conflictingStudentCount}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

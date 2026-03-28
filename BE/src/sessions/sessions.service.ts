@@ -396,6 +396,11 @@ export class SessionsService {
       note: `Make-up for session ${originalSession._id.toString()}`,
       createdBy: user._id,
       originalSessionId: originalSession._id,
+      conflictResolutionRequired:
+        report.policyDecision.requiresManualResolution,
+      conflictResolutionStatus: report.policyDecision.requiresManualResolution
+        ? 'pending'
+        : 'resolved',
     }).save();
 
     return {
