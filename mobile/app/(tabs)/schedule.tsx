@@ -217,6 +217,7 @@ export default function ScheduleScreen() {
     fetchSessions,
     sessions: extraSessions,
   } = useSessionsStore();
+  const [adminDaySessions, setAdminDaySessions] = useState<any[]>([]);
   const [adminExtraSessions, setAdminExtraSessions] = useState<any[]>([]);
   const [teacherExtraSessions, setTeacherExtraSessions] = useState<any[]>([]);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
@@ -243,6 +244,10 @@ export default function ScheduleScreen() {
   >(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isDeletingSession, setIsDeletingSession] = useState(false);
+  const [showDeleteOccurrenceForm, setShowDeleteOccurrenceForm] =
+    useState(false);
+  const [deleteOccurrenceReason, setDeleteOccurrenceReason] = useState("");
+  const [isDeletingOccurrence, setIsDeletingOccurrence] = useState(false);
 
   const isAdmin = user?.role === "admin";
   const isTeacher = user?.role === "teacher";
@@ -299,14 +304,17 @@ export default function ScheduleScreen() {
             params: { startDate, endDate },
           });
           const data = res.data;
+          const daySessions = Array.isArray(data) ? data : [];
+          setAdminDaySessions(daySessions);
           setAdminExtraSessions(
-            Array.isArray(data)
-              ? data.filter(
+            daySessions
+              ? daySessions.filter(
                   (s: any) => s.type === "makeup" || s.type === "exam",
                 )
               : [],
           );
         } catch {
+          setAdminDaySessions([]);
           setAdminExtraSessions([]);
         }
       }
@@ -630,6 +638,35 @@ export default function ScheduleScreen() {
       );
     }
 
+    const dateKey = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}-${selectedDate.getDate().toString().padStart(2, "0")}`;
+    const cancelledFixedOccurrenceKeys = new Set<string>();
+    adminDaySessions.forEach((session: any) => {
+      if ((session?.status || "").toLowerCase() !== "cancelled") return;
+      const classId =
+        typeof session.classId === "object"
+          ? session.classId?._id
+          : session.classId;
+      if (!classId || !session.startTime || !session.endTime) return;
+
+      const startDate = new Date(session.startTime);
+      const endDate = new Date(session.endTime);
+      if (
+        Number.isNaN(startDate.getTime()) ||
+        Number.isNaN(endDate.getTime()) ||
+        `${startDate.getFullYear()}-${(startDate.getMonth() + 1).toString().padStart(2, "0")}-${startDate.getDate().toString().padStart(2, "0")}` !==
+          dateKey
+      ) {
+        return;
+      }
+
+      const startHHmm = `${startDate.getHours().toString().padStart(2, "0")}:${startDate.getMinutes().toString().padStart(2, "0")}`;
+      const endHHmm = `${endDate.getHours().toString().padStart(2, "0")}:${endDate.getMinutes().toString().padStart(2, "0")}`;
+      cancelledFixedOccurrenceKeys.add(
+        `${classId}|${startHHmm}|${endHHmm}|${session.room || ""}`,
+      );
+      cancelledFixedOccurrenceKeys.add(`${classId}|${startHHmm}|${endHHmm}|`);
+    });
+
     filteredClasses.forEach((cls, classIndex) => {
       const teacherName =
         typeof cls.teacherId === "object" && cls.teacherId?.name
@@ -645,6 +682,15 @@ export default function ScheduleScreen() {
       if (cls.schedule && cls.schedule.length > 0) {
         cls.schedule.forEach((sch: any) => {
           if (sch.dayOfWeek === dayIndex) {
+            const cancelKey = `${cls._id}|${sch.startTime}|${sch.endTime}|${sch.room || ""}`;
+            const cancelKeyNoRoom = `${cls._id}|${sch.startTime}|${sch.endTime}|`;
+            if (
+              cancelledFixedOccurrenceKeys.has(cancelKey) ||
+              cancelledFixedOccurrenceKeys.has(cancelKeyNoRoom)
+            ) {
+              return;
+            }
+
             timetable.push({
               classId: cls._id,
               className: cls.name,
@@ -726,6 +772,7 @@ export default function ScheduleScreen() {
     searchQuery,
     users,
     branches,
+    adminDaySessions,
     adminExtraSessions,
   ]);
 
@@ -1074,6 +1121,9 @@ export default function ScheduleScreen() {
 
   // Handle class detail click
   const handleClassPress = (cls: any) => {
+    setSelectedScheduleItem(null);
+    setShowDeleteOccurrenceForm(false);
+    setDeleteOccurrenceReason("");
     setSelectedClassDetail(cls);
     setShowClassDetailModal(true);
   };
@@ -1341,7 +1391,12 @@ export default function ScheduleScreen() {
             setShowClassDetailModal(true);
           } else {
             const cls = adminClassList.find((c) => c._id === item.classId);
-            if (cls) handleClassPress(cls);
+            if (cls) {
+              setSelectedClassDetail(cls);
+              setShowDeleteOccurrenceForm(false);
+              setDeleteOccurrenceReason("");
+              setShowClassDetailModal(true);
+            }
           }
         }}
         activeOpacity={0.7}
@@ -1577,6 +1632,90 @@ export default function ScheduleScreen() {
         },
       ],
     );
+  };
+
+  const handleDeleteSelectedOccurrence = async () => {
+    if (!selectedScheduleItem || selectedScheduleItem.isIrregular) {
+      return;
+    }
+
+    const reason = deleteOccurrenceReason.trim();
+    if (!reason) {
+      Alert.alert("Thiếu thông tin", "Vui lòng nhập lý do xóa buổi học.");
+      return;
+    }
+
+    const [startHour, startMinute] = selectedScheduleItem.startTime
+      .split(":")
+      .map(Number);
+    const [endHour, endMinute] = selectedScheduleItem.endTime
+      .split(":")
+      .map(Number);
+
+    const startDate = new Date(selectedDate);
+    startDate.setHours(startHour, startMinute, 0, 0);
+    const endDate = new Date(selectedDate);
+    endDate.setHours(endHour, endMinute, 0, 0);
+
+    const existingSession = adminDaySessions.find((session: any) => {
+      const classId =
+        typeof session.classId === "object"
+          ? session.classId?._id
+          : session.classId;
+
+      if (classId !== selectedScheduleItem.classId) return false;
+
+      const sStart = new Date(session.startTime);
+      const sEnd = new Date(session.endTime);
+      return (
+        sStart.getTime() === startDate.getTime() &&
+        sEnd.getTime() === endDate.getTime()
+      );
+    });
+
+    try {
+      setIsDeletingOccurrence(true);
+
+      if (existingSession) {
+        if ((existingSession.status || "").toLowerCase() !== "cancelled") {
+          await api.patch(`/sessions/${existingSession._id}`, {
+            status: "cancelled",
+            note: reason,
+          });
+        }
+      } else {
+        const createdRes = await api.post("/sessions", {
+          classId: selectedScheduleItem.classId,
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString(),
+          room: selectedScheduleItem.room,
+          type: "regular",
+          note: reason,
+        });
+
+        const createdSessionId = createdRes?.data?._id;
+        if (createdSessionId) {
+          await api.patch(`/sessions/${createdSessionId}`, {
+            status: "cancelled",
+            note: reason,
+          });
+        }
+      }
+
+      setShowDeleteOccurrenceForm(false);
+      setDeleteOccurrenceReason("");
+      Alert.alert("Thành công", "Đã xóa buổi học của ngày đã chọn.");
+      await loadSchedule();
+    } catch (error: any) {
+      Alert.alert(
+        "Lỗi",
+        error?.response?.data?.message ||
+          error?.message ||
+          "Không thể xóa buổi học đã chọn.",
+      );
+    } finally {
+      setIsDeletingOccurrence(false);
+    }
   };
 
   // Admin View

@@ -109,7 +109,8 @@ export default function AdminClassTransferScreen() {
   }, [filteredRequests]);
 
   const pendingIds = useMemo(
-    () => sortedRequests.filter((r) => r.status === "pending").map((r) => r._id),
+    () =>
+      sortedRequests.filter((r) => r.status === "pending").map((r) => r._id),
     [sortedRequests],
   );
 
@@ -181,7 +182,8 @@ export default function AdminClassTransferScreen() {
           text: "Duyệt",
           onPress: async () => {
             try {
-              const result = await bulkApproveClassTransferRequests(selectedIds);
+              const result =
+                await bulkApproveClassTransferRequests(selectedIds);
               if (result.failed > 0) {
                 Alert.alert(
                   "Cảnh báo",
@@ -368,7 +370,9 @@ export default function AdminClassTransferScreen() {
               onPress={handleBulkApprove}
               disabled={selectedIds.length === 0 || isLoading}
             >
-              <Text style={styles.actionButtonText}>Duyệt ({selectedIds.length})</Text>
+              <Text style={styles.actionButtonText}>
+                Duyệt ({selectedIds.length})
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bulkActionBtn, styles.rejectButton]}

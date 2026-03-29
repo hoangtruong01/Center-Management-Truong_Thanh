@@ -302,7 +302,10 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
       );
       return response.data;
     } catch (error: any) {
-      const errorMessage = translateErrorMessage(error, "Lỗi khi kiểm tra trùng lịch");
+      const errorMessage = translateErrorMessage(
+        error,
+        "Lỗi khi kiểm tra trùng lịch",
+      );
       throw new Error(errorMessage);
     }
   },
@@ -389,7 +392,10 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
     }
   },
 
-  bulkRejectClassTransferRequests: async (requestIds: string[], reason?: string) => {
+  bulkRejectClassTransferRequests: async (
+    requestIds: string[],
+    reason?: string,
+  ) => {
     set({ isLoading: true, error: null });
     try {
       const response = await api.post(
