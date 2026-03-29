@@ -75,6 +75,14 @@ export default function AdminLayout() {
         }}
       />
       <Stack.Screen
+        name="class-transfer"
+        options={{
+          headerShown: true,
+          title: "Duyệt chuyển lớp",
+          headerLeft: () => <BackButton />,
+        }}
+      />
+      <Stack.Screen
         name="finance"
         options={{
           headerShown: true,

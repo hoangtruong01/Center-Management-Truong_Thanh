@@ -46,6 +46,45 @@ export interface Class {
   }>;
 }
 
+export interface StudentScheduleConflict {
+  classId: string;
+  className: string;
+  subject?: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
+export interface ClassTransferRequest {
+  _id: string;
+  type: string;
+  status: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  metadata?: {
+    studentId: string;
+    studentName?: string;
+    fromClassId: string;
+    fromClassName?: string;
+    toClassId: string;
+    toClassName?: string;
+    reason?: string;
+    requestedBy?: string;
+    requestedAt?: string;
+    rejectReason?: string;
+    approvedAt?: string;
+    rejectedAt?: string;
+    notifiedUsers?: string[];
+    auditLogs?: Array<{
+      action: "requested" | "approved" | "rejected" | "executed";
+      by?: string;
+      at: string;
+      note?: string;
+    }>;
+  };
+}
+
 interface CreateClassData {
   name: string;
   description?: string;
@@ -84,6 +123,44 @@ interface ClassesState {
   createClass: (data: CreateClassData) => Promise<Class>;
   updateClass: (id: string, data: UpdateClassData) => Promise<Class>;
   deleteClass: (id: string) => Promise<void>;
+  checkStudentScheduleConflicts: (
+    classId: string,
+    studentId: string,
+    excludeClassId?: string,
+  ) => Promise<{
+    hasConflict: boolean;
+    conflictingClasses: string[];
+    conflicts: StudentScheduleConflict[];
+  }>;
+  createClassTransferRequest: (data: {
+    studentId: string;
+    fromClassId: string;
+    toClassId: string;
+    reason?: string;
+  }) => Promise<ClassTransferRequest>;
+  fetchClassTransferRequests: (
+    status?: "pending" | "approved" | "rejected",
+  ) => Promise<ClassTransferRequest[]>;
+  approveClassTransferRequest: (requestId: string) => Promise<void>;
+  rejectClassTransferRequest: (
+    requestId: string,
+    reason?: string,
+  ) => Promise<void>;
+  bulkApproveClassTransferRequests: (requestIds: string[]) => Promise<{
+    total: number;
+    success: number;
+    failed: number;
+    failures: Array<{ requestId: string; error: string }>;
+  }>;
+  bulkRejectClassTransferRequests: (
+    requestIds: string[],
+    reason?: string,
+  ) => Promise<{
+    total: number;
+    success: number;
+    failed: number;
+    failures: Array<{ requestId: string; error: string }>;
+  }>;
   clearError: () => void;
 }
 
@@ -206,6 +283,129 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
       }));
     } catch (error: any) {
       const errorMessage = translateErrorMessage(error, "Lỗi khi xóa lớp học");
+      set({ error: errorMessage, isLoading: false });
+      throw new Error(errorMessage);
+    }
+  },
+
+  checkStudentScheduleConflicts: async (
+    classId: string,
+    studentId: string,
+    excludeClassId?: string,
+  ) => {
+    try {
+      const query = excludeClassId
+        ? `?excludeClassId=${encodeURIComponent(excludeClassId)}`
+        : "";
+      const response = await api.get(
+        `/classes/${classId}/students/${studentId}/conflicts${query}`,
+      );
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = translateErrorMessage(error, "Lỗi khi kiểm tra trùng lịch");
+      throw new Error(errorMessage);
+    }
+  },
+
+  createClassTransferRequest: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.post("/admin/class-transfer-requests", data);
+      set({ isLoading: false });
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = translateErrorMessage(
+        error,
+        "Lỗi khi tạo yêu cầu chuyển lớp",
+      );
+      set({ error: errorMessage, isLoading: false });
+      throw new Error(errorMessage);
+    }
+  },
+
+  fetchClassTransferRequests: async (status) => {
+    try {
+      const response = await api.get("/admin/class-transfer-requests", {
+        params: status ? { status } : undefined,
+      });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error: any) {
+      const errorMessage = translateErrorMessage(
+        error,
+        "Lỗi khi tải danh sách yêu cầu chuyển lớp",
+      );
+      throw new Error(errorMessage);
+    }
+  },
+
+  approveClassTransferRequest: async (requestId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post(`/admin/class-transfer-requests/${requestId}/approve`);
+      set({ isLoading: false });
+    } catch (error: any) {
+      const errorMessage = translateErrorMessage(
+        error,
+        "Lỗi khi duyệt yêu cầu chuyển lớp",
+      );
+      set({ error: errorMessage, isLoading: false });
+      throw new Error(errorMessage);
+    }
+  },
+
+  rejectClassTransferRequest: async (requestId: string, reason?: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post(`/admin/class-transfer-requests/${requestId}/reject`, {
+        reason,
+      });
+      set({ isLoading: false });
+    } catch (error: any) {
+      const errorMessage = translateErrorMessage(
+        error,
+        "Lỗi khi từ chối yêu cầu chuyển lớp",
+      );
+      set({ error: errorMessage, isLoading: false });
+      throw new Error(errorMessage);
+    }
+  },
+
+  bulkApproveClassTransferRequests: async (requestIds: string[]) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.post(
+        "/admin/class-transfer-requests/bulk-approve",
+        { requestIds },
+      );
+      set({ isLoading: false });
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = translateErrorMessage(
+        error,
+        "Lỗi khi duyệt hàng loạt yêu cầu chuyển lớp",
+      );
+      set({ error: errorMessage, isLoading: false });
+      throw new Error(errorMessage);
+    }
+  },
+
+  bulkRejectClassTransferRequests: async (requestIds: string[], reason?: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.post(
+        "/admin/class-transfer-requests/bulk-reject",
+        {
+          requestIds,
+          reason,
+        },
+      );
+      set({ isLoading: false });
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = translateErrorMessage(
+        error,
+        "Lỗi khi từ chối hàng loạt yêu cầu chuyển lớp",
+      );
       set({ error: errorMessage, isLoading: false });
       throw new Error(errorMessage);
     }

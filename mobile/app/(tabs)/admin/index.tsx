@@ -103,6 +103,14 @@ const adminMenuItems = [
     onPress: () => router.push("/(tabs)/admin/attendance"),
   },
   {
+    id: "class-transfer",
+    icon: "swap-horizontal" as const,
+    label: "Chuyển lớp",
+    subtitle: "Duyệt yêu cầu chuyển lớp",
+    colors: ["#0EA5E9", "#0284C7"],
+    onPress: () => router.push("/(tabs)/admin/class-transfer" as any),
+  },
+  {
     id: "payments",
     icon: "card" as const,
     label: "Thanh toán",
