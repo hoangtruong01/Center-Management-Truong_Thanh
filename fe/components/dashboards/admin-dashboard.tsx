@@ -27,6 +27,7 @@ import ImportUsersModal from "@/components/pages/import-users-modal";
 import ImportStudentsModal from "@/components/pages/import-students-modal";
 import ClassFormModal from "@/components/pages/class-form-modal";
 import ClassStudentsModal from "@/components/pages/class-students-modal";
+import ClassDetailModal from "@/components/pages/class-detail-modal";
 import ClassTransferRequestsPanel from "@/components/pages/class-transfer-requests-panel";
 import ScheduleManager from "@/components/pages/schedule-manager";
 import AttendanceManager from "@/components/pages/attendance-manager";
@@ -2045,6 +2046,7 @@ export default function AdminDashboard({
   const [classStudentsModal, setClassStudentsModal] = useState<Class | null>(
     null,
   );
+  const [classDetailModal, setClassDetailModal] = useState<Class | null>(null);
   const [classSearchQuery, setClassSearchQuery] = useState("");
   const [classBranchFilter, setClassBranchFilter] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
@@ -3242,7 +3244,8 @@ export default function AdminDashboard({
                       return (
                         <div
                           key={course._id}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-linear-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-linear-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300 cursor-pointer"
+                          onClick={() => setClassDetailModal(course)}
                         >
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
@@ -3295,14 +3298,18 @@ export default function AdminDashboard({
                             <Button
                               variant="outline"
                               className="rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
-                              onClick={() => setClassStudentsModal(course)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setClassStudentsModal(course);
+                              }}
                             >
                               👥 Danh sách
                             </Button>
                             <Button
                               variant="outline"
                               className="rounded-xl"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setEditingClass(course);
                                 setShowClassModal(true);
                               }}
@@ -5113,6 +5120,14 @@ export default function AdminDashboard({
             setActiveTab("class-transfer");
             refreshTransferPendingCount().catch(console.error);
           }}
+        />
+      )}
+
+      {/* Class Detail Modal */}
+      {classDetailModal && (
+        <ClassDetailModal
+          classData={classDetailModal}
+          onClose={() => setClassDetailModal(null)}
         />
       )}
 
