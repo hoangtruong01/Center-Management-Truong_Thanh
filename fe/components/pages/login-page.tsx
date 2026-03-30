@@ -84,51 +84,32 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 const QUICK_LOGIN_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_QUICK_LOGIN === "true" ||
-  process.env.NODE_ENV !== "production";
+  process.env.NEXT_PUBLIC_ENABLE_QUICK_LOGIN === "true";
 
 const QUICK_LOGIN_CREDENTIALS: Record<Role, QuickLoginConfig> = {
   student: {
-    email:
-      process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_EMAIL ||
-      "student@example.com",
-    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_PASSWORD || "123456",
+    email: process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_EMAIL || "",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_STUDENT_PASSWORD || "",
   },
   teacher: {
-    email:
-      process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_EMAIL ||
-      "teacher@example.com",
-    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_PASSWORD || "123456",
+    email: process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_EMAIL || "",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_TEACHER_PASSWORD || "",
   },
   parent: {
-    email:
-      process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_EMAIL || "parent@example.com",
-    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_PASSWORD || "123456",
+    email: process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_EMAIL || "",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_PARENT_PASSWORD || "",
   },
   admin: {
-    email:
-      process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_EMAIL || "admin@example.com",
-    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_PASSWORD || "123456",
+    email: process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_EMAIL || "",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_PASSWORD || "",
   },
 };
 
 const QUICK_LOGIN_FALLBACKS: Record<Role, QuickLoginConfig[]> = {
-  student: [
-    { email: "student.an@truongthanh.edu.vn", password: "123456" },
-    { email: "student@example.com", password: "123456" },
-  ],
-  teacher: [
-    { email: "teacher.binh@truongthanh.edu.vn", password: "123456" },
-    { email: "teacher@example.com", password: "123456" },
-  ],
-  parent: [
-    { email: "parent.hung@truongthanh.edu.vn", password: "123456" },
-    { email: "parent@example.com", password: "123456" },
-  ],
-  admin: [
-    { email: "admin@truongthanh.edu.vn", password: "123456" },
-    { email: "admin@example.com", password: "123456" },
-  ],
+  student: [],
+  teacher: [],
+  parent: [],
+  admin: [],
 };
 
 function buildQuickLoginAttempts(role: Role): QuickLoginConfig[] {
@@ -294,6 +275,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   const handleQuickLogin = async (role: Role) => {
     const credentials = buildQuickLoginAttempts(role);
+    if (credentials.length === 0) {
+      toast.error(
+        "Chưa cấu hình quick login credentials trên môi trường hiện tại.",
+      );
+      return;
+    }
+
     const nextBranchId =
       role === "admin" ? branchId : branchId || displayBranches[0]?.id || "";
 
@@ -680,7 +668,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                       Đăng nhập nhanh 4 quyền
                     </p>
                     <span className="text-[11px] text-emerald-200/80">
-                      Demo: 123456
+                      Cấu hình qua env
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">

@@ -122,21 +122,15 @@ export default function LoginScreen() {
     try {
       setFormError(null);
       clearError();
-      console.log("[LOGIN] Starting login process...");
-      console.log("[LOGIN] Email:", trimmedEmail);
-      console.log("[LOGIN] Role:", selectedRole);
-      console.log("[LOGIN] Branch:", selectedBranch?._id);
 
       // Optional server-side validation similar to web
       if (selectedBranch) {
         try {
-          console.log("[LOGIN] Validating with server...");
           const validation = await api.post("/auth/validate-login", {
             email: trimmedEmail,
             role: selectedRole,
             branchId: selectedBranch._id,
           });
-          console.log("[LOGIN] Validation response:", validation.data);
 
           if (validation.data && validation.data.valid === false) {
             const validationMessage =
@@ -146,19 +140,12 @@ export default function LoginScreen() {
             Alert.alert("Không thể đăng nhập", validationMessage);
             return;
           }
-        } catch (validationError: any) {
+        } catch {
           // Bỏ qua lỗi validation để tiếp tục đăng nhập, sẽ được xử lý phía dưới
-          console.log(
-            "[LOGIN] Validation error (ignored):",
-            validationError?.message,
-          );
         }
       }
 
-      console.log("[LOGIN] Calling login function...");
       const userData = await login(trimmedEmail, trimmedPassword);
-      console.log("[LOGIN] Login successful, userData:", userData);
-      console.log("[LOGIN] User role:", userData.role);
 
       if (selectedRole && userData.role !== selectedRole) {
         const mismatchMessage = `Tài khoản này thuộc vai trò "${
@@ -190,7 +177,6 @@ export default function LoginScreen() {
       }
 
       setFormError(null);
-      console.log("[LOGIN] Redirecting to tabs...");
       // Admin goes directly to admin dashboard, others to home
       if (userData.role === "admin") {
         router.replace("/(tabs)/admin");

@@ -1,8 +1,16 @@
 import { JwtModuleOptions } from '@nestjs/jwt';
 
-export const jwtConfig: JwtModuleOptions = {
-  secret: process.env.JWT_SECRET || 'your-secret-key-here-change-in-production',
-  signOptions: { 
-    expiresIn: '1h'
-  },
+export const getJwtConfig = (): JwtModuleOptions => {
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!jwtSecret) {
+    throw new Error('Missing required env JWT_SECRET');
+  }
+
+  return {
+    secret: jwtSecret,
+    signOptions: {
+      expiresIn: '1h',
+    },
+  };
 };

@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { api } from '../api';
-import socketService from '../socket';
+import { create } from "zustand";
+import { api } from "../api";
+import socketService from "../socket";
 
 interface Message {
   _id: string;
@@ -60,6 +60,16 @@ interface ChatState {
   disconnectSocket: () => void;
 }
 
+const isMessagePayload = (value: unknown): value is Message => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Message>;
+  return (
+    typeof candidate._id === "string" &&
+    typeof candidate.content === "string" &&
+    typeof candidate.createdAt === "string"
+  );
+};
+
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   messages: {},
@@ -73,7 +83,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   fetchConversations: async () => {
     try {
       set({ isLoading: true, error: null });
-      const response = await api.get('/chat/conversations');
+      const response = await api.get("/chat/conversations");
       set({ conversations: response.data, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
@@ -82,24 +92,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   fetchMessages: async (otherUserId: string) => {
     try {
-      console.log('Fetching messages for user:', otherUserId);
       set({ isLoading: true, error: null });
       const response = await api.get(`/chat/messages?with=${otherUserId}`);
       const messages = response.data;
-      
-      console.log('Received messages:', messages);
-      
-      set(state => ({
+
+      set((state) => ({
         messages: {
           ...state.messages,
           [otherUserId]: messages,
         },
         isLoading: false,
       }));
-      
-      console.log('Updated messages state for user:', otherUserId);
     } catch (error: any) {
-      console.error('Error fetching messages:', error);
       set({ error: error.message, isLoading: false });
     }
   },
@@ -108,15 +112,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       // Send via socket for real-time
       socketService.sendMessage(receiverId, content);
-      
+
       // Also send via HTTP as backup
-      await api.post('/chat/messages', { receiverId, content });
-      
+      await api.post("/chat/messages", { receiverId, content });
+
       // Refresh messages for this conversation after a short delay
       setTimeout(() => {
         get().fetchMessages(receiverId);
       }, 500);
-      
     } catch (error: any) {
       set({ error: error.message });
     }
@@ -124,24 +127,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setCurrentConversation: (conversationId: string | null) => {
     const state = get();
-    
+
     // Leave previous conversation
     if (state.currentConversation) {
       socketService.leaveConversation(state.currentConversation);
     }
-    
+
     // Join new conversation
     if (conversationId) {
       socketService.joinConversation(conversationId);
     }
-    
+
     set({ currentConversation: conversationId });
   },
 
   fetchAvailableUsers: async () => {
     try {
       set({ isLoading: true, error: null });
-      const response = await api.get('/chat/available-users');
+      const response = await api.get("/chat/available-users");
       const users = response.data.map((user: any) => ({
         ...user,
         isOnline: get().onlineUsers.includes(user._id),
@@ -157,9 +160,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // We need to check both sender and receiver to find the "other" user
     const state = get();
     const currentConversation = state.currentConversation;
-    
+
     let otherUserId: string;
-    
+
     if (currentConversation) {
       // If we have a current conversation, use that
       otherUserId = currentConversation;
@@ -168,8 +171,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // This is a fallback - we'll use the sender ID if it's not us, otherwise receiver ID
       otherUserId = message.senderId._id;
     }
-    
-    set(state => ({
+
+    set((state) => ({
       messages: {
         ...state.messages,
         [otherUserId]: [...(state.messages[otherUserId] || []), message],
@@ -181,7 +184,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setUserTyping: (userId: string, isTyping: boolean) => {
-    set(state => ({
+    set((state) => ({
       typingUsers: {
         ...state.typingUsers,
         [userId]: isTyping,
@@ -190,13 +193,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setUserOnline: (userId: string, isOnline: boolean) => {
-    set(state => {
+    set((state) => {
       const onlineUsers = isOnline
-        ? [...state.onlineUsers.filter(id => id !== userId), userId]
-        : state.onlineUsers.filter(id => id !== userId);
-      
-      const availableUsers = state.availableUsers.map(user => 
-        user._id === userId ? { ...user, isOnline } : user
+        ? [...state.onlineUsers.filter((id) => id !== userId), userId]
+        : state.onlineUsers.filter((id) => id !== userId);
+
+      const availableUsers = state.availableUsers.map((user) =>
+        user._id === userId ? { ...user, isOnline } : user,
       );
 
       return { onlineUsers, availableUsers };
@@ -205,16 +208,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   initializeSocket: (token: string) => {
     const socket = socketService.connect(token);
-    
+
     if (socket) {
       // Listen for new messages
-      socketService.onNewMessage((message: Message) => {
-        get().addMessage(message);
+      socketService.onNewMessage((message: unknown) => {
+        if (isMessagePayload(message)) {
+          get().addMessage(message);
+        }
       });
 
       // Listen for sent message confirmation
-      socketService.onMessageSent((message: Message) => {
-        get().addMessage(message);
+      socketService.onMessageSent((message: unknown) => {
+        if (isMessagePayload(message)) {
+          get().addMessage(message);
+        }
       });
 
       // Listen for typing events

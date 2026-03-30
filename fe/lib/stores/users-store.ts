@@ -24,7 +24,7 @@ interface UsersActions {
   importUsers: (
     file: File,
     role: UserRole,
-    branchId: string
+    branchId: string,
   ) => Promise<ImportResponse>;
   downloadTemplate: (role: UserRole) => Promise<void>;
   setSelectedUser: (user: User | null) => void;
@@ -138,7 +138,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
     } catch (error: any) {
       const message = translateErrorMessage(
         error,
-        "Lỗi khi tải danh sách người dùng"
+        "Lỗi khi tải danh sách người dùng",
       );
       set({ isLoading: false, error: message });
       throw new Error(message);
@@ -155,7 +155,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
     } catch (error: any) {
       const message = translateErrorMessage(
         error,
-        "Lỗi khi tải thông tin người dùng"
+        "Lỗi khi tải thông tin người dùng",
       );
       set({ isLoading: false, error: message });
       throw new Error(message);
@@ -165,9 +165,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
   createUser: async (data: CreateUserData) => {
     set({ isLoading: true, error: null });
     try {
-      console.log("=== users-store: calling API /users ===", data); // Debug
       const response = await api.post("/users", data);
-      console.log("=== users-store: API response ===", response.data); // Debug
       const newUser = { ...response.data, id: response.data._id };
 
       set((state) => ({
@@ -177,8 +175,6 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
 
       return newUser;
     } catch (error: any) {
-      console.error("=== users-store: API error ===", error); // Debug
-      console.error("=== users-store: error.response ===", error.response); // Debug
       const message = translateErrorMessage(error, "Lỗi khi tạo người dùng");
       set({ isLoading: false, error: message });
       // Throw error với message đã dịch
@@ -205,7 +201,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
     } catch (error: any) {
       const message = translateErrorMessage(
         error,
-        "Lỗi khi cập nhật người dùng"
+        "Lỗi khi cập nhật người dùng",
       );
       set({ isLoading: false, error: message });
       throw new Error(message);
@@ -301,7 +297,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
   fetchTeachersBySubject: async (subject: string) => {
     try {
       const response = await api.get(
-        `/users/teachers/by-subject/${encodeURIComponent(subject)}`
+        `/users/teachers/by-subject/${encodeURIComponent(subject)}`,
       );
       return response.data.map((u: User) => ({ ...u, id: u._id }));
     } catch (error: any) {

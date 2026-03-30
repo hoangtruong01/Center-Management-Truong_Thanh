@@ -23,12 +23,18 @@ export class AuthService {
   ) {}
 
   private signTokens(user: User) {
-    const {
-      JWT_SECRET = 'secret',
-      JWT_EXPIRES_IN = '1h',
-      REFRESH_JWT_SECRET,
-      REFRESH_JWT_EXPIRES_IN = '7d',
-    } = process.env;
+    const jwtSecret = process.env.JWT_SECRET;
+    const refreshJwtSecret = process.env.REFRESH_JWT_SECRET;
+
+    if (!jwtSecret) {
+      throw new Error('Missing required env JWT_SECRET');
+    }
+    if (!refreshJwtSecret) {
+      throw new Error('Missing required env REFRESH_JWT_SECRET');
+    }
+
+    const { JWT_EXPIRES_IN = '1h', REFRESH_JWT_EXPIRES_IN = '7d' } =
+      process.env;
     const payload = {
       sub: (user as any)._id?.toString?.() || (user as any).id,
       email: user.email,
@@ -36,11 +42,11 @@ export class AuthService {
       branchId: (user as any).branchId,
     };
     const accessToken = this.jwtService.sign(payload, {
-      secret: JWT_SECRET,
+      secret: jwtSecret,
       expiresIn: JWT_EXPIRES_IN as JwtSignOptions['expiresIn'],
     });
     const refreshToken = this.jwtService.sign(payload, {
-      secret: REFRESH_JWT_SECRET || JWT_SECRET,
+      secret: refreshJwtSecret,
       expiresIn: REFRESH_JWT_EXPIRES_IN as JwtSignOptions['expiresIn'],
     });
     return { accessToken, refreshToken };
@@ -111,10 +117,16 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshDto) {
+    const jwtSecret = process.env.JWT_SECRET;
+    const refreshJwtSecret = process.env.REFRESH_JWT_SECRET;
+
+    if (!jwtSecret || !refreshJwtSecret) {
+      throw new UnauthorizedException('Server auth configuration missing');
+    }
+
     try {
       const payload = this.jwtService.verify(dto.refreshToken, {
-        secret:
-          process.env.REFRESH_JWT_SECRET || process.env.JWT_SECRET || 'secret',
+        secret: refreshJwtSecret,
       });
       const user = await this.usersService.findById(payload.sub);
       if (!user) throw new UnauthorizedException('User not found');

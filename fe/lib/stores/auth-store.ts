@@ -7,7 +7,7 @@ export type UserRole = "student" | "teacher" | "parent" | "admin";
 // Helper function to translate error messages to Vietnamese
 export function translateErrorMessage(
   error: any,
-  defaultMessage: string
+  defaultMessage: string,
 ): string {
   const status = error?.response?.status;
   const message = error?.response?.data?.message || error?.message || "";
@@ -24,7 +24,7 @@ export function translateErrorMessage(
     ) {
       return "Email hoặc mật khẩu không chính xác";
     }
-    return "Phên đăng nhập hết hạn. Vui lòng đăng nhập lại";
+    return "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại";
   }
 
   if (status === 403) {
@@ -180,7 +180,7 @@ interface AuthActions {
   login: (email: string, password: string) => Promise<User>;
   register: (data: RegisterData) => Promise<User>;
   registerByInvite: (
-    data: RegisterByInviteData
+    data: RegisterByInviteData,
   ) => Promise<{ message: string }>;
   logout: () => void;
   clearError: () => void;
@@ -264,7 +264,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         try {
           const response = await api.post<LoginResponse>(
             "/auth/register",
-            data
+            data,
           );
 
           const { user, accessToken, refreshToken } = response.data;
@@ -384,13 +384,13 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // API functions for forgot password and contact admin (không cần authentication)
 export async function forgotPassword(
-  email: string
+  email: string,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const response = await api.post("/auth/forgot-password", { email });
@@ -398,7 +398,7 @@ export async function forgotPassword(
   } catch (error: any) {
     const message = translateErrorMessage(
       error,
-      "Có lỗi xảy ra. Vui lòng thử lại."
+      "Có lỗi xảy ra. Vui lòng thử lại.",
     );
     throw new Error(message);
   }
@@ -417,7 +417,7 @@ export async function contactAdmin(data: {
   } catch (error: any) {
     const message = translateErrorMessage(
       error,
-      "Có lỗi xảy ra. Vui lòng thử lại."
+      "Có lỗi xảy ra. Vui lòng thử lại.",
     );
     throw new Error(message);
   }

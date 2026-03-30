@@ -129,19 +129,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
 
   login: async (email: string, password: string) => {
-    console.log("[AUTH] Starting login for:", email);
     set({ isLoading: true, error: null });
     try {
-      console.log("[AUTH] Calling /auth/login API...");
       const response = await api.post("/auth/login", { email, password });
-      console.log(
-        "[AUTH] Login API response received:",
-        response.data?.user?.email,
-      );
-      console.log(
-        "[AUTH] User fullName from API:",
-        response.data?.user?.fullName,
-      );
       const { accessToken, refreshToken, user } = response.data;
 
       const authData = {
@@ -152,10 +142,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isAuthenticated: true,
         },
       };
-      console.log("[AUTH] Saving auth data to secure storage...");
-      console.log("[AUTH] User data being saved:", JSON.stringify(user));
       await setAuthData(authData);
-      console.log("[AUTH] Auth data saved successfully");
 
       set({
         user,
@@ -164,18 +151,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
-      console.log("[AUTH] Login completed successfully for:", user?.email);
 
       return user;
     } catch (error: any) {
-      console.error("[AUTH] Login error:", error);
-      console.error("[AUTH] Error response:", error.response?.data);
-      console.error("[AUTH] Error status:", error.response?.status);
       const errorMessage = translateErrorMessage(
         error,
         "Đăng nhập thất bại. Vui lòng thử lại",
       );
-      console.log("[AUTH] Translated error message:", errorMessage);
       set({
         error: errorMessage,
         isLoading: false,
@@ -211,8 +193,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         set({ isLoading: false });
       }
-    } catch (error) {
-      console.error("Error loading auth from storage:", error);
+    } catch {
       set({ isLoading: false });
     }
   },

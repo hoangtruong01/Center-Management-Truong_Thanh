@@ -7,10 +7,23 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const isProd = process.env.NODE_ENV === 'production';
+
+  const frontendOrigins = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (isProd && frontendOrigins.length === 0) {
+    throw new Error('FRONTEND_URL is required in production');
+  }
 
   app.enableCors({
-    origin:
-      process.env.FRONTEND_URL?.split(',').map((item) => item.trim()) || '*',
+    origin: isProd
+      ? frontendOrigins
+      : frontendOrigins.length > 0
+        ? frontendOrigins
+        : true,
   });
 
   // Serve static files from uploads directory
@@ -26,28 +39,34 @@ async function bootstrap() {
     }),
   );
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Truong Thanh API')
-    .setDescription('API documentation')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, swaggerDocument, {
-    swaggerOptions: { persistAuthorization: true },
-  });
-
-  // Redirect trang gốc sang Swagger UI cho tiện mở nhanh
   const server = app.getHttpAdapter().getInstance();
-  server.get('/', (_req, res) => res.redirect('/api/docs'));
+  const enableSwagger = !isProd || process.env.ENABLE_SWAGGER === 'true';
+
+  if (enableSwagger) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Truong Thanh API')
+      .setDescription('API documentation')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, swaggerDocument, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+
+    server.get('/', (_req, res) => res.redirect('/api/docs'));
+  } else {
+    server.get('/', (_req, res) => res.status(200).json({ status: 'ok' }));
+  }
 
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port, '0.0.0.0'); // Listen on all network interfaces
   const logger = new Logger('Bootstrap');
-  logger.log(`Swagger UI: http://localhost:${port}/api/docs`);
-  logger.log(`OpenAPI JSON: http://localhost:${port}/api-json`);
-  logger.log(`Root redirect: http://localhost:${port}/`);
-  logger.log(`Network access: http://192.168.101.87:${port}/`);
+  if (enableSwagger) {
+    logger.log(`Swagger UI: http://localhost:${port}/api/docs`);
+    logger.log(`OpenAPI JSON: http://localhost:${port}/api-json`);
+  }
+  logger.log(`Root: http://localhost:${port}/`);
 }
 bootstrap();

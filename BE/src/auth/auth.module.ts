@@ -7,7 +7,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { InvitesModule } from '../invites/invites.module';
 import { ApprovalsModule } from '../approvals/approvals.module';
-import { jwtConfig } from '../config/jwt.config';
+import { getJwtConfig } from '../config/jwt.config';
 
 @Module({
   imports: [
@@ -15,7 +15,9 @@ import { jwtConfig } from '../config/jwt.config';
     InvitesModule,
     ApprovalsModule,
     PassportModule,
-    JwtModule.register(jwtConfig),
+    JwtModule.registerAsync({
+      useFactory: () => getJwtConfig(),
+    }),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
