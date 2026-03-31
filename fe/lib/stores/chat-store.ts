@@ -60,6 +60,10 @@ interface ChatState {
   disconnectSocket: () => void;
 }
 
+interface ApiErrorShape {
+  message?: string;
+}
+
 const isMessagePayload = (value: unknown): value is Message => {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<Message>;
@@ -85,8 +89,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ isLoading: true, error: null });
       const response = await api.get("/chat/conversations");
       set({ conversations: response.data, isLoading: false });
-    } catch (error: any) {
-      set({ error: error.message, isLoading: false });
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).message || "Không thể tải cuộc trò chuyện";
+      set({ error: message, isLoading: false });
     }
   },
 
@@ -103,8 +109,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
         isLoading: false,
       }));
-    } catch (error: any) {
-      set({ error: error.message, isLoading: false });
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).message || "Không thể tải tin nhắn";
+      set({ error: message, isLoading: false });
     }
   },
 
@@ -120,8 +128,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       setTimeout(() => {
         get().fetchMessages(receiverId);
       }, 500);
-    } catch (error: any) {
-      set({ error: error.message });
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).message || "Không thể gửi tin nhắn";
+      set({ error: message });
     }
   },
 
@@ -145,13 +155,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await api.get("/chat/available-users");
-      const users = response.data.map((user: any) => ({
+      const users = (response.data as ChatUser[]).map((user) => ({
         ...user,
         isOnline: get().onlineUsers.includes(user._id),
       }));
       set({ availableUsers: users, isLoading: false });
-    } catch (error: any) {
-      set({ error: error.message, isLoading: false });
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).message || "Không thể tải người dùng";
+      set({ error: message, isLoading: false });
     }
   },
 

@@ -4,13 +4,28 @@ import api from "@/lib/api";
 
 export type UserRole = "student" | "teacher" | "parent" | "admin";
 
+interface ApiErrorShape {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string | string[];
+    };
+  };
+  message?: string;
+}
+
 // Helper function to translate error messages to Vietnamese
 export function translateErrorMessage(
-  error: any,
+  error: unknown,
   defaultMessage: string,
 ): string {
-  const status = error?.response?.status;
-  const message = error?.response?.data?.message || error?.message || "";
+  const typedError = error as ApiErrorShape;
+  const status = typedError?.response?.status;
+  const rawMessage =
+    typedError?.response?.data?.message || typedError?.message || "";
+  const message = Array.isArray(rawMessage)
+    ? rawMessage.join(", ")
+    : rawMessage;
   const msgLower = (typeof message === "string" ? message : "").toLowerCase();
 
   // HTTP status code based errors
@@ -248,7 +263,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           });
 
           return userWithId;
-        } catch (error: any) {
+        } catch (error: unknown) {
           const message = translateErrorMessage(error, "Đăng nhập thất bại");
           set({
             isLoading: false,
@@ -280,7 +295,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           });
 
           return userWithId;
-        } catch (error: any) {
+        } catch (error: unknown) {
           const message = translateErrorMessage(error, "Đăng ký thất bại");
           set({
             isLoading: false,
@@ -296,13 +311,17 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           const response = await api.post("/auth/register/by-invite", data);
           set({ isLoading: false });
           return response.data;
-        } catch (error: any) {
-          const message = error.response?.data?.message || "Đăng ký thất bại";
+        } catch (error: unknown) {
+          const typedError = error as ApiErrorShape;
+          const message =
+            typedError.response?.data?.message || "Đăng ký thất bại";
           set({
             isLoading: false,
-            error: message,
+            error: Array.isArray(message) ? message.join(", ") : message,
           });
-          throw new Error(message);
+          throw new Error(
+            Array.isArray(message) ? message.join(", ") : message,
+          );
         }
       },
 
@@ -336,11 +355,15 @@ export const useAuthStore = create<AuthState & AuthActions>()(
               ? { ...get().user!, mustChangePassword: false }
               : null,
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const typedError = error as ApiErrorShape;
           const message =
-            error.response?.data?.message || "Đổi mật khẩu thất bại";
-          set({ isLoading: false, error: message });
-          throw new Error(message);
+            typedError.response?.data?.message || "Đổi mật khẩu thất bại";
+          const normalizedMessage = Array.isArray(message)
+            ? message.join(", ")
+            : message;
+          set({ isLoading: false, error: normalizedMessage });
+          throw new Error(normalizedMessage);
         }
       },
 
@@ -371,7 +394,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             accessToken,
             refreshToken: newRefreshToken,
           });
-        } catch (error) {
+        } catch {
           get().logout();
         }
       },
@@ -395,7 +418,7 @@ export async function forgotPassword(
   try {
     const response = await api.post("/auth/forgot-password", { email });
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     const message = translateErrorMessage(
       error,
       "Có lỗi xảy ra. Vui lòng thử lại.",
@@ -414,7 +437,7 @@ export async function contactAdmin(data: {
   try {
     const response = await api.post("/auth/contact-admin", data);
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     const message = translateErrorMessage(
       error,
       "Có lỗi xảy ra. Vui lòng thử lại.",
@@ -431,7 +454,7 @@ export async function validateLogin(data: {
   try {
     const response = await api.post("/auth/validate-login", data);
     return response.data;
-  } catch (error: any) {
+  } catch {
     // If validation fails, just return valid=true to proceed with login
     return { valid: true };
   }

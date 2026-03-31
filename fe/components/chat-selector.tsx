@@ -5,47 +5,64 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Search, MessageCircle, User, Users } from "lucide-react";
 import { useChatStore } from "@/lib/stores/chat-store";
-import { useAuthStore } from "@/lib/stores/auth-store";
+
+interface ChatTargetUser {
+  _id: string;
+  name: string;
+  role: string;
+}
+
+interface ConversationItem {
+  _id: string;
+  otherUser: ChatTargetUser;
+  unreadCount: number;
+  lastMessage?: {
+    content?: string;
+  };
+}
 
 interface ChatSelectorProps {
-  onSelectUser: (user: any) => void;
+  onSelectUser: (user: ChatTargetUser) => void;
   onClose: () => void;
 }
 
-export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProps) {
+export default function ChatSelector({
+  onSelectUser,
+  onClose,
+}: ChatSelectorProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"conversations" | "users">("conversations");
-  
-  const { 
-    conversations, 
-    availableUsers, 
+  const [activeTab, setActiveTab] = useState<"conversations" | "users">(
+    "conversations",
+  );
+
+  const {
+    conversations,
+    availableUsers,
     onlineUsers,
-    fetchConversations, 
+    fetchConversations,
     fetchAvailableUsers,
-    isLoading 
+    isLoading,
   } = useChatStore();
-  
-  const { user: currentUser } = useAuthStore();
 
   useEffect(() => {
     fetchConversations();
     fetchAvailableUsers();
   }, [fetchConversations, fetchAvailableUsers]);
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.otherUser.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredConversations = conversations.filter((conv) =>
+    conv.otherUser.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const filteredUsers = availableUsers.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = availableUsers.filter((user) =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const handleSelectConversation = (conversation: any) => {
+  const handleSelectConversation = (conversation: ConversationItem) => {
     onSelectUser(conversation.otherUser);
     onClose();
   };
 
-  const handleSelectUser = (user: any) => {
+  const handleSelectUser = (user: ChatTargetUser) => {
     onSelectUser(user);
     onClose();
   };
@@ -103,9 +120,7 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
-            <div className="p-4 text-center text-gray-500">
-              Đang tải...
-            </div>
+            <div className="p-4 text-center text-gray-500">Đang tải...</div>
           ) : activeTab === "conversations" ? (
             <div className="p-2">
               {filteredConversations.length === 0 ? (
@@ -118,7 +133,9 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
                 filteredConversations.map((conversation) => (
                   <div
                     key={conversation._id}
-                    onClick={() => handleSelectConversation(conversation)}
+                    onClick={() =>
+                      handleSelectConversation(conversation as ConversationItem)
+                    }
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
                   >
                     <div className="relative">
@@ -144,7 +161,8 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
                         {conversation.otherUser.role}
                       </p>
                       <p className="text-xs text-gray-400 truncate">
-                        {conversation.lastMessage?.content || 'Không có tin nhắn'}
+                        {conversation.lastMessage?.content ||
+                          "Không có tin nhắn"}
                       </p>
                     </div>
                   </div>
@@ -162,7 +180,7 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
                 filteredUsers.map((user) => (
                   <div
                     key={user._id}
-                    onClick={() => handleSelectUser(user)}
+                    onClick={() => handleSelectUser(user as ChatTargetUser)}
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
                   >
                     <div className="relative">
@@ -178,7 +196,9 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
                       <p className="text-sm text-gray-500 capitalize flex items-center gap-2">
                         {user.role}
                         {onlineUsers.includes(user._id) && (
-                          <span className="text-green-500 text-xs">● Online</span>
+                          <span className="text-green-500 text-xs">
+                            ● Online
+                          </span>
                         )}
                       </p>
                     </div>

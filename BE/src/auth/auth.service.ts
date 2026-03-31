@@ -8,10 +8,23 @@ import { RegisterDto } from './dto/register.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { UserRole } from '../common/enums/role.enum';
 import { UserStatus } from '../common/enums/user-status.enum';
-import { User } from '../users/schemas/user.schema';
+import { UserDocument } from '../users/schemas/user.schema';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { InvitesService } from '../invites/invites.service';
 import { RegisterByInviteDto } from './dto/register-by-invite.dto';
 import { ApprovalsService } from '../approvals/approvals.service';
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+  role: UserRole;
+  branchId?: string;
+}
+
+type UserIdentity = UserDocument & {
+  id?: string;
+};
 
 @Injectable()
 export class AuthService {
@@ -22,7 +35,7 @@ export class AuthService {
     private readonly approvalsService: ApprovalsService,
   ) {}
 
-  private signTokens(user: User) {
+  private signTokens(user: UserIdentity) {
     const jwtSecret = process.env.JWT_SECRET;
     const refreshJwtSecret = process.env.REFRESH_JWT_SECRET;
 
@@ -35,11 +48,11 @@ export class AuthService {
 
     const { JWT_EXPIRES_IN = '1h', REFRESH_JWT_EXPIRES_IN = '7d' } =
       process.env;
-    const payload = {
-      sub: (user as any)._id?.toString?.() || (user as any).id,
+    const payload: JwtPayload = {
+      sub: user._id?.toString?.() || user.id || '',
       email: user.email,
       role: user.role,
-      branchId: (user as any).branchId,
+      branchId: user.branchId,
     };
     const accessToken = this.jwtService.sign(payload, {
       secret: jwtSecret,
@@ -52,8 +65,10 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private sanitize(user: User) {
-    const { passwordHash, ...rest } = (user as any).toObject?.() || user;
+  private sanitize(user: UserIdentity) {
+    const raw = typeof user.toObject === 'function' ? user.toObject() : user;
+    const rest = { ...raw } as Record<string, unknown>;
+    delete rest.passwordHash;
     return rest;
   }
 
@@ -66,7 +81,10 @@ export class AuthService {
     return { user: this.sanitize(created), ...tokens };
   }
 
-  async validateUser(email: string, password: string) {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<UserIdentity | null> {
     const user = await this.usersService.findByEmail(email);
     if (!user) return null;
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -80,27 +98,27 @@ export class AuthService {
     if (user.status !== UserStatus.Active) {
       throw new UnauthorizedException('User is not active');
     }
-    const tokens = this.signTokens(user as any);
-    const sanitizedUser = this.sanitize(user as any);
+    const tokens = this.signTokens(user);
+    const sanitizedUser = this.sanitize(user);
     return {
       user: sanitizedUser,
       ...tokens,
-      mustChangePassword: (user as any).mustChangePassword || false,
+      mustChangePassword: user.mustChangePassword || false,
     };
   }
 
   async changePassword(userId: string, newPassword: string) {
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-    const updated = await this.usersService.update(userId, {
+    const payload: UpdateUserDto = {
       password: newPassword,
       mustChangePassword: false,
-    } as any);
+    };
+    await this.usersService.update(userId, payload);
     return { message: 'Đổi mật khẩu thành công' };
   }
 
   async registerByInvite(dto: RegisterByInviteDto) {
     const invite = await this.invitesService.useToken(dto.token);
-    const created = await this.usersService.create({
+    const createPayload: CreateUserDto = {
       name: dto.name,
       email: dto.email,
       phone: dto.phone,
@@ -108,10 +126,9 @@ export class AuthService {
       role: invite.role as UserRole,
       status: UserStatus.Pending,
       branchId: invite.branchId,
-    } as any);
-    await this.approvalsService.createRegisterRequest(
-      (created as any)._id?.toString(),
-    );
+    };
+    const created = await this.usersService.create(createPayload);
+    await this.approvalsService.createRegisterRequest(created._id?.toString());
     await this.invitesService.markUsed(invite._id.toString());
     return { message: 'Registered. Awaiting admin approval.' };
   }
@@ -127,12 +144,13 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify(dto.refreshToken, {
         secret: refreshJwtSecret,
-      });
+      }) as JwtPayload;
       const user = await this.usersService.findById(payload.sub);
       if (!user) throw new UnauthorizedException('User not found');
-      const tokens = this.signTokens(user as any);
-      return { user: this.sanitize(user as any), ...tokens };
-    } catch (error) {
+      const userIdentity = user as UserIdentity;
+      const tokens = this.signTokens(userIdentity);
+      return { user: this.sanitize(userIdentity), ...tokens };
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
@@ -151,7 +169,7 @@ export class AuthService {
     // TODO: Gửi email reset password trong môi trường production
     // Hiện tại, tạo yêu cầu để admin xử lý
     await this.approvalsService.createPasswordResetRequest(
-      (user as any)._id?.toString(),
+      user._id?.toString(),
       email,
     );
 
@@ -189,16 +207,16 @@ export class AuthService {
     const errors: string[] = [];
 
     // Kiểm tra vai trò
-    if ((user as any).role !== dto.role) {
+    if (user.role !== dto.role) {
       errors.push(
-        `Vai trò không đúng. Tài khoản này có vai trò "${this.translateRole((user as any).role)}".`,
+        `Vai trò không đúng. Tài khoản này có vai trò "${this.translateRole(user.role)}".`,
       );
     }
 
     // Kiểm tra chi nhánh (admin không cần kiểm tra chi nhánh)
-    const userBranchId = (user as any).branchId?.toString?.() || '';
+    const userBranchId = user.branchId?.toString?.() || '';
     if (
-      (user as any).role !== 'admin' &&
+      user.role !== 'admin' &&
       userBranchId &&
       userBranchId !== dto.branchId
     ) {

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -30,12 +32,21 @@ import { DocumentsModule } from './documents/documents.module';
 import { AdminStatsModule } from './admin-stats/admin-stats.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
+const isTestEnv = process.env.NODE_ENV === 'test';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       expandVariables: true,
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: isTestEnv ? 1_000 : Number(process.env.THROTTLE_TTL_MS) || 60_000,
+        limit: isTestEnv ? 10_000 : Number(process.env.THROTTLE_LIMIT) || 120,
+      },
+    ]),
     ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -72,6 +83,12 @@ import { ScheduleModule } from '@nestjs/schedule';
   ],
 
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

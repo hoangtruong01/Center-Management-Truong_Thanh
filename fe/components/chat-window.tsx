@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,7 +46,10 @@ export default function ChatWindow({
   const displayName = recipient?.name || recipientName || "Unknown";
   const displayRole = recipient?.role || recipientRole || "user";
 
-  const conversationMessages = recipientId ? messages[recipientId] || [] : [];
+  const conversationMessages = useMemo(
+    () => (recipientId ? messages[recipientId] || [] : []),
+    [messages, recipientId],
+  );
   const isRecipientOnline = recipientId
     ? onlineUsers.includes(recipientId)
     : false;

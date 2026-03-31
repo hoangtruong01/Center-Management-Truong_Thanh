@@ -26,6 +26,10 @@ import {
 } from "lucide-react";
 import { notify } from "@/lib/notify";
 
+interface ApiErrorShape {
+  message?: string;
+}
+
 export default function PaymentPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuthStore();
@@ -41,7 +45,7 @@ export default function PaymentPage() {
     payments,
     fetchMyPayments,
     createPayment,
-    isLoading: paymentLoading
+    isLoading: paymentLoading,
   } = usePaymentsStore();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -83,7 +87,7 @@ export default function PaymentPage() {
 
       if (selectedChildId) {
         const child = childrenRequests.find(
-          (c) => c.studentId === selectedChildId
+          (c) => c.studentId === selectedChildId,
         );
         return child?.requests || [];
       }
@@ -98,23 +102,25 @@ export default function PaymentPage() {
 
   // Filter pending requests
   const pendingRequests = allRequests.filter(
-    (r) => r.status === "pending" || r.status === "overdue"
+    (r) => r.status === "pending" || r.status === "overdue",
   );
 
   // Calculate totals
   const selectedRequests = pendingRequests.filter((r) =>
-    selectedIds.includes(r._id)
+    selectedIds.includes(r._id),
   );
-  const totalBase = selectedRequests.reduce((sum, r) => sum + r.baseAmount, 0);
   const totalDiscount = selectedRequests.reduce(
     (sum, r) => sum + r.discountAmount,
-    0
+    0,
   );
-  const totalFinal = selectedRequests.reduce((sum, r) => sum + r.finalAmount, 0);
+  const totalFinal = selectedRequests.reduce(
+    (sum, r) => sum + r.finalAmount,
+    0,
+  );
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
   };
 
@@ -156,7 +162,7 @@ export default function PaymentPage() {
       } else {
         notify.success(
           result.message ||
-          "Đã tạo yêu cầu thanh toán. Vui lòng đến quầy thu ngân."
+            "Đã tạo yêu cầu thanh toán. Vui lòng đến quầy thu ngân.",
         );
         // Refresh
         if (user?.role === "student") {
@@ -168,9 +174,12 @@ export default function PaymentPage() {
         setStep("select");
         setSelectedIds([]);
       }
-    } catch (err: any) {
-      setError(err.message);
-      notify.error(err.message);
+    } catch (err: unknown) {
+      const message =
+        (err as ApiErrorShape).message ||
+        "Thanh toán thất bại. Vui lòng thử lại.";
+      setError(message);
+      notify.error(message);
     }
   };
 
@@ -255,16 +264,20 @@ export default function PaymentPage() {
                     setSelectedChildId(child.studentId);
                     setSelectedIds([]);
                   }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${(selectedChildId || childrenRequests[0]?.studentId) ===
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${
+                    (selectedChildId || childrenRequests[0]?.studentId) ===
                     child.studentId
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-gray-200 hover:border-gray-300"
-                    }`}
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
                 >
                   <User className="w-4 h-4" />
                   {child.studentName}
                   <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
-                    {child.requests.filter((r) => r.status === "pending").length}{" "}
+                    {
+                      child.requests.filter((r) => r.status === "pending")
+                        .length
+                    }{" "}
                     chờ
                   </span>
                 </button>
@@ -293,7 +306,9 @@ export default function PaymentPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   <Card className="p-4 bg-linear-to-br from-yellow-500 to-orange-500 text-white">
                     <p className="text-sm opacity-90">Chờ thanh toán</p>
-                    <p className="text-2xl font-bold">{pendingRequests.length}</p>
+                    <p className="text-2xl font-bold">
+                      {pendingRequests.length}
+                    </p>
                   </Card>
                   <Card className="p-4 bg-linear-to-br from-blue-500 to-indigo-600 text-white">
                     <p className="text-sm opacity-90">Đã chọn</p>
@@ -353,10 +368,11 @@ export default function PaymentPage() {
                       {pendingRequests.map((req) => (
                         <label
                           key={req._id}
-                          className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedIds.includes(req._id)
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-gray-300"
-                            }`}
+                          className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            selectedIds.includes(req._id)
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
                         >
                           <input
                             type="checkbox"
@@ -386,7 +402,9 @@ export default function PaymentPage() {
                             {req.dueDate && (
                               <p className="text-xs text-gray-400 mb-2">
                                 Hạn:{" "}
-                                {new Date(req.dueDate).toLocaleDateString("vi-VN")}
+                                {new Date(req.dueDate).toLocaleDateString(
+                                  "vi-VN",
+                                )}
                               </p>
                             )}
 
@@ -461,7 +479,10 @@ export default function PaymentPage() {
 
                   <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-4">
                     {selectedRequests.map((req) => (
-                      <div key={req._id} className="flex justify-between text-sm">
+                      <div
+                        key={req._id}
+                        className="flex justify-between text-sm"
+                      >
                         <span className="text-gray-600">
                           {req.title} ({req.className})
                         </span>
@@ -496,7 +517,9 @@ export default function PaymentPage() {
                     </div>
                     <div className="text-left">
                       <p className="font-medium text-gray-900">PayOS</p>
-                      <p className="text-sm text-gray-500">QR Code / Mobile Banking</p>
+                      <p className="text-sm text-gray-500">
+                        QR Code / Mobile Banking
+                      </p>
                     </div>
                   </button>
 
@@ -576,33 +599,50 @@ export default function PaymentPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-bold text-gray-900">
-                              {payment.amount.toLocaleString('vi-VN')} đ
+                              {payment.amount.toLocaleString("vi-VN")} đ
                             </p>
-                            <Badge variant={
-                              payment.status === 'success' ? 'default' :
-                                payment.status === 'pending' ? 'outline' : 'destructive'
-                            } className={
-                              payment.status === 'success' ? 'bg-green-600 hover:bg-green-600' :
-                                payment.status === 'pending' ? 'text-yellow-600 border-yellow-600' : ''
-                            }>
-                              {payment.status === 'success' ? 'Thành công' :
-                                payment.status === 'pending' ? 'Đang xử lý' : 'Thất bại'}
+                            <Badge
+                              variant={
+                                payment.status === "success"
+                                  ? "default"
+                                  : payment.status === "pending"
+                                    ? "outline"
+                                    : "destructive"
+                              }
+                              className={
+                                payment.status === "success"
+                                  ? "bg-green-600 hover:bg-green-600"
+                                  : payment.status === "pending"
+                                    ? "text-yellow-600 border-yellow-600"
+                                    : ""
+                              }
+                            >
+                              {payment.status === "success"
+                                ? "Thành công"
+                                : payment.status === "pending"
+                                  ? "Đang xử lý"
+                                  : "Thất bại"}
                             </Badge>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Mã GD: {payment._id.substring(payment._id.length - 8).toUpperCase()}
+                            Mã GD:{" "}
+                            {payment._id
+                              .substring(payment._id.length - 8)
+                              .toUpperCase()}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium">
-                            {payment.method === 'PAYOS'
-                              ? 'PayOS'
-                              : payment.method === 'FAKE'
-                                ? 'Fake Demo'
-                                : 'Tiền mặt'}
+                            {payment.method === "PAYOS"
+                              ? "PayOS"
+                              : payment.method === "FAKE"
+                                ? "Fake Demo"
+                                : "Tiền mặt"}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {new Date(payment.createdAt).toLocaleDateString('vi-VN')}
+                            {new Date(payment.createdAt).toLocaleDateString(
+                              "vi-VN",
+                            )}
                           </p>
                         </div>
                       </div>
@@ -618,6 +658,6 @@ export default function PaymentPage() {
           </TabsContent>
         </Tabs>
       </main>
-    </div >
+    </div>
   );
 }

@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import api from "../api";
 
+interface ApiErrorShape {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
+
 // Types
 export interface StudentPaymentRequest {
   _id: string;
@@ -127,8 +135,9 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
     try {
       const response = await api.get("/payment-requests/my/all");
       set({ myRequests: response.data, isLoading: false });
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Lỗi tải yêu cầu";
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).response?.data?.message || "Lỗi tải yêu cầu";
       set({ isLoading: false, error: message });
     }
   },
@@ -138,8 +147,9 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
     try {
       const response = await api.get("/payment-requests/my/all");
       set({ myRequests: response.data, isLoading: false });
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Lỗi tải yêu cầu";
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).response?.data?.message || "Lỗi tải yêu cầu";
       set({ isLoading: false, error: message });
     }
   },
@@ -149,8 +159,9 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
     try {
       const response = await api.get("/payment-requests/my-children");
       set({ childrenRequests: response.data, isLoading: false });
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Lỗi tải yêu cầu";
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).response?.data?.message || "Lỗi tải yêu cầu";
       set({ isLoading: false, error: message });
     }
   },
@@ -163,8 +174,9 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
         : "/payment-requests/class";
       const response = await api.get(url);
       set({ classRequests: response.data, isLoading: false });
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Lỗi tải yêu cầu";
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).response?.data?.message || "Lỗi tải yêu cầu";
       set({ isLoading: false, error: message });
     }
   },
@@ -175,8 +187,9 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
       const response = await api.post("/payment-requests/class", data);
       set({ isLoading: false });
       return response.data;
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Lỗi tạo yêu cầu";
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).response?.data?.message || "Lỗi tạo yêu cầu";
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
@@ -188,8 +201,10 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
         `/payment-requests/class/${classRequestId}/students`,
       );
       return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || "Lỗi tải danh sách");
+    } catch (error: unknown) {
+      throw new Error(
+        (error as ApiErrorShape).response?.data?.message || "Lỗi tải danh sách",
+      );
     }
   },
 
@@ -198,8 +213,9 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
     try {
       await api.delete(`/payment-requests/class/${id}`);
       set({ isLoading: false });
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Lỗi hủy yêu cầu";
+    } catch (error: unknown) {
+      const message =
+        (error as ApiErrorShape).response?.data?.message || "Lỗi hủy yêu cầu";
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
@@ -210,9 +226,10 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
     try {
       await api.patch(`/payment-requests/class/${id}/exception/approve`);
       set({ isLoading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message =
-        error.response?.data?.message || "Lỗi duyệt ngoại lệ học bổng";
+        (error as ApiErrorShape).response?.data?.message ||
+        "Lỗi duyệt ngoại lệ học bổng";
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
@@ -225,9 +242,10 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>((set) => ({
         reason,
       });
       set({ isLoading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message =
-        error.response?.data?.message || "Lỗi từ chối ngoại lệ học bổng";
+        (error as ApiErrorShape).response?.data?.message ||
+        "Lỗi từ chối ngoại lệ học bổng";
       set({ isLoading: false, error: message });
       throw new Error(message);
     }

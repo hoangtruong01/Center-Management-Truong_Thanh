@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
@@ -18,12 +19,41 @@ async function bootstrap() {
     throw new Error('FRONTEND_URL is required in production');
   }
 
+  const trustProxyEnv = process.env.TRUST_PROXY;
+  let trustProxy: boolean | number | string = isProd ? 1 : false;
+  if (typeof trustProxyEnv === 'string' && trustProxyEnv.trim().length > 0) {
+    const normalized = trustProxyEnv.trim().toLowerCase();
+    if (normalized === 'true') {
+      trustProxy = true;
+    } else if (normalized === 'false') {
+      trustProxy = false;
+    } else {
+      const asNumber = Number(trustProxyEnv);
+      trustProxy = Number.isNaN(asNumber) ? trustProxyEnv : asNumber;
+    }
+  }
+
+  const server = app.getHttpAdapter().getInstance();
+  server.set('trust proxy', trustProxy);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      referrerPolicy: { policy: 'no-referrer' },
+    }),
+  );
+
   app.enableCors({
     origin: isProd
       ? frontendOrigins
       : frontendOrigins.length > 0
         ? frontendOrigins
         : true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false,
+    maxAge: 86_400,
   });
 
   // Serve static files from uploads directory
@@ -39,7 +69,6 @@ async function bootstrap() {
     }),
   );
 
-  const server = app.getHttpAdapter().getInstance();
   const enableSwagger = !isProd || process.env.ENABLE_SWAGGER === 'true';
 
   if (enableSwagger) {

@@ -47,26 +47,35 @@ function PaymentResultContent() {
 
   // Send notification about payment result
   useEffect(() => {
-    if (notificationSent.current || !user || !searchParams.has("success")) return;
+    if (notificationSent.current || !user || !searchParams.has("success"))
+      return;
 
     notificationSent.current = true;
     const statusText = success ? "thành công" : "thất bại";
-    const userId = (user as any)._id || (user as any).id;
+    const userId = user._id || user.id;
 
     if (userId) {
-      api.post("/notifications", {
-        userId: userId,
-        title: `Thanh toán ${statusText}`,
-        body: `Giao dịch thanh toán học phí của bạn đã ${statusText}.${paymentId ? ` Mã GD: ${paymentId}` : ""}`,
-        type: success ? "success" : "error",
-      }).catch((err) => console.error("Error sending payment notification:", err));
+      api
+        .post("/notifications", {
+          userId: userId,
+          title: `Thanh toán ${statusText}`,
+          body: `Giao dịch thanh toán học phí của bạn đã ${statusText}.${paymentId ? ` Mã GD: ${paymentId}` : ""}`,
+          type: success ? "success" : "error",
+        })
+        .catch((err) =>
+          console.error("Error sending payment notification:", err),
+        );
 
       if (success) {
-        notificationService.notifyAdmin({
-          title: `[Thanh toán học phí] Thành công`,
-          body: `Người đóng: ${user.name} (${user.role})\nMã GD: ${paymentId}\nKết quả: Thanh toán thành công`,
-          type: "success",
-        }).catch((err) => console.error("Error notifying admin about payment:", err));
+        notificationService
+          .notifyAdmin({
+            title: `[Thanh toán học phí] Thành công`,
+            body: `Người đóng: ${user.name} (${user.role})\nMã GD: ${paymentId}\nKết quả: Thanh toán thành công`,
+            type: "success",
+          })
+          .catch((err) =>
+            console.error("Error notifying admin about payment:", err),
+          );
       }
     }
   }, [user, success, paymentId, searchParams]);
@@ -101,8 +110,9 @@ function PaymentResultContent() {
 
         {/* Title */}
         <h1
-          className={`text-2xl font-bold mb-2 ${success ? "text-green-600" : "text-red-600"
-            }`}
+          className={`text-2xl font-bold mb-2 ${
+            success ? "text-green-600" : "text-red-600"
+          }`}
         >
           {success ? "Thanh toán thành công!" : "Thanh toán thất bại"}
         </h1>
