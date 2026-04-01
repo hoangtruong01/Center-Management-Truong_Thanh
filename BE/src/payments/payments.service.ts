@@ -21,8 +21,28 @@ import { CreatePaymentDto, ConfirmCashPaymentDto } from './dto/payment.dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Branch, BranchDocument } from '../branches/schemas/branch.schema';
 import { PaymentGatewayFactory } from './gateways/gateway.factory';
-import { CreatePaymentParams } from './gateways/payment.gateway';
 import { ChatGateway } from '../chat/chat.gateway';
+
+interface PayosWebhookPayload {
+  code?: string;
+  desc?: string;
+  data?: {
+    orderCode?: string | number;
+    reference?: string;
+    transactionDateTime?: string;
+    [key: string]: unknown;
+  };
+  signature?: string;
+  [key: string]: unknown;
+}
+
+interface PayosReturnQuery {
+  code?: string;
+  orderCode?: string;
+  status?: string;
+  cancel?: string;
+  [key: string]: string | undefined;
+}
 
 @Injectable()
 export class PaymentsService {
@@ -86,7 +106,9 @@ export class PaymentsService {
     }
 
     // Snapshot subject names from requests
-    const subjects = requests.map((r: any) => r.classSubject).filter((s) => s);
+    const subjects = requests
+      .map((request) => request.classSubject)
+      .filter((subject): subject is string => Boolean(subject));
     const subjectName = [...new Set(subjects)].join(', ');
 
     // 4. Tạo payment record
@@ -162,7 +184,7 @@ export class PaymentsService {
   // ==================== PAYOS HANDLERS ====================
 
   async handlePayosWebhook(
-    webhookData: any,
+    webhookData: PayosWebhookPayload,
   ): Promise<{ success: boolean; message: string }> {
     try {
       console.log('PayOS Webhook received:', webhookData);
@@ -172,14 +194,7 @@ export class PaymentsService {
         throw new BadRequestException('Invalid webhook data');
       }
 
-      const {
-        orderCode,
-        amount,
-        description,
-        accountNumber,
-        reference,
-        transactionDateTime,
-      } = webhookData.data;
+      const { orderCode, reference, transactionDateTime } = webhookData.data;
 
       // Find payment by orderCode (stored in vnpTxnRef as PAYOS_{orderCode})
       const payment = await this.paymentModel.findOne({
@@ -198,7 +213,9 @@ export class PaymentsService {
 
       // Update payment status
       payment.status = PaymentStatus.SUCCESS;
-      payment.paidAt = new Date(transactionDateTime);
+      payment.paidAt = transactionDateTime
+        ? new Date(transactionDateTime)
+        : new Date();
       payment.vnpTransactionNo = reference || `PAYOS_${orderCode}`;
       await payment.save();
 
@@ -228,7 +245,7 @@ export class PaymentsService {
   }
 
   async handlePayosReturn(
-    queryParams: Record<string, any>,
+    queryParams: PayosReturnQuery,
   ): Promise<{ success: boolean; paymentId: string; message: string }> {
     try {
       console.log('PayOS Return URL params:', queryParams);
@@ -657,7 +674,7 @@ export class PaymentsService {
   private async logTransaction(
     paymentId: Types.ObjectId,
     type: TransactionType,
-    rawData: Record<string, any>,
+    rawData: Record<string, unknown>,
     message: string,
     performedBy?: Types.ObjectId,
   ): Promise<void> {

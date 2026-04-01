@@ -17,11 +17,11 @@ export class ChatController {
   }
 
   @Get('messages')
-  async list(@CurrentUser() user: UserDocument, @Query('with') withUserId?: string) {
-    console.log('Fetching messages for user:', user.name, 'with:', withUserId);
-    const messages = await this.chatService.list(user, withUserId);
-    console.log('Found messages:', messages.length);
-    return messages;
+  async list(
+    @CurrentUser() user: UserDocument,
+    @Query('with') withUserId?: string,
+  ) {
+    return this.chatService.list(user, withUserId);
   }
 
   @Get('conversations')
@@ -35,13 +35,18 @@ export class ChatController {
   }
 
   @Post('test-message')
-  async createTestMessage(@CurrentUser() user: UserDocument, @Body() body: { receiverId: string; content: string }) {
-    console.log('Creating test message from', user.name, 'to', body.receiverId, ':', body.content);
+  async createTestMessage(
+    @CurrentUser() user: UserDocument,
+    @Body() body: { receiverId: string; content: string },
+  ) {
     return this.chatService.send(user, body);
   }
 
   @Post('mark-as-read')
-  markAsRead(@CurrentUser() user: UserDocument, @Body() body: { otherUserId: string }) {
+  markAsRead(
+    @CurrentUser() user: UserDocument,
+    @Body() body: { otherUserId: string },
+  ) {
     return this.chatService.markAsRead(user, body.otherUserId);
   }
 }

@@ -8,7 +8,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { UserRole } from '../common/enums/role.enum';
 import { UserStatus } from '../common/enums/user-status.enum';
-import { UserDocument } from '../users/schemas/user.schema';
+import { User } from '../users/schemas/user.schema';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { InvitesService } from '../invites/invites.service';
@@ -22,8 +22,18 @@ interface JwtPayload {
   branchId?: string;
 }
 
-type UserIdentity = UserDocument & {
+type UserIdentity = Pick<
+  User,
+  | 'email'
+  | 'role'
+  | 'branchId'
+  | 'status'
+  | 'mustChangePassword'
+  | 'passwordHash'
+> & {
   id?: string;
+  _id?: unknown;
+  toObject?: () => Record<string, unknown>;
 };
 
 @Injectable()
@@ -34,6 +44,30 @@ export class AuthService {
     private readonly invitesService: InvitesService,
     private readonly approvalsService: ApprovalsService,
   ) {}
+
+  private extractUserId(user: UserIdentity): string {
+    if (typeof user.id === 'string' && user.id.length > 0) {
+      return user.id;
+    }
+
+    if (typeof user._id === 'string' && user._id.length > 0) {
+      return user._id;
+    }
+
+    if (
+      user._id &&
+      typeof user._id === 'object' &&
+      'toString' in user._id &&
+      typeof user._id.toString === 'function'
+    ) {
+      const value = user._id.toString();
+      if (value.length > 0) {
+        return value;
+      }
+    }
+
+    throw new UnauthorizedException('Invalid user identifier');
+  }
 
   private signTokens(user: UserIdentity) {
     const jwtSecret = process.env.JWT_SECRET;
@@ -49,7 +83,7 @@ export class AuthService {
     const { JWT_EXPIRES_IN = '1h', REFRESH_JWT_EXPIRES_IN = '7d' } =
       process.env;
     const payload: JwtPayload = {
-      sub: user._id?.toString?.() || user.id || '',
+      sub: this.extractUserId(user),
       email: user.email,
       role: user.role,
       branchId: user.branchId,
@@ -87,6 +121,7 @@ export class AuthService {
   ): Promise<UserIdentity | null> {
     const user = await this.usersService.findByEmail(email);
     if (!user) return null;
+    if (!user.passwordHash) return null;
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return null;
     return user;
@@ -128,7 +163,9 @@ export class AuthService {
       branchId: invite.branchId,
     };
     const created = await this.usersService.create(createPayload);
-    await this.approvalsService.createRegisterRequest(created._id?.toString());
+    await this.approvalsService.createRegisterRequest(
+      this.extractUserId(created),
+    );
     await this.invitesService.markUsed(invite._id.toString());
     return { message: 'Registered. Awaiting admin approval.' };
   }

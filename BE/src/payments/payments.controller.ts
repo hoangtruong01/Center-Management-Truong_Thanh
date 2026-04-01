@@ -19,6 +19,30 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 
+interface PayosReturnQuery {
+  code?: string;
+  orderCode?: string;
+  status?: string;
+  cancel?: string;
+  [key: string]: string | undefined;
+}
+
+interface PayosWebhookPayload {
+  code?: string;
+  desc?: string;
+  data?: {
+    orderCode?: string | number;
+    amount?: number;
+    description?: string;
+    accountNumber?: string;
+    reference?: string;
+    transactionDateTime?: string;
+    [key: string]: unknown;
+  };
+  signature?: string;
+  [key: string]: unknown;
+}
+
 @ApiTags('Payments')
 @ApiBearerAuth()
 @Controller('payments')
@@ -48,7 +72,7 @@ export class PaymentsController {
 
   @Get('payos/return')
   async payosReturn(
-    @Query() queryParams: Record<string, any>,
+    @Query() queryParams: PayosReturnQuery,
     @Res() res: Response,
   ) {
     const result = await this.paymentsService.handlePayosReturn(queryParams);
@@ -61,7 +85,7 @@ export class PaymentsController {
   }
 
   @Post('payos/webhook')
-  async payosWebhook(@Body() webhookData: any) {
+  async payosWebhook(@Body() webhookData: PayosWebhookPayload) {
     console.log('PayOS Webhook endpoint hit');
     return this.paymentsService.handlePayosWebhook(webhookData);
   }

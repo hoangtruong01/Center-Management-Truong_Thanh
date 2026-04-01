@@ -13,10 +13,15 @@ import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UsersService } from '../users/users.service';
+import { UserDocument } from '../users/schemas/user.schema';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
-  user?: any;
+  user?: UserDocument;
+}
+
+interface JwtPayload {
+  sub: string;
 }
 
 @WebSocketGateway({
@@ -51,8 +56,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       console.log('Attempting to verify token...');
-      const payload = this.jwtService.verify(token);
-      const user = await this.usersService.findById(payload.sub);
+      const payload = this.jwtService.verify<JwtPayload>(token);
+      const user = (await this.usersService.findById(
+        payload.sub,
+      )) as UserDocument;
 
       if (!user) {
         console.log('User not found, disconnecting client');
@@ -60,22 +67,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      client.userId = (user as any)._id.toString();
+      const userId = payload.sub;
+      client.userId = userId;
       client.user = user;
-      this.connectedUsers.set((user as any)._id.toString(), client.id);
+      this.connectedUsers.set(userId, client.id);
 
       console.log(`User ${user.name} connected with socket ${client.id}`);
 
       // Join user to their personal room
-      client.join(`user_${(user as any)._id}`);
+      client.join(`user_${userId}`);
 
       // Notify user is online
       client.broadcast.emit('userOnline', {
-        userId: (user as any)._id,
+        userId,
         name: user.name,
       });
     } catch (error) {
-      console.error('Connection error:', error.message);
+      console.error('Connection error:', error);
       client.disconnect();
     }
   }
@@ -108,6 +116,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         { path: 'senderId', select: 'name role' },
         { path: 'receiverId', select: 'name role' },
       ]);
+      const createdAt =
+        (populatedMessage as unknown as { createdAt?: Date }).createdAt ??
+        new Date();
 
       // Send to receiver if online
       this.server.to(`user_${data.receiverId}`).emit('newMessage', {
@@ -115,7 +126,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         senderId: populatedMessage.senderId,
         receiverId: populatedMessage.receiverId,
         content: populatedMessage.content,
-        createdAt: (populatedMessage as any).createdAt,
+        createdAt,
       });
 
       // Send back to sender for confirmation
@@ -124,7 +135,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         senderId: populatedMessage.senderId,
         receiverId: populatedMessage.receiverId,
         content: populatedMessage.content,
-        createdAt: (populatedMessage as any).createdAt,
+        createdAt,
       });
 
       return { success: true };
