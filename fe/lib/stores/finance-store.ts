@@ -70,6 +70,26 @@ export interface ClassFinancialHealthItem {
   };
 }
 
+export interface PayrollBlock {
+  blockNumber: number;
+  sessionRange: string; // e.g. "1-10"
+  totalRevenue: number;
+  teacherShare: number;
+  centerShare: number;
+  paymentStatus: "fully_paid" | "partially_paid" | "unpaid";
+  studentCount: number;
+  paidStudentCount: number;
+}
+
+export interface ClassPayrollSummary {
+  classId: string;
+  className: string;
+  teacherName: string;
+  totalRevenue: number;
+  totalTeacherShare: number;
+  blocks: PayrollBlock[];
+}
+
 export interface WeeklyClassFinancialReport {
   generatedAt: string;
   branchId: string;
@@ -99,6 +119,7 @@ interface FinanceState {
   expenses: Expense[];
   classHealth: ClassFinancialHealthItem[];
   weeklyClassReport: WeeklyClassFinancialReport | null;
+  payrollSummaries: ClassPayrollSummary[];
   isLoading: boolean;
   error: string | null;
 
@@ -110,6 +131,7 @@ interface FinanceState {
   ) => Promise<void>;
   fetchWeeklyClassReport: (branchId: string) => Promise<void>;
   fetchExpenses: (branchId: string) => Promise<void>;
+  fetchPayroll: (branchId: string, month?: number, year?: number) => Promise<void>;
   createExpense: (data: CreateExpenseDto) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   clearError: () => void;
@@ -121,6 +143,7 @@ export const useFinanceStore = create<FinanceState>((set) => ({
   expenses: [],
   classHealth: [],
   weeklyClassReport: null,
+  payrollSummaries: [],
   isLoading: false,
   error: null,
 
@@ -189,6 +212,23 @@ export const useFinanceStore = create<FinanceState>((set) => ({
       const message =
         error.response?.data?.message || "Lỗi tải danh sách chi phí";
       console.error("❌ Expenses error:", error);
+      set({ isLoading: false, error: message });
+    }
+  },
+
+  // Fetch payroll data
+  fetchPayroll: async (branchId: string, month?: number, year?: number) => {
+    set({ isLoading: true, error: null });
+    try {
+      const params: any = { branchId };
+      if (month) params.month = month;
+      if (year) params.year = year;
+
+      const response = await api.get("/admin/finance/payroll", { params });
+      set({ payrollSummaries: response.data || [], isLoading: false });
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message || "Lỗi tải dữ liệu tính lương";
       set({ isLoading: false, error: message });
     }
   },

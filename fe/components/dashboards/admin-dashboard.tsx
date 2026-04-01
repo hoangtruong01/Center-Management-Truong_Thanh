@@ -43,6 +43,7 @@ import OverviewTab from "@/components/admin/tabs/OverviewTab";
 import UsersTab from "@/components/admin/tabs/UsersTab";
 import ClassesTab from "@/components/admin/tabs/ClassesTab";
 import FinanceTab from "@/components/admin/tabs/FinanceTab";
+import PayrollTab from "@/components/admin/tabs/PayrollTab";
 import BranchesTab from "@/components/admin/tabs/BranchesTab";
 import LeaderboardTab from "@/components/admin/tabs/LeaderboardTab";
 import PaymentsTab from "@/components/admin/tabs/PaymentsTab";
@@ -2183,6 +2184,8 @@ export default function AdminDashboard({
     fetchClassHealth,
     fetchWeeklyClassReport,
     fetchExpenses,
+    fetchPayroll,
+    payrollSummaries,
     createExpense,
     deleteExpense,
     clearError: clearFinanceError,
@@ -2775,6 +2778,12 @@ export default function AdminDashboard({
               ðŸ’° TÃ i chÃ­nh
             </TabsTrigger>
             <TabsTrigger
+              value="payroll"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md transition-all"
+            >
+              ðŸ’µ LÆ°Æ¡ng (70/30)
+            </TabsTrigger>
+            <TabsTrigger
               value="branches"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
@@ -2906,7 +2915,7 @@ export default function AdminDashboard({
               }}
               rankingView={rankingView}
               setRankingView={setRankingView}
-              tabIcons={{ score: "í¿†", attendance: "í³…" }}
+              tabIcons={{ score: "ï¿½ï¿½ï¿½", attendance: "ï¿½ï¿½ï¿½" }}
               leaderboardLoading={leaderboardLoading}
               leaderboard={leaderboard}
             />
@@ -2933,6 +2942,19 @@ export default function AdminDashboard({
               handleDeleteExpense={handleDeleteExpense}
               showExpenseModal={showExpenseModal}
               handleAddExpense={handleAddExpense}
+            />
+          </TabsContent>
+
+          <TabsContent value="payroll" className="mt-6">
+            <PayrollTab
+              selectedBranch={selectedBranch}
+              setSelectedBranch={setSelectedBranch}
+              branches={branches}
+              payrollSummaries={payrollSummaries}
+              isLoading={financeLoading}
+              error={financeError}
+              fetchPayroll={fetchPayroll}
+              clearError={clearFinanceError}
             />
           </TabsContent>
 

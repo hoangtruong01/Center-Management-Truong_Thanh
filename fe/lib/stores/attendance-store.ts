@@ -19,6 +19,7 @@ export interface AttendanceRecord {
   checkInTime?: string;
   notes?: string;
   note?: string;
+  isMakeup?: boolean;
   markedBy: string;
   createdAt: string;
   // Populated
