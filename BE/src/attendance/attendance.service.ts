@@ -5,9 +5,11 @@ import { Attendance, AttendanceDocument } from './schemas/attendance.schema';
 import { AttendanceStatus, CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 import { TimetableAttendanceDto } from './dto/timetable-attendance.dto';
-import { UserDocument } from '../users/schemas/user.schema';
 import { Session, SessionDocument } from '../sessions/schemas/session.schema';
 import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { NotificationsService } from '../notifications/notifications.service';
+import { User, UserDocument, UserRole } from '../users/schemas/user.schema';
 
 @Injectable()
 export class AttendanceService {
@@ -18,6 +20,9 @@ export class AttendanceService {
     private readonly sessionModel: Model<SessionDocument>,
     @InjectModel(ClassEntity.name)
     private readonly classModel: Model<ClassDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async mark(user: UserDocument, dto: CreateAttendanceDto) {
@@ -298,6 +303,120 @@ export class AttendanceService {
 
     if (ops.length > 0) {
       await this.model.bulkWrite(ops, { ordered: false });
+    }
+  }
+
+  // Cron job runs every 15 minutes to scan for ended sessions and notify parents
+  @Cron(CronExpression.EVERY_15_MINUTES)
+  async handleScheduledAttendanceScan() {
+    const now = new Date();
+    // Look for sessions that ended in the last 30 minutes to catch them exactly once
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+
+    const sessions = await this.sessionModel
+      .find({
+        endTime: { $gte: thirtyMinutesAgo, $lte: now },
+        status: 'approved',
+      })
+      .populate('classId')
+      .exec();
+
+    if (sessions.length === 0) return;
+
+    for (const session of sessions) {
+      const classDoc = session.classId as unknown as ClassDocument;
+      if (!classDoc || !classDoc.studentIds || classDoc.studentIds.length === 0)
+        continue;
+
+      const studentIds = classDoc.studentIds.map((id) => id.toString());
+
+      // Check existing records for this session
+      const existingRecords = await this.model
+        .find({ sessionId: session._id })
+        .select('studentId')
+        .exec();
+
+      const markedStudentIds = new Set(
+        existingRecords.map((r) => r.studentId.toString()),
+      );
+
+      const unmarkedStudentIds = studentIds.filter(
+        (id) => !markedStudentIds.has(id),
+      );
+
+      if (unmarkedStudentIds.length === 0) continue;
+
+      // 1. Mark as Auto-Absent
+      const ops = unmarkedStudentIds.map((studentId) => ({
+        updateOne: {
+          filter: {
+            sessionId: session._id,
+            studentId: new Types.ObjectId(studentId),
+          },
+          update: {
+            $setOnInsert: {
+              sessionId: session._id,
+              studentId: new Types.ObjectId(studentId),
+              status: AttendanceStatus.Absent,
+              note: 'Hệ thống tự động đánh vắng do giáo viên không điểm danh.',
+            },
+          },
+          upsert: true,
+        },
+      }));
+
+      await this.model.bulkWrite(ops, { ordered: false });
+
+      // 2. Notify Parents & Admin for each absent student
+      for (const studentId of unmarkedStudentIds) {
+        // Find student details
+        const student = await this.userModel.findById(studentId).exec();
+        if (!student) continue;
+
+        // Find parent(s)
+        const parents = await this.userModel
+          .find({
+            role: UserRole.Parent,
+            childrenIds: studentId,
+          })
+          .exec();
+
+        const parentIds = parents.map((p) => p._id);
+
+        // Send Push Notification
+        const notificationBody = `Thông báo: Học sinh ${student.name} vắng mặt trong buổi học lớp ${classDoc.name} lúc ${session.startTime.toLocaleTimeString('vi-VN')}.`;
+
+        // Notify each parent
+        for (const parentId of parentIds) {
+          await this.notificationsService.create({
+            userId: parentId.toString(),
+            title: '⚠️ Cảnh báo vắng học',
+            body: notificationBody,
+            type: 'warning',
+          });
+        }
+
+        // Notify Student too
+        await this.notificationsService.create({
+          userId: studentId,
+          title: '⚠️ Bạn đã vắng học',
+          body: `Bạn đã bị đánh vắng trong buổi học lớp ${classDoc.name}. Vui lòng liên hệ giáo viên nếu có nhầm lẫn.`,
+          type: 'warning',
+        });
+
+        // 3. Check for Chronic Absenteeism (High Priority Alert > 20%)
+        const stats = await this.getStatistics(studentId);
+        if (stats.absent > 1 && stats.total > 0) {
+          const absentRate = (stats.absent / stats.total) * 100;
+          if (absentRate >= 20) {
+            await this.notificationsService.notifyAdmins({
+              title: '🚨 ƯU TIÊN: CẦN GỌI ĐIỆN PHỤ HUYNH',
+              body: `Học sinh ${student.name} (${student.studentCode}) lớp ${classDoc.name} đã nghỉ ${stats.absent}/${stats.total} buổi (${absentRate.toFixed(1)}%). Vui lòng gọi điện cho PH: ${student.parentPhone || 'Chưa cập nhật'}.`,
+              type: 'urgent',
+            });
+          }
+        }
+      }
     }
   }
 

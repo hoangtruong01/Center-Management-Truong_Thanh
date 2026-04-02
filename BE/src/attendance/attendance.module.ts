@@ -5,6 +5,8 @@ import { AttendanceController } from './attendance.controller';
 import { Attendance, AttendanceSchema } from './schemas/attendance.schema';
 import { Session, SessionSchema } from '../sessions/schemas/session.schema';
 import { ClassEntity, ClassSchema } from '../classes/schemas/class.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -13,6 +15,8 @@ import { ClassEntity, ClassSchema } from '../classes/schemas/class.schema';
       { name: Session.name, schema: SessionSchema },
       { name: ClassEntity.name, schema: ClassSchema },
     ]),
+    NotificationsModule,
+    UsersModule,
   ],
   controllers: [AttendanceController],
   providers: [AttendanceService],
