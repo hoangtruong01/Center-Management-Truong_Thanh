@@ -24,6 +24,7 @@ import {
   useFeedbackStore,
   getUserDisplayName,
   useChildrenStore,
+  useFinanceStore,
 } from "@/lib/stores";
 import { router } from "expo-router";
 import api from "@/lib/api";
@@ -335,6 +336,7 @@ const getQuickActions = (
   role: string,
   unreadCount: number,
   pendingPayments: number,
+  unconfirmedPayouts: number = 0,
 ) => {
   const baseActions = {
     student: [
@@ -403,10 +405,18 @@ const getQuickActions = (
     ],
     teacher: [
       {
+        icon: "cash" as const,
+        label: "Tiền lương",
+        subtitle: unconfirmedPayouts > 0 ? `${unconfirmedPayouts} phiếu chờ` : "Lịch sử lương",
+        colors: unconfirmedPayouts > 0 ? ["#F59E0B", "#D97706"] : ["#10B981", "#059669"],
+        badge: unconfirmedPayouts,
+        onPress: () => router.push("/payroll"),
+      },
+      {
         icon: "calendar" as const,
         label: "Lịch dạy",
         subtitle: "Xem lịch tuần",
-        colors: ["#10B981", "#059669"],
+        colors: ["#3B82F6", "#2563EB"],
         badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
@@ -414,7 +424,7 @@ const getQuickActions = (
         icon: "school" as const,
         label: "Lớp học",
         subtitle: "Quản lý lớp",
-        colors: ["#3B82F6", "#2563EB"],
+        colors: ["#6366F1", "#4F46E5"],
         badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
@@ -422,7 +432,7 @@ const getQuickActions = (
         icon: "document-text" as const,
         label: "Tài liệu",
         subtitle: "Tài liệu giảng dạy",
-        colors: ["#F59E0B", "#D97706"],
+        colors: ["#14B8A6", "#0D9488"],
         badge: 0,
         onPress: () => router.push("/(tabs)/materials"),
       },
@@ -433,22 +443,6 @@ const getQuickActions = (
         colors: ["#EF4444", "#DC2626"],
         badge: 0,
         onPress: () => router.push("/incidents-report"),
-      },
-      {
-        icon: "trophy" as const,
-        label: "Xếp hạng",
-        subtitle: "Bảng xếp hạng",
-        colors: ["#F59E0B", "#D97706"],
-        badge: 0,
-        onPress: () => router.push("/leaderboard"),
-      },
-      {
-        icon: "star" as const,
-        label: "Đánh giá",
-        subtitle: "Xem đánh giá",
-        colors: ["#8B5CF6", "#7C3AED"],
-        badge: 0,
-        onPress: () => router.push("/(tabs)/evaluations"),
       },
     ],
     admin: [
@@ -504,6 +498,7 @@ export default function HomeScreen() {
   const { sessions, fetchMySessions } = useScheduleStore();
   const { myRatings, fetchMyRatings } = useFeedbackStore();
   const { children, selectedChild, fetchChildren } = useChildrenStore();
+  const { myPayouts, fetchMyPayouts } = useFinanceStore();
 
   const role = user?.role || "student";
 
@@ -662,6 +657,7 @@ export default function HomeScreen() {
       await fetchMySessions();
       await fetchMyRatings();
       await fetchMyIncidents();
+      await fetchMyPayouts();
     } else {
       await fetchClasses();
     }
@@ -708,6 +704,8 @@ export default function HomeScreen() {
     (i) => i.status === "pending" || i.status === "in_progress",
   ).length;
 
+  const unconfirmedPayouts = myPayouts.filter(p => p.status === 'notified').length;
+
   const roleConfig = getRoleConfig(role);
   const overviewCards = getOverviewCards(role, {
     classCount: classes.length,
@@ -716,7 +714,7 @@ export default function HomeScreen() {
     incidentsCount: pendingIncidents,
   });
 
-  const quickActions = getQuickActions(role, unreadCount, pendingPayments);
+  const quickActions = getQuickActions(role, unreadCount, pendingPayments, unconfirmedPayouts);
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>

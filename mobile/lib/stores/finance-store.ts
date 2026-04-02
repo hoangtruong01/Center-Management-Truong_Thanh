@@ -67,6 +67,22 @@ export interface ClassFinancialHealthItem {
   };
 }
 
+export interface TeacherPayout {
+  _id: string;
+  teacherId: string;
+  classId: {
+    _id: string;
+    name: string;
+  };
+  blockNumber: number;
+  amount: number;
+  status: "notified" | "confirmed";
+  notifiedAt: string;
+  confirmedAt?: string;
+  paymentMethod: string;
+  notes?: string;
+}
+
 export interface PayrollBlock {
   blockNumber: number;
   sessionRange: string;
@@ -116,6 +132,7 @@ interface FinanceState {
   classHealth: ClassFinancialHealthItem[];
   weeklyClassReport: WeeklyClassFinancialReport | null;
   payrollSummaries: ClassPayrollSummary[];
+  myPayouts: TeacherPayout[];
   isLoading: boolean;
   error: string | null;
   fetchDashboard: (branchId: string, year: number) => Promise<void>;
@@ -123,6 +140,9 @@ interface FinanceState {
   fetchWeeklyClassReport: (branchId: string) => Promise<void>;
   fetchExpenses: (branchId: string) => Promise<void>;
   fetchPayroll: (branchId: string, month?: number, year?: number) => Promise<void>;
+  fetchMyPayouts: () => Promise<void>;
+  confirmPayout: (payoutId: string) => Promise<void>;
+  payTeacher: (data: any) => Promise<void>;
   createExpense: (data: CreateExpenseDto) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   clearError: () => void;
@@ -134,6 +154,7 @@ export const useFinanceStore = create<FinanceState>((set) => ({
   classHealth: [],
   weeklyClassReport: null,
   payrollSummaries: [],
+  myPayouts: [],
   isLoading: false,
   error: null,
 
@@ -226,6 +247,49 @@ export const useFinanceStore = create<FinanceState>((set) => ({
       set({
         isLoading: false,
         error: error.response?.data?.message || "Lỗi tạo chi phí",
+      });
+      throw error;
+    }
+  },
+
+  fetchMyPayouts: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.get("/admin/finance/payroll/my-payouts");
+      set({ myPayouts: response.data || [], isLoading: false });
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error.response?.data?.message || "Lỗi tải lịch sử nhận lương",
+      });
+    }
+  },
+
+  confirmPayout: async (payoutId) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post(`/admin/finance/payroll/confirm/${payoutId}`);
+      // Refresh after confirmation
+      const response = await api.get("/admin/finance/payroll/my-payouts");
+      set({ myPayouts: response.data || [], isLoading: false });
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error.response?.data?.message || "Lỗi khi xác nhận nhận tiền",
+      });
+      throw error;
+    }
+  },
+
+  payTeacher: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post("/admin/finance/payroll/payout", data);
+      set({ isLoading: false });
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error.response?.data?.message || "Lỗi khi thông báo lương",
       });
       throw error;
     }
