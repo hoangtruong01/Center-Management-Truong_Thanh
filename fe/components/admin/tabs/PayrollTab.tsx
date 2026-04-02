@@ -226,10 +226,10 @@ export default function PayrollTab({
                         {localFormatCurrency(summary.totalRevenue)}
                       </TableCell>
                       <TableCell className="text-right font-bold text-emerald-600">
-                        {localFormatCurrency(summary.totalTeacherShare)}
+                        {formatCurrency(summary.totalTeacherShare)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Badge variant="secondary" className="font-medium">
+                        <Badge variant="default" className="font-medium">
                           {summary.blocks.length} block (10 buổi/block)
                         </Badge>
                       </TableCell>

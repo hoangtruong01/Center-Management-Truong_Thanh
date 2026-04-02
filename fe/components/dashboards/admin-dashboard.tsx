@@ -22,12 +22,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronDown, Camera } from "lucide-react";
-import NotificationCenter from "@/notification-center";
+import NotificationCenter from "@/components/notification-center";
 import ImportUsersModal from "@/components/pages/import-users-modal";
 import ImportStudentsModal from "@/components/pages/import-students-modal";
 import ClassFormModal from "@/components/pages/class-form-modal";
 import ClassStudentsModal from "@/components/pages/class-students-modal";
 import ClassDetailModal from "@/components/pages/class-detail-modal";
+import ClassTransferRequestsPanel from "@/components/pages/class-transfer-requests-panel";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useClassesStore, type Class } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
@@ -2832,11 +2833,8 @@ export default function AdminDashboard({
             <OverviewTab
               statsLoading={statsLoading}
               dashboardData={dashboardData}
-              studentsBySubject={studentsBySubject}
+              classes={classes}
               pieColors={pieColors}
-              revenueByMonth={revenueByMonth}
-              pendingTransfers={pendingTransfers}
-              setActiveTab={setActiveTab}
             />
           </TabsContent>
           <TabsContent value="accounts" className="mt-6">
@@ -2896,8 +2894,8 @@ export default function AdminDashboard({
                   await fetchClasses();
                   await refreshTransferPendingCount();
                 }}
-                onRequestsLoaded={(requests) => {
-                  const pending = requests.filter((item) => item.status === "pending").length;
+                onRequestsLoaded={(requests: any[]) => {
+                  const pending = requests.filter((item: any) => item.status === "pending").length;
                   setTransferPendingCount(pending);
                 }}
               />

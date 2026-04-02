@@ -1,5 +1,5 @@
 "use client";
-import AdminEvaluationManager from "@/components/pages/admin-evaluation-manager";
+import AdminEvaluationManager from "@/components/admin-evaluation-manager";
 
 export default function EvaluationsTab() {
   return (

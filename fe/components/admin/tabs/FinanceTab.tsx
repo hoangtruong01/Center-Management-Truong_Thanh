@@ -277,7 +277,7 @@ export default function FinanceTab({
                         </td>
                       </tr>
                     ) : (
-                      classHealth.slice(0, 10).map((item) => (
+                      classHealth.slice(0, 10).map((item: any) => (
                         <tr key={item.classRequestId} className="border-b border-gray-100">
                           <td className="py-2 px-2">
                             <p className="font-semibold text-gray-900">{item.className}</p>
@@ -318,7 +318,7 @@ export default function FinanceTab({
                 {financeDashboard.chart.revenueByMonth.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={financeDashboard.chart.revenueByMonth.map((item, idx) => ({
+                      data={financeDashboard.chart.revenueByMonth.map((item: any, idx: number) => ({
                         month: getMonthName(item.month),
                         thu: item.amount / 1000000,
                         chi: (financeDashboard.chart.expenseByMonth[idx]?.amount || 0) / 1000000,
@@ -351,7 +351,7 @@ export default function FinanceTab({
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={financeDashboard.revenueBySubject.map((item) => ({
+                        data={financeDashboard.revenueBySubject.map((item: any) => ({
                           name: item.subject,
                           value: item.amount,
                         }))}
@@ -362,7 +362,7 @@ export default function FinanceTab({
                         outerRadius={80}
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
-                        {financeDashboard.revenueBySubject.map((_, index) => (
+                        {financeDashboard.revenueBySubject.map((_: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"][index % 5]} />
                         ))}
                       </Pie>
@@ -395,7 +395,7 @@ export default function FinanceTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {financeDashboard.detailByMonth.map((row) => (
+                  {financeDashboard.detailByMonth.map((row: any) => (
                     <tr key={row.month} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4 font-medium text-gray-900">Tháng {row.month}</td>
                       <td className="py-3 px-4 text-right text-blue-600 font-semibold">{formatCurrency(row.revenue)}</td>
