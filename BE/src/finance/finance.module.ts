@@ -13,15 +13,22 @@ import {
   StudentPaymentRequestSchema,
 } from '../payment-requests/schemas/student-payment-request.schema';
 import { ClassEntity, ClassSchema } from '../classes/schemas/class.schema';
+import {
+  TeacherPayout,
+  TeacherPayoutSchema,
+} from './schemas/teacher-payout.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
+    NotificationsModule,
     MongooseModule.forFeature([
       { name: Payment.name, schema: PaymentSchema },
       { name: Expense.name, schema: ExpenseSchema },
       { name: ClassPaymentRequest.name, schema: ClassPaymentRequestSchema },
       { name: StudentPaymentRequest.name, schema: StudentPaymentRequestSchema },
       { name: ClassEntity.name, schema: ClassSchema },
+      { name: TeacherPayout.name, schema: TeacherPayoutSchema },
     ]),
   ],
   controllers: [FinanceController],

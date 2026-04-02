@@ -1,0 +1,525 @@
+
+> fe@0.1.0 lint
+> eslint
+
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\app\admin\payments\page.tsx
+  138:6  warning  React Hook useEffect has missing dependencies: 'fetchAllPayments', 'fetchBranches', 'fetchClassRequests', and 'fetchPendingCashPayments'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\app\admin\teacher-assignments\page.tsx
+  263:44   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  358:101  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\app\page.tsx
+  20:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\app\page.tsx:20:5
+  18 |   // Wait for client-side mounting
+  19 |   useEffect(() => {
+> 20 |     setIsHydrated(true);
+     |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  21 |   }, []);
+  22 |
+  23 |   // Show change password modal when mustChangePassword is true         react-hooks/set-state-in-effect
+  28:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\app\page.tsx:28:7
+  26 |   useEffect(() => {
+  27 |     if (shouldShowChangePasswordModal) {
+> 28 |       setShowChangePasswordModal(true);
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  29 |     }
+  30 |   }, [shouldShowChangePasswordModal]);
+  31 |  react-hooks/set-state-in-effect
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\app\payment\fake-checkout\page.tsx
+  29:21  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  44:25  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\admin-evaluation-manager.tsx
+  70:10  warning  'classes' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  87:25  warning  'setSelectedClass' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\admin\tabs\BranchesTab.tsx
+  6:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  9:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\admin\tabs\ClassesTab.tsx
+    7:12   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    9:26   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   15:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   16:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   17:30   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   40:33   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:71   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:103  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:116  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\admin\tabs\FinanceTab.tsx
+   23:13  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   28:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   29:22  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   32:16  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   34:13  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   37:28  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   56:3   warning  'expenses' is defined but never used             @typescript-eslint/no-unused-vars
+   57:3   warning  'handleDeleteExpense' is defined but never used  @typescript-eslint/no-unused-vars
+  251:79  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  280:59  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  321:78  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  354:76  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  365:68  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  398:61  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\admin\tabs\LeaderboardTab.tsx
+    7:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    8:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   11:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   13:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:65  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:70  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   81:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\admin\tabs\OverviewTab.tsx
+   18:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   19:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  187:69  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\admin\tabs\PayrollTab.tsx
+   23:10  warning  'formatTeacherPayout' is defined but never used  @typescript-eslint/no-unused-vars
+   23:31  warning  'formatCenterShare' is defined but never used    @typescript-eslint/no-unused-vars
+   30:13  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   31:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   44:3   warning  'error' is defined but never used                @typescript-eslint/no-unused-vars
+   46:3   warning  'clearError' is defined but never used           @typescript-eslint/no-unused-vars
+  315:57  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\admin\tabs\UsersTab.tsx
+   13:25   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   16:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   23:16   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   24:15   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   25:16   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   27:33   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  195:73   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  207:77   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:70   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:108  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:123  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\checkout-modal.tsx
+  124:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  164:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\dashboards\admin-dashboard.tsx
+     7:3   warning  'BarChart' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+     8:3   warning  'Bar' is defined but never used                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+     9:3   warning  'CartesianGrid' is defined but never used                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+    10:3   warning  'XAxis' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+    11:3   warning  'YAxis' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+    12:3   warning  'Tooltip' is defined but never used                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+    13:3   warning  'ResponsiveContainer' is defined but never used                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+    14:3   warning  'PieChart' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+    15:3   warning  'Pie' is defined but never used                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+    16:3   warning  'Cell' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+    17:3   warning  'Area' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+    18:3   warning  'AreaChart' is defined but never used                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+   158:7   warning  'leaderboardOptions' is assigned a value but never used                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   166:7   warning  'tabIcons' is assigned a value but never used                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+  2243:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  2244:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  2245:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  2255:48  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  2256:41  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  2323:6   warning  React Hook useEffect has a missing dependency: 'refreshTransferPendingCount'. Either include it or remove the dependency array                                                                                                                                                           react-hooks/exhaustive-deps
+  2589:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2897:46  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  2898:58  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\dashboards\parent-dashboard.tsx
+  1306:19  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1376:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1569:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\dashboards\student-dashboard.tsx
+     4:3   warning  'LineChart' is defined but never used                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+     5:3   warning  'Line' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+    28:10  warning  'useDocumentsStore' is defined but never used                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+   159:7   warning  'DAY_NAMES_VN' is assigned a value but never used                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   244:7   warning  'gradeBreakdown' is assigned a value but never used                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   434:23  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+   434:38  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+   537:18  warning  'error' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   556:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   603:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   644:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   971:58  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1331:29  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1346:38  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1418:23  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1418:46  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1520:6   warning  React Hook useMemo has missing dependencies: 'getAttendanceByDateAndClass' and 'getAttendanceForSession'. Either include them or remove the dependency array                                                                                                                             react-hooks/exhaustive-deps
+  1527:40  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1644:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1668:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2311:25  warning  'style' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  3079:35  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\dashboards\teacher-dashboard.tsx
+  1771:29  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1875:31  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1961:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2981:91  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\modals\expense-modal.tsx
+  21:3   warning  'branchId' is defined but never used      @typescript-eslint/no-unused-vars
+  64:19  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\attendance-manager.tsx
+   56:56  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   57:17  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   75:17  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  111:56  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  112:17  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  316:11  warning  'fetchAttendance' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  316:28  warning  'fetchStatistics' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  316:45  warning  'statistics' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+  373:17  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  375:43  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  377:17  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  395:19  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  429:19  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  485:52  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  486:13  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  650:20  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  650:33  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\change-password-modal.tsx
+  50:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\class-form-modal.tsx
+  130:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\class-form-modal.tsx:130:7
+  128 |     if (!isEditing && formData.subject && formData.grade) {
+  129 |       const autoName = `${formData.subject} - Lớp ${formData.grade}`;
+> 130 |       setFormData((prev) => ({ ...prev, name: autoName }));
+      |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  131 |     }
+  132 |   }, [formData.subject, formData.grade, isEditing]);
+  133 |  react-hooks/set-state-in-effect
+  145:48  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+  158:50  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+  163:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\class-form-modal.tsx:163:7
+  161 |       }
+  162 |
+> 163 |       setFormData({
+      |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  164 |         name: classData.name || "",
+  165 |         description: classData.description || "",
+  166 |         teacherId: teacherIdValue,                                                                                                      react-hooks/set-state-in-effect
+  208:19  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+  266:19  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+  449:59  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react/no-unescaped-entities
+  449:78  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react/no-unescaped-entities
+  571:44  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react/no-unescaped-entities
+  571:58  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react/no-unescaped-entities
+  739:49  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react/no-unescaped-entities
+  739:67  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react/no-unescaped-entities
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\class-students-modal.tsx
+  192:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\class-students-modal.tsx:192:7
+  190 |   useEffect(() => {
+  191 |     if (!showAddStudent || !selectedStudentId) {
+> 192 |       setConflictWarning(null);
+      |       ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  193 |       return;
+  194 |     }
+  195 |                                     react-hooks/set-state-in-effect
+  380:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\class-students-modal.tsx:380:7
+  378 |   useEffect(() => {
+  379 |     if (!showTransferPopup || !transferStudent || !targetClassId) {
+> 380 |       setTransferConflictWarning(null);
+      |       ^^^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  381 |       return;
+  382 |     }
+  383 |  react-hooks/set-state-in-effect
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\generate-sessions-modal.tsx
+  88:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\import-users-modal.tsx
+  102:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\incident-report-modal.tsx
+   4:10  warning  'Card' is defined but never used          @typescript-eslint/no-unused-vars
+   6:10  warning  'Input' is defined but never used         @typescript-eslint/no-unused-vars
+  88:19  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\login-page.tsx
+  563:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  583:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\session-form-modal.tsx
+  207:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  212:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\pages\user-management.tsx
+  63:26  warning  'user' is defined but never used          @typescript-eslint/no-unused-vars
+  70:5   warning  'userType' is defined but never used      @typescript-eslint/no-unused-vars
+  94:12  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\teacher-assignments-tab.tsx
+    8:5    warning  'CreateAssignmentDto' is defined but never used  @typescript-eslint/no-unused-vars
+  262:44   error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  304:25   error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  375:101  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\teacher-grading-tab.tsx
+    8:5   warning  'CreateGradingSheetDto' is defined but never used  @typescript-eslint/no-unused-vars
+  228:44  error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  262:25  error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  414:81  error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  427:23  warning  '_' is defined but never used                      @typescript-eslint/no-unused-vars
+  444:25  error    Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\ui\aurora-background.tsx
+  140:13  error    'program' is never reassigned. Use 'const' instead                                                                           prefer-const
+  208:8   warning  React Hook useEffect has missing dependencies: 'blend' and 'colorStops'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\ui\table.tsx
+   5:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+  19:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+  26:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+  38:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+  53:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+  68:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+  83:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+  98:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\components\ui\textarea.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\services\student-grading.service.ts
+  19:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  79:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  95:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\services\teacher-assignment.service.ts
+  148:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  185:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  193:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\services\teacher-grading.service.ts
+  114:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  141:82  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  154:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\admin-stats-store.ts
+  69:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\assessments-store.ts
+   98:9   warning  'get' is defined but never used           @typescript-eslint/no-unused-vars
+  122:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  171:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  203:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\attendance-store.ts
+  120:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  138:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  150:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  161:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  178:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  194:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\branches-store.ts
+   52:9   warning  'get' is defined but never used           @typescript-eslint/no-unused-vars
+   72:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\classes-store.ts
+  189:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  207:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  250:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  265:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  285:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  308:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  327:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  353:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  374:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  387:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  401:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  414:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  429:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  446:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  470:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  504:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  531:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\documents-store.ts
+   49:18  error    An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+   72:63  warning  'get' is defined but never used                                   @typescript-eslint/no-unused-vars
+   83:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+   95:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+  107:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+  121:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+  165:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+  184:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+  203:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+  219:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+  238:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+  258:21  error    Unexpected any. Specify a different type                          @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\finance-store.ts
+  189:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  204:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  218:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  240:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  252:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  258:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  289:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  302:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  314:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  326:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\incidents-store.ts
+  135:38  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  141:9   warning  'get' is defined but never used           @typescript-eslint/no-unused-vars
+  163:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  198:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  218:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  244:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  263:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  275:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\leaderboard-store.ts
+   91:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\notifications-store.ts
+   21:29  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   44:9   warning  'get' is defined but never used           @typescript-eslint/no-unused-vars
+   75:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  141:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\orders-store.ts
+  36:57  warning  'get' is defined but never used           @typescript-eslint/no-unused-vars
+  47:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  64:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\parent-dashboard-store.ts
+  202:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  214:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  217:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  224:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  257:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  327:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  327:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  347:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  359:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  378:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\schedule-store.ts
+  249:9   warning  'get' is defined but never used           @typescript-eslint/no-unused-vars
+  271:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  291:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  312:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  328:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  348:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  367:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  392:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  411:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  430:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  460:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  474:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  502:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\student-dashboard-store.ts
+  130:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  154:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  165:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  182:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\tuition-store.ts
+   97:9   warning  'get' is defined but never used           @typescript-eslint/no-unused-vars
+  117:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  137:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  156:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  176:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  193:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  208:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\trung tâm\Center-Management-Truong_Thanh\fe\lib\stores\users-store.ts
+  138:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  155:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  177:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  182:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  201:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  222:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  270:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  290:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  303:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  314:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  325:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 324 problems (262 errors, 62 warnings)
+

@@ -9,25 +9,25 @@ import AdminDashboard from "@/components/dashboards/admin-dashboard";
 import ChangePasswordModal from "@/components/pages/change-password-modal";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
-type UserRole = "student" | "teacher" | "parent" | "admin" | null;
-
 export default function Home() {
   const { user, isAuthenticated, logout, isLoading, mustChangePassword } =
     useAuthStore();
   const [isHydrated, setIsHydrated] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
-  // Wait for zustand hydration
+  // Wait for client-side mounting
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
   // Show change password modal when mustChangePassword is true
+  const shouldShowChangePasswordModal = isHydrated && isAuthenticated && mustChangePassword && user?.role !== "admin";
+
   useEffect(() => {
-    if (isAuthenticated && mustChangePassword && user?.role !== "admin") {
+    if (shouldShowChangePasswordModal) {
       setShowChangePasswordModal(true);
     }
-  }, [isAuthenticated, mustChangePassword, user?.role]);
+  }, [shouldShowChangePasswordModal]);
 
   const handleLogout = async () => {
     await logout();

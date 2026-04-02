@@ -23,12 +23,10 @@ import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useClassesStore, Class } from "@/lib/stores/classes-store";
 import { useScheduleStore, Session } from "@/lib/stores/schedule-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
-import {
-  useDocumentsStore,
-  UploadDocumentDto,
-} from "@/lib/stores/documents-store";
+import { useDocumentsStore, UploadDocumentDto } from "@/lib/stores/documents-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
+import { useFinanceStore } from "@/lib/stores/finance-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import TeacherGradingTab from "@/components/teacher-grading-tab";
@@ -1520,6 +1518,14 @@ export default function TeacherDashboard({
     loading: leaderboardLoading,
     fetchTeacherLeaderboard,
   } = useLeaderboardStore();
+
+  const { 
+    myPayouts,
+    fetchMyPayouts,
+    confirmPayout,
+    isLoading: financeLoading,
+  } = useFinanceStore();
+
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
 
   // Week navigation logic
@@ -1596,12 +1602,16 @@ export default function TeacherDashboard({
 
     // Fetch leaderboard for teacher's students
     fetchTeacherLeaderboard({ limit: 10 });
+
+    // Fetch my payouts
+    fetchMyPayouts();
   }, [
     user.id,
     fetchClasses,
     fetchTeacherSchedule,
     fetchMyDocuments,
     fetchTeacherLeaderboard,
+    fetchMyPayouts,
   ]);
 
   // Set first class as selected when classes load
@@ -1753,7 +1763,7 @@ export default function TeacherDashboard({
     const { session, classData } = attendanceSession;
 
     // Fetch parents for notification mapping
-    let parentMap: Record<string, string> = {};
+    const parentMap: Record<string, string> = {};
     try {
       const parentsRes = await api.get("/users?role=parent");
       const parents = parentsRes.data;
@@ -1857,7 +1867,7 @@ export default function TeacherDashboard({
       });
 
       // Fetch parents for notification mapping
-      let parentMap: Record<string, string> = {};
+      const parentMap: Record<string, string> = {};
       try {
         const parentsRes = await api.get("/users?role=parent");
         const parents = parentsRes.data;
@@ -1910,14 +1920,22 @@ export default function TeacherDashboard({
 
       alert("✅ Điểm danh thành công!");
       setTimetableAttendance(null);
-    } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
-      const errorMessage =
-        err.response?.data?.message || err.message || "Lỗi khi điểm danh";
-      alert(`❌ Lỗi: ${errorMessage}`);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || "Lỗi khi điểm danh");
+    }
+  };
+
+  const handleConfirmPayout = async (payoutId: string) => {
+    try {
+      if (confirm("Thầy/cô xác nhận đã nhận được khoản tiền này?")) {
+        await confirmPayout(payoutId);
+        toast.success("Xác nhận đã nhận tiền thành công!");
+        fetchMyPayouts();
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || "Lỗi khi xác nhận nhận tiền");
     }
   };
 
@@ -2125,6 +2143,12 @@ export default function TeacherDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🏆 Xếp hạng
+            </TabsTrigger>
+            <TabsTrigger
+              value="payroll"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-linear-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              💰 Tiền lương
             </TabsTrigger>
           </TabsList>
 
@@ -2918,6 +2942,89 @@ export default function TeacherDashboard({
                 </div>
               </div>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="payroll" className="mt-6 space-y-4">
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Lịch sử nhận lương mặt</h3>
+                  <p className="text-sm text-gray-500 mt-1">Xác nhận đã nhận tiền mặt từ Admin</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => fetchMyPayouts()}
+                  disabled={financeLoading}
+                >
+                  Làm mới
+                </Button>
+              </div>
+
+              {financeLoading && myPayouts.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Đang tải lịch sử nhận lương...</p>
+                </div>
+              ) : myPayouts.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <span className="text-4xl mb-3 block">💸</span>
+                  <p className="text-gray-500">Thầy/cô chưa có thông báo nhận lương nào.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myPayouts.map((payout) => (
+                    <Card key={payout._id} className="p-4 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-gray-900">{(payout.classId as any)?.name || "Lớp học ẩn"}</span>
+                            <div className="px-2 py-0.5 rounded border border-blue-100 bg-blue-50 text-blue-700 text-[10px] font-medium uppercase tracking-wider">
+                              Block {payout.blockNumber}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>📅 Ngày phát: {new Date(payout.paymentDate).toLocaleDateString("vi-VN")}</span>
+                            {payout.status === "confirmed" && (
+                              <span className="text-emerald-600 font-medium">✓ Đã xác nhận: {new Date(payout.confirmationDate!).toLocaleDateString("vi-VN")}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-emerald-600">
+                            {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(payout.amount)}
+                          </p>
+                          <div className="mt-2">
+                            {payout.status === "notified" ? (
+                              <Button 
+                                size="sm" 
+                                className="bg-emerald-600 hover:bg-emerald-700 text-xs h-8"
+                                onClick={() => handleConfirmPayout(payout._id)}
+                                disabled={financeLoading}
+                              >
+                                Xác nhận đã nhận tiền
+                              </Button>
+                            ) : (
+                              <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                Đã nhận tiền
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800 flex items-start gap-3">
+              <span className="text-lg">⚠️</span>
+              <p className="text-xs">
+                Thầy/cô vui lòng chỉ bấm <b>&quot;Xác nhận đã nhận tiền&quot;</b> khi đã thực tế nhận đủ số tiền mặt từ Admin để đảm bảo tính minh bạch.
+              </p>
+            </div>
           </TabsContent>
         </Tabs>
       </main>

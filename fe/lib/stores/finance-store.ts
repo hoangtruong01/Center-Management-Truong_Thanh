@@ -72,13 +72,15 @@ export interface ClassFinancialHealthItem {
 
 export interface PayrollBlock {
   blockNumber: number;
-  sessionRange: string; // e.g. "1-10"
+  sessionRange: string;
   totalRevenue: number;
   teacherShare: number;
   centerShare: number;
   paymentStatus: "fully_paid" | "partially_paid" | "unpaid";
   studentCount: number;
   paidStudentCount: number;
+  payoutStatus: "unpaid" | "notified" | "confirmed";
+  payoutId?: string;
 }
 
 export interface ClassPayrollSummary {
@@ -113,6 +115,22 @@ export interface WeeklyClassFinancialReport {
   }>;
 }
 
+export interface TeacherPayout {
+  _id: string;
+  teacherId: string;
+  classId: {
+    _id: string;
+    name: string;
+  };
+  blockNumber: number;
+  amount: number;
+  status: "notified" | "confirmed";
+  paymentDate: string;
+  confirmationDate?: string;
+  note?: string;
+  createdAt: string;
+}
+
 interface FinanceState {
   // State
   dashboard: FinanceDashboard | null;
@@ -120,6 +138,7 @@ interface FinanceState {
   classHealth: ClassFinancialHealthItem[];
   weeklyClassReport: WeeklyClassFinancialReport | null;
   payrollSummaries: ClassPayrollSummary[];
+  myPayouts: TeacherPayout[];
   isLoading: boolean;
   error: string | null;
 
@@ -134,6 +153,15 @@ interface FinanceState {
   fetchPayroll: (branchId: string, month?: number, year?: number) => Promise<void>;
   createExpense: (data: CreateExpenseDto) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  payTeacher: (data: {
+    teacherId: string;
+    classId: string;
+    blockNumber: number;
+    amount: number;
+    paymentDate?: string;
+  }) => Promise<void>;
+  confirmPayout: (payoutId: string) => Promise<void>;
+  fetchMyPayouts: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -144,6 +172,7 @@ export const useFinanceStore = create<FinanceState>((set) => ({
   classHealth: [],
   weeklyClassReport: null,
   payrollSummaries: [],
+  myPayouts: [],
   isLoading: false,
   error: null,
 
@@ -262,6 +291,41 @@ export const useFinanceStore = create<FinanceState>((set) => ({
       console.error("❌ Delete expense error:", error);
       set({ isLoading: false, error: message });
       throw error;
+    }
+  },
+
+  payTeacher: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post("/admin/finance/payroll/payout", data);
+      set({ isLoading: false });
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Lỗi thanh toán lương";
+      set({ isLoading: false, error: message });
+      throw error;
+    }
+  },
+
+  confirmPayout: async (payoutId) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post(`/admin/finance/payroll/confirm/${payoutId}`);
+      set({ isLoading: false });
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Lỗi xác nhận nhận lương";
+      set({ isLoading: false, error: message });
+      throw error;
+    }
+  },
+
+  fetchMyPayouts: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.get("/admin/finance/payroll/my-payouts");
+      set({ myPayouts: response.data || [], isLoading: false });
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Lỗi tải lịch sử nhận lương";
+      set({ isLoading: false, error: message });
     }
   },
 

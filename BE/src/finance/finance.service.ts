@@ -13,6 +13,12 @@ import {
   ClassPaymentRequestStatus,
 } from '../payment-requests/schemas/class-payment-request.schema';
 import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
+import {
+  TeacherPayout,
+  TeacherPayoutDocument,
+  PayoutStatus,
+} from './schemas/teacher-payout.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface MonthlyData {
   month: number;
@@ -74,6 +80,9 @@ export class FinanceService {
     private classRequestModel: Model<ClassPaymentRequestDocument>,
     @InjectModel(ClassEntity.name)
     private classModel: Model<ClassDocument>,
+    @InjectModel(TeacherPayout.name)
+    private payoutModel: Model<TeacherPayoutDocument>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getDashboard(
@@ -392,10 +401,17 @@ export class FinanceService {
       red: 3,
     };
 
-    return items
-      .map((item) => {
+    const itemsWithPayout = await Promise.all(
+      items.map(async (item) => {
         const paidRate =
           item.totalStudents > 0 ? item.paidCount / item.totalStudents : 0;
+
+        const payout = await this.payoutModel
+          .findOne({
+            classId: item.classId,
+            blockNumber: Math.ceil(item.paidCount / 10),
+          })
+          .lean();
 
         return {
           classRequestId: item._id.toString(),
@@ -407,6 +423,7 @@ export class FinanceService {
           totalStudents: item.totalStudents,
           paidCount: item.paidCount,
           paidRate,
+          payoutStatus: payout?.status || 'unpaid',
           snapshot: {
             listedRevenue: item.financialSnapshot?.listedRevenue || 0,
             scholarshipDiscountTotal:
@@ -427,13 +444,72 @@ export class FinanceService {
             isCapExceeded: Boolean(item.financialSnapshot?.isCapExceeded),
           },
         };
-      })
-      .sort((a, b) => {
-        const riskDiff =
-          riskOrder[b.snapshot.riskLevel] - riskOrder[a.snapshot.riskLevel];
-        if (riskDiff !== 0) return riskDiff;
-        return b.snapshot.overdueDebtAmount - a.snapshot.overdueDebtAmount;
-      });
+      }),
+    );
+
+    return itemsWithPayout.sort((a, b) => {
+      const riskDiff =
+        riskOrder[b.snapshot.riskLevel] - riskOrder[a.snapshot.riskLevel];
+      if (riskDiff !== 0) return riskDiff;
+      return b.snapshot.overdueDebtAmount - a.snapshot.overdueDebtAmount;
+    });
+  }
+
+  async notifyTeacherPayout(
+    adminId: string,
+    teacherId: string,
+    classId: string,
+    blockNumber: number,
+    amount: number,
+  ) {
+    // 1. Create or update payout record
+    const payout = await this.payoutModel.findOneAndUpdate(
+      { teacherId: new Types.ObjectId(teacherId), classId: new Types.ObjectId(classId), blockNumber },
+      {
+        amount,
+        status: PayoutStatus.NOTIFIED,
+        paymentDate: new Date(),
+      },
+      { upsert: true, new: true },
+    );
+    // 2. Send notification to teacher
+    await this.notificationsService.create({
+      userId: teacherId,
+      title: '💰 Thông báo nhận lương (Tiền mặt)',
+      body: `Chào thầy/cô, lương đợt ${blockNumber} của lớp đã có (Số tiền: ${amount.toLocaleString('vi-VN')} VNĐ). Thầy/cô vui lòng gặp Admin nhận tiền mặt và ấn "Xác nhận" trên app sau khi đã nhận đủ.`,
+      type: 'info',
+    });
+
+    return payout;
+  }
+
+  async confirmTeacherPayout(payoutId: string, teacherId: string) {
+    const payout = await this.payoutModel.findOne({
+      _id: new Types.ObjectId(payoutId),
+      teacherId: new Types.ObjectId(teacherId),
+    });
+
+    if (!payout) {
+      throw new BadRequestException('Không tìm thấy yêu cầu thanh toán');
+    }
+
+    if (payout.status === PayoutStatus.CONFIRMED) {
+      throw new BadRequestException('Bạn đã xác nhận thanh toán này rồi');
+    }
+
+    payout.status = PayoutStatus.CONFIRMED;
+    payout.confirmationDate = new Date();
+    await payout.save();
+
+    return payout;
+  }
+
+  async getTeacherPayouts(teacherId: string) {
+    return this.payoutModel
+      .find({ teacherId: new Types.ObjectId(teacherId) })
+      .populate('classId', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
   }
 
   async getWeeklyClassFinancialReport(branchId: string): Promise<{

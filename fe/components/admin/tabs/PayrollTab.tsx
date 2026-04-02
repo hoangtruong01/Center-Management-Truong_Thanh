@@ -20,7 +20,9 @@ import {
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
-import { formatTeacherPayout, formatCenterShare, formatCurrency } from "@/lib/utils"; // Assuming these exist or I'll use local helpers
+import { formatTeacherPayout, formatCenterShare, formatCurrency } from "@/lib/utils";
+import { useFinanceStore, PayrollBlock } from "@/lib/stores/finance-store";
+import { toast } from "react-toastify";
 
 interface PayrollTabProps {
   selectedBranch: string;
@@ -46,6 +48,7 @@ export default function PayrollTab({
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [expandedClasses, setExpandedClasses] = useState<string[]>([]);
+  const { payTeacher, isLoading: isPaying } = useFinanceStore();
 
   useEffect(() => {
     fetchPayroll(selectedBranch, selectedMonth, selectedYear);
@@ -255,7 +258,7 @@ export default function PayrollTab({
                               Chi tiết các Block 10 buổi
                             </h4>
                             <div className="grid grid-cols-1 gap-4">
-                              {summary.blocks.map((block: any) => (
+                              {summary.blocks.map((block: PayrollBlock) => (
                                 <div key={block.blockNumber} className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm flex flex-wrap justify-between items-center gap-4">
                                   <div className="space-y-1">
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Block {block.blockNumber}</p>
@@ -277,13 +280,50 @@ export default function PayrollTab({
                                     <p className="text-sm font-bold text-emerald-600">{localFormatCurrency(block.teacherShare)}</p>
                                   </div>
 
-                                  <div className="min-w-[100px] text-right">
-                                    {getStatusBadge(block.paymentStatus)}
+                                  <div className="flex flex-col items-end gap-1 min-w-[120px]">
+                                    {block.payoutStatus === "confirmed" ? (
+                                      <Badge className="bg-emerald-100 text-emerald-700 border-none">GV đã nhận tiền</Badge>
+                                    ) : block.payoutStatus === "notified" ? (
+                                      <Badge className="bg-blue-100 text-blue-700 border-none italic">Đã báo GV - Đờ xác nhận</Badge>
+                                    ) : (
+                                      <Badge className="bg-gray-100 text-gray-400 border-none">Chưa thanh toán</Badge>
+                                    )}
+                                    <p className="text-[10px] text-gray-400">
+                                      {getStatusBadge(block.paymentStatus)}
+                                    </p>
                                   </div>
 
-                                  <Button size="sm" variant="outline" className="text-xs h-8">
-                                    Chi tiết buổi dạy
-                                  </Button>
+                                  <div className="flex gap-2">
+                                    {block.payoutStatus !== "confirmed" && (
+                                      <Button 
+                                        size="sm" 
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-xs h-8"
+                                        disabled={isPaying || block.teacherShare <= 0}
+                                        onClick={async () => {
+                                          try {
+                                            if (confirm(`Gửi thông báo lương ${localFormatCurrency(block.teacherShare)} cho GV ${summary.teacherName}?`)) {
+                                              await payTeacher({
+                                                teacherId: summary.teacherId,
+                                                classId: summary.classId,
+                                                blockNumber: block.blockNumber,
+                                                amount: block.teacherShare,
+                                                paymentDate: new Date().toISOString()
+                                              });
+                                              toast.success("Đã gửi thông báo cho giáo viên!");
+                                              fetchPayroll(selectedBranch, selectedMonth, selectedYear);
+                                            }
+                                          } catch (err: any) {
+                                            toast.error(err.response?.data?.message || "Lỗi khi gửi thông báo");
+                                          }
+                                        }}
+                                      >
+                                        Thông báo lương
+                                      </Button>
+                                    )}
+                                    <Button size="sm" variant="outline" className="text-xs h-8">
+                                      Chi tiết buổi dạy
+                                    </Button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
