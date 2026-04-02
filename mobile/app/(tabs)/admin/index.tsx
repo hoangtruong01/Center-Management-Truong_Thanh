@@ -158,6 +158,14 @@ const adminMenuItems = [
     colors: ["#EC4899", "#DB2777"],
     onPress: () => router.push("/(tabs)/admin/evaluations"),
   },
+  {
+    id: "payroll",
+    icon: "cash" as const,
+    label: "Tính lương",
+    subtitle: "Thanh toán (70/30)",
+    colors: ["#8B5CF6", "#7C3AED"],
+    onPress: () => router.push("/(tabs)/admin/payroll" as any),
+  },
 ];
 
 // Format currency helper

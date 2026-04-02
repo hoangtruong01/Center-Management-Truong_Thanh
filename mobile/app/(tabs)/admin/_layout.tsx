@@ -106,6 +106,14 @@ export default function AdminLayout() {
           headerLeft: () => <BackButton />,
         }}
       />
+      <Stack.Screen
+        name="payroll"
+        options={{
+          headerShown: true,
+          title: "Tính lương (70/30)",
+          headerLeft: () => <BackButton />,
+        }}
+      />
     </Stack>
   );
 }

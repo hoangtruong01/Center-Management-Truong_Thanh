@@ -277,9 +277,13 @@ export default function FinanceScreen() {
   const {
     dashboard: financeDashboard,
     expenses,
+    classHealth,
+    weeklyClassReport,
     isLoading: financeLoading,
     error: financeError,
     fetchDashboard,
+    fetchClassHealth,
+    fetchWeeklyClassReport,
     fetchExpenses,
     createExpense,
     deleteExpense,
@@ -301,6 +305,8 @@ export default function FinanceScreen() {
   // Fetch data when filters change
   useEffect(() => {
     fetchDashboard(selectedBranch, selectedYear);
+    fetchWeeklyClassReport(selectedBranch);
+    fetchClassHealth(selectedBranch);
     if (selectedBranch !== "ALL") {
       fetchExpenses(selectedBranch);
     }
@@ -308,10 +314,12 @@ export default function FinanceScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchDashboard(selectedBranch, selectedYear);
-    if (selectedBranch !== "ALL") {
-      await fetchExpenses(selectedBranch);
-    }
+    await Promise.all([
+      fetchDashboard(selectedBranch, selectedYear),
+      fetchWeeklyClassReport(selectedBranch),
+      fetchClassHealth(selectedBranch),
+      selectedBranch !== "ALL" ? fetchExpenses(selectedBranch) : Promise.resolve(),
+    ]);
     setRefreshing(false);
   }, [selectedBranch, selectedYear]);
 
@@ -566,6 +574,76 @@ export default function FinanceScreen() {
                   <View style={styles.emptyChart}>
                     <Text style={{ fontSize: 32, marginBottom: 8 }}>🎯</Text>
                     <Text style={styles.emptyText}>Chưa có dữ liệu phân bổ</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Weekly Report Summary */}
+            {weeklyClassReport && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>📅 Báo cáo lớp hàng tuần</Text>
+                <View style={styles.chartCard}>
+                  <View style={styles.reportHeader}>
+                    <Text style={styles.reportDate}>Cập nhật: {new Date(weeklyClassReport.generatedAt).toLocaleDateString("vi-VN")}</Text>
+                    <View style={styles.reportBadge}>
+                      <Text style={styles.reportBadgeText}>{weeklyClassReport.summary.totalClasses} Lớp</Text>
+                    </View>
+                  </View>
+                  <View style={styles.reportGrid}>
+                    <View style={styles.reportItem}>
+                      <Text style={[styles.reportValue, { color: "#EF4444" }]}>{weeklyClassReport.summary.red}</Text>
+                      <Text style={styles.reportLabel}>Rủi ro cao</Text>
+                    </View>
+                    <View style={styles.reportItem}>
+                      <Text style={[styles.reportValue, { color: "#F59E0B" }]}>{weeklyClassReport.summary.yellow}</Text>
+                      <Text style={styles.reportLabel}>Cảnh báo</Text>
+                    </View>
+                    <View style={styles.reportItem}>
+                      <Text style={[styles.reportValue, { color: "#10B981" }]}>{weeklyClassReport.summary.green}</Text>
+                      <Text style={styles.reportLabel}>An toàn</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Class Financial Health Table */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🏥 Sức khỏe tài chính lớp</Text>
+              <View style={styles.tableCard}>
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Lớp</Text>
+                  <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "center" }]}>Học phí</Text>
+                  <Text style={[styles.tableHeaderCell, { flex: 1.2, textAlign: "right" }]}>LN thực tế</Text>
+                </View>
+                {classHealth.length > 0 ? (
+                  classHealth.map((item) => (
+                    <View key={item.classId} style={styles.tableRow}>
+                      <View style={{ flex: 2 }}>
+                        <Text style={[styles.tableCell, { fontWeight: "600", color: "#1F2937" }]} numberOfLines={1}>
+                          {item.className}
+                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                          <View style={[styles.riskDot, { backgroundColor: item.snapshot.riskLevel === "red" ? "#EF4444" : item.snapshot.riskLevel === "yellow" ? "#F59E0B" : "#10B981" }]} />
+                          <Text style={{ fontSize: 11, color: "#6B7280" }}>{item.paidCount}/{item.totalStudents} HS</Text>
+                        </View>
+                      </View>
+                      <View style={{ flex: 1, alignItems: "center" }}>
+                        <Text style={[styles.tableCell, { color: "#3B82F6", fontWeight: "600" }]}>
+                          {item.paidRate}%
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1.2, alignItems: "flex-end" }}>
+                        <Text style={[styles.tableCell, { fontWeight: "700", color: item.snapshot.actualProfit >= item.snapshot.minProfitTarget ? "#059669" : "#DC2626" }]}>
+                          {formatCurrency(item.snapshot.actualProfit)}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <View style={{ padding: 20, alignItems: "center" }}>
+                    <Text style={{ fontSize: 13, color: "#9CA3AF" }}>Chưa có dữ liệu sức khỏe lớp</Text>
                   </View>
                 )}
               </View>
@@ -873,6 +951,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEF2F2",
   },
   deleteBtnText: { fontSize: 11, color: "#EF4444", fontWeight: "600" },
+
+  // Weekly Report
+  reportHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  reportDate: { fontSize: 12, color: "#6B7280" },
+  reportBadge: { backgroundColor: "#EEF2FF", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  reportBadgeText: { fontSize: 12, fontWeight: "700", color: "#4F46E5" },
+  reportGrid: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 },
+  reportItem: { alignItems: "center", flex: 1 },
+  reportValue: { fontSize: 20, fontWeight: "800", marginBottom: 4 },
+  reportLabel: { fontSize: 11, color: "#6B7280", fontWeight: "500" },
+  
+  // Class Health
+  riskDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
 });
 
 // =================== Modal Styles ===================
