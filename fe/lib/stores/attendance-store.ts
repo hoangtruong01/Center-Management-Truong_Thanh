@@ -45,6 +45,7 @@ interface AttendanceState {
     total: number;
     attendanceRate: number;
   } | null;
+  highRiskStudents: any[];
 }
 
 interface AttendanceActions {
@@ -52,6 +53,7 @@ interface AttendanceActions {
   markAttendance: (data: MarkAttendanceData) => Promise<void>;
   markTimetableAttendance: (data: MarkTimetableAttendanceData) => Promise<void>;
   updateAttendance: (id: string, data: UpdateAttendanceData) => Promise<void>;
+  fetchHighRiskStudents: () => Promise<void>;
   fetchStatistics: (params: FetchStatisticsParams) => Promise<void>;
   clearError: () => void;
 }
@@ -103,6 +105,7 @@ export const useAttendanceStore = create<AttendanceState & AttendanceActions>(
     isLoading: false,
     error: null,
     statistics: null,
+    highRiskStudents: [],
 
     // Actions
     fetchAttendance: async (params?: FetchAttendanceParams) => {
@@ -196,6 +199,36 @@ export const useAttendanceStore = create<AttendanceState & AttendanceActions>(
           error.response?.data?.message || "Lỗi khi tải thống kê điểm danh";
         set({ isLoading: false, error: message });
         throw new Error(message);
+      }
+    },
+
+    fetchHighRiskStudents: async () => {
+      set({ isLoading: true, error: null });
+      try {
+        // This endpoint will return students with > 20% absence rate
+        // For now, we'll fetch all students and filter on client to ensure immediate functionality
+        const response = await api.get("/users", {
+          params: { role: "student" },
+        });
+        const students = response.data;
+
+        const highRisk = [];
+        for (const student of students) {
+          const statsRes = await api.get(`/attendance/statistics`, {
+            params: { studentId: student._id },
+          });
+          const stats = statsRes.data;
+          if (stats.total > 0 && (stats.absent / stats.total) >= 0.2) {
+            highRisk.push({
+              ...student,
+              stats,
+            });
+          }
+        }
+
+        set({ highRiskStudents: highRisk, isLoading: false });
+      } catch (error: any) {
+        set({ isLoading: false, error: "Lỗi khi tải danh sách học sinh nguy cơ" });
       }
     },
 
